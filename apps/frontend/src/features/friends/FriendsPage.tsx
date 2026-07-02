@@ -26,6 +26,7 @@ export function FriendsPage() {
     acceptRequest,
     declineRequest,
     getInviteLink,
+    redeemInvite,
     fetchBlocked,
     blockUser,
     unblockUser,
@@ -39,6 +40,10 @@ export function FriendsPage() {
   const [inviteCode, setInviteCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [redeemCode, setRedeemCode] = useState('');
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+  const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -103,6 +108,23 @@ export function FriendsPage() {
     }
   };
 
+  const handleRedeemInvite = async () => {
+    const code = redeemCode.trim();
+    if (!code) return;
+    setRedeemLoading(true);
+    setRedeemError(null);
+    setRedeemSuccess(null);
+    try {
+      await redeemInvite(code);
+      setRedeemSuccess('Friend added successfully! Check your friends list.');
+      setRedeemCode('');
+    } catch (err) {
+      setRedeemError(err instanceof Error ? err.message : 'Invalid invite code');
+    } finally {
+      setRedeemLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-6 text-2xl font-bold text-[var(--color-foreground)]">
@@ -119,6 +141,8 @@ export function FriendsPage() {
               if (tab !== 'search') clearSearch();
               if (tab === 'blocked') fetchBlocked();
               clearError();
+              setRedeemError(null);
+              setRedeemSuccess(null);
             }}
             className={`flex-1 rounded-md px-3 py-2 min-h-[44px] text-sm font-medium transition-colors ${
               activeTab === tab
@@ -152,17 +176,35 @@ export function FriendsPage() {
       {activeTab === 'friends' && !isLoading && (
         <div className="space-y-2">
           {friends.length === 0 ? (
-            <p className="py-8 text-center text-sm text-[var(--color-muted-foreground)]">
-              {t('friends.noFriends')}
-            </p>
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center">
+              <p className="mb-2 text-sm text-[var(--color-muted-foreground)]">
+                {t('friends.noFriends')}
+              </p>
+              <p className="mb-4 text-xs text-[var(--color-muted-foreground)]">
+                Search for users or share your invite code to connect!
+              </p>
+              <button
+                onClick={() => setActiveTab('search')}
+                className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
+              >
+                Find friends
+              </button>
+            </div>
           ) : (
-            friends.map((friend) => (
+            <>
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  {friends.length} {friends.length === 1 ? 'friend' : 'friends'}
+                  {onlineUsers.size > 0 && ` · ${onlineUsers.size} online`}
+                </p>
+              </div>
+            {friends.map((friend) => (
               <div
                 key={friend.id}
                 className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
               >
-                <button
-                  onClick={() => navigate(`/profile/${friend.friendId}`)}
+              <button
+                onClick={() => navigate(`/profile/${friend.friendId}`)}
                   className="flex items-center gap-3 flex-1 min-h-[44px] text-left"
                 >
                   <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
@@ -206,7 +248,8 @@ export function FriendsPage() {
                   </button>
                 </div>
               </div>
-            ))
+            ))}
+            </>
           )}
         </div>
       )}
@@ -294,9 +337,12 @@ export function FriendsPage() {
           )}
 
           {pendingIncoming.length === 0 && pendingOutgoing.length === 0 && (
-            <p className="py-8 text-center text-sm text-[var(--color-muted-foreground)]">
-              No pending requests
-            </p>
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center">
+              <p className="text-sm text-[var(--color-muted-foreground)]">No pending requests</p>
+              <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
+                Share your invite code or search for users to connect!
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -352,18 +398,16 @@ export function FriendsPage() {
                         : t('friends.sendRequest')}
                     </button>
                   </div>
-                ))
-              )}
+                )))}
             </div>
           )}
-
-          {/* Invite link section */}
+          {/* Invite link section — your code to share */}
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
             <h3 className="mb-2 text-sm font-medium text-[var(--color-foreground)]">
-              Invite friends
+              Your invite code
             </h3>
             <p className="mb-3 text-xs text-[var(--color-muted-foreground)]">
-              Share your invite code with friends to instantly connect!
+              Share this code with friends so they can add you instantly!
             </p>
             <div className="flex gap-2">
               <input
@@ -380,6 +424,48 @@ export function FriendsPage() {
                 {copied ? 'Copied!' : 'Copy'}
               </button>
             </div>
+          </div>
+
+          {/* Redeem invite code — enter someone else's code */}
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+            <h3 className="mb-2 text-sm font-medium text-[var(--color-foreground)]">
+              Add by invite code
+            </h3>
+            <p className="mb-3 text-xs text-[var(--color-muted-foreground)]">
+              Paste a friend's invite code to connect with them immediately.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={redeemCode}
+                onChange={(e) => {
+                  setRedeemCode(e.target.value);
+                  setRedeemError(null);
+                  setRedeemSuccess(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleRedeemInvite();
+                  }
+                }}
+                placeholder="Paste invite code..."
+                className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm font-mono text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
+              />
+              <button
+                onClick={handleRedeemInvite}
+                disabled={redeemLoading || !redeemCode.trim()}
+                className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
+              >
+                {redeemLoading ? 'Adding...' : 'Add friend'}
+              </button>
+            </div>
+            {redeemError && (
+              <p className="mt-2 text-xs text-[var(--color-destructive)]">{redeemError}</p>
+            )}
+            {redeemSuccess && (
+              <p className="mt-2 text-xs text-green-600 dark:text-green-400">{redeemSuccess}</p>
+            )}
           </div>
         </div>
       )}

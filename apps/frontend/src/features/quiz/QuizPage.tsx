@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../../lib/api';
@@ -211,6 +211,62 @@ export function QuizPage() {
     navigate('/');
   };
 
+  // ── Navigation blocker — prevents accidental leave during active game ────
+  const blocker = useBlocker(isPlaying && gameResult === null);
+
+  // Warn before closing tab
+  useEffect(() => {
+    if (!isPlaying || gameResult) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isPlaying, gameResult]);
+
+  // ── Leave confirmation modal ──────────────────────────────────────────────
+  function LeaveModal() {
+    if (blocker.state !== 'blocked') return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-lg">
+          <h3 className="mb-2 text-lg font-semibold text-[var(--color-foreground)]">
+            Leave game?
+          </h3>
+          <p className="mb-1 text-sm text-[var(--color-muted-foreground)]">
+            You are in the middle of a game. If you leave now, your progress will be lost!
+          </p>
+          <div className="mb-4 flex items-center gap-4 rounded-lg bg-[var(--color-muted)] px-4 py-3 text-sm">
+            <span className="font-medium text-[var(--color-foreground)]">
+              Score: {score}
+            </span>
+            {streak >= 5 && (
+              <span className="text-amber-600 dark:text-amber-400">
+                🔥 {streak} streak
+              </span>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => blocker.reset()}
+              className="flex-1 min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
+            >
+              Stay — keep playing
+            </button>
+            <button
+              onClick={() => blocker.proceed()}
+              className="flex-1 min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)]"
+            >
+              Leave anyway
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Timer bar color ───────────────────────────────────────────────────────
   const timerColor =
     fraction > 0.5
@@ -222,90 +278,105 @@ export function QuizPage() {
   // ── Loading state ─────────────────────────────────────────────────────────
   if (sessionMutation.isPending) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <img src={logo} alt="Geotano" className="h-28 w-28 animate-logo-spin" />
-      </div>
+      <>
+        <div className="flex items-center justify-center py-24">
+          <img src={logo} alt="Geotano" className="h-48 w-48 animate-logo-spin" />
+        </div>
+        <LeaveModal />
+      </>
     );
   }
 
   if (sessionMutation.isError) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-20">
-        <p className="text-[var(--color-destructive)]">{t('common.error')}</p>
-        <button
-          onClick={() => sessionMutation.mutate()}
-          className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)]"
-        >
-          {t('common.retry')}
-        </button>
-      </div>
+      <>
+        <div className="flex flex-col items-center justify-center gap-4 py-20">
+          <p className="text-[var(--color-destructive)]">{t('common.error')}</p>
+          <button
+            onClick={() => sessionMutation.mutate()}
+            className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)]"
+          >
+            {t('common.retry')}
+          </button>
+        </div>
+        <LeaveModal />
+      </>
     );
   }
 
   // ── Game over screen ──────────────────────────────────────────────────────
   if (gameResult) {
     return (
-      <div className="mx-auto max-w-md py-12">
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
-          <h2 className="text-3xl font-bold text-[var(--color-foreground)]">
-            {t('quiz.gameOver')}
-          </h2>
+      <>
+        <div className="mx-auto max-w-md py-12">
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
+            <h2 className="text-3xl font-bold text-[var(--color-foreground)]">
+              {t('quiz.gameOver')}
+            </h2>
 
-          <div className="my-8 space-y-3">
-            <p className="text-5xl font-bold text-[var(--color-primary)]">
-              {gameResult.totalScore}
-            </p>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              {t('quiz.result', { score: gameResult.totalScore })}
-            </p>
+            <div className="my-8 space-y-3">
+              <p className="text-5xl font-bold text-[var(--color-primary)]">
+                {gameResult.totalScore}
+              </p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                {t('quiz.result', { score: gameResult.totalScore })}
+              </p>
 
-            <div className="mt-6 grid grid-cols-3 gap-4">
-              <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
-                <p className="text-lg font-bold text-[var(--color-foreground)]">
-                  {gameResult.correctCount}/{gameResult.totalQuestions}
-                </p>
-                <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.correct')}</p>
-              </div>
-              <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
-                <p className="text-lg font-bold text-[var(--color-foreground)]">
-                  {gameResult.streakMax}
-                </p>
-                <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.streak')}</p>
-              </div>
-              <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
-                <p className="text-lg font-bold text-[var(--color-foreground)]">
-                  {gameResult.totalQuestions}
-                </p>
-                <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.question', { number: '' }).replace(/ \d*$/, '')}</p>
+              <div className="mt-6 grid grid-cols-3 gap-4">
+                <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
+                  <p className="text-lg font-bold text-[var(--color-foreground)]">
+                    {gameResult.correctCount}/{gameResult.totalQuestions}
+                  </p>
+                  <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.correct')}</p>
+                </div>
+                <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
+                  <p className="text-lg font-bold text-[var(--color-foreground)]">
+                    {gameResult.streakMax}
+                  </p>
+                  <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.streak')}</p>
+                </div>
+                <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
+                  <p className="text-lg font-bold text-[var(--color-foreground)]">
+                    {gameResult.totalQuestions}
+                  </p>
+                  <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.question', { number: '' }).replace(/ \d*$/, '')}</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={handlePlayAgain}
-              className="w-full min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
-            >
-              {t('quiz.playAgain')}
-            </button>
-            <button
-              onClick={handleGoHome}
-              className="w-full min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
-            >
-              {t('quiz.backToHome')}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handlePlayAgain}
+                className="w-full min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
+              >
+                {t('quiz.playAgain')}
+              </button>
+              <button
+                onClick={handleGoHome}
+                className="w-full min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
+              >
+                {t('quiz.backToHome')}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+        <LeaveModal />
+      </>
     );
   }
 
   // ── Quiz screen ───────────────────────────────────────────────────────────
   if (!currentQuestion) {
-    return null;
+    return (
+      <>
+        {null}
+        <LeaveModal />
+      </>
+    );
   }
 
   return (
+    <>
     <div className="mx-auto max-w-2xl py-4">
       {/* Top bar: score, lives, streak */}
       <div className="mb-6 flex items-center justify-between">
@@ -399,5 +470,7 @@ export function QuizPage() {
 
 
     </div>
+    <LeaveModal />
+    </>
   );
 }

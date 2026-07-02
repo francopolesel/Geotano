@@ -11,7 +11,10 @@ let onChatMessage: ChatMessageHandler | null = null;
 let onUserOnline: UserStatusHandler | null = null;
 let onUserOffline: UserStatusHandler | null = null;
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// If VITE_API_URL has an /api suffix (common in production), strip it for socket.io
+// Socket.io needs the root server URL, not the API prefix.
+const RAW_API_URL = import.meta.env.VITE_API_URL as string | undefined;
+const SOCKET_URL = RAW_API_URL ? RAW_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:3001';
 
 export function getSocket(): Socket | null {
   return socket;
