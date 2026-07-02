@@ -141,10 +141,19 @@ export function QuizPage() {
 
   // ── Timer ─────────────────────────────────────────────────────────────────
   const handleTimerExpire = useCallback(() => {
-    if (answerState !== 'idle') return; // Already answered
-    // Auto-submit wrong answer on timeout
-    answerMutation.mutate({ answer: '', timeMs: currentQuestion?.timeLimitMs ?? 15000 });
-  }, [answerState, answerMutation, currentQuestion]);
+    if (answerState !== 'idle' || !currentQuestion) return; // Already answered
+
+    const correctIdx = currentQuestion.correctIndex;
+
+    // Show feedback IMMEDIATELY — lost life, reveal correct answer
+    setSelectedIndex(null); // No option was selected
+    setCorrectIndex(correctIdx);
+    setAnswerState('wrong');
+    setFeedbackText(`${t('quiz.wrong')} — ${currentQuestion.options[correctIdx]}`);
+
+    // Submit empty answer to backend for scoring/validation
+    answerMutation.mutate({ answer: '', timeMs: currentQuestion.timeLimitMs });
+  }, [answerState, answerMutation, currentQuestion, t]);
 
   const {
     fraction,
@@ -249,38 +258,8 @@ export function QuizPage() {
         ? 'bg-amber-500'
         : 'bg-red-500';
 
-  // ── Loading state ─────────────────────────────────────────────────────────
-  // Show spinner while mutation is pending OR until we have a question.
-  // This prevents a flash of empty content between mount and mutation start.
-  if (sessionMutation.isPending || !currentQuestion) {
-    return (
-      <>
-        <div className="flex items-center justify-center py-32">
-          <img src={logo} alt="Geotano" className="h-72 w-72 animate-logo-spin" />
-        </div>
-        {showLeaveModal && <LeaveModalContent onStay={handleStay} onLeave={handleLeave} score={score} streak={streak} />}
-      </>
-    );
-  }
-
-  if (sessionMutation.isError) {
-    return (
-      <>
-        <div className="flex flex-col items-center justify-center gap-4 py-20">
-          <p className="text-[var(--color-destructive)]">{t('common.error')}</p>
-          <button
-            onClick={() => sessionMutation.mutate()}
-            className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)]"
-          >
-            {t('common.retry')}
-          </button>
-        </div>
-        {showLeaveModal && <LeaveModalContent onStay={handleStay} onLeave={handleLeave} score={score} streak={streak} />}
-      </>
-    );
-  }
-
   // ── Game over screen ──────────────────────────────────────────────────────
+  // Check BEFORE loading spinner so endGame() doesn't re-trigger the spinner
   if (gameResult) {
     return (
       <>
@@ -335,6 +314,37 @@ export function QuizPage() {
               </button>
             </div>
           </div>
+        </div>
+        {showLeaveModal && <LeaveModalContent onStay={handleStay} onLeave={handleLeave} score={score} streak={streak} />}
+      </>
+    );
+  }
+
+  // ── Loading state ─────────────────────────────────────────────────────────
+  // Show spinner while session mutation is pending OR until we have a question.
+  // gameResult is checked first above, so endGame() won't re-trigger this.
+  if (sessionMutation.isPending || !currentQuestion) {
+    return (
+      <>
+        <div className="flex items-center justify-center py-32">
+          <img src={logo} alt="Geotano" className="h-72 w-72 animate-logo-spin" />
+        </div>
+        {showLeaveModal && <LeaveModalContent onStay={handleStay} onLeave={handleLeave} score={score} streak={streak} />}
+      </>
+    );
+  }
+
+  if (sessionMutation.isError) {
+    return (
+      <>
+        <div className="flex flex-col items-center justify-center gap-4 py-20">
+          <p className="text-[var(--color-destructive)]">{t('common.error')}</p>
+          <button
+            onClick={() => sessionMutation.mutate()}
+            className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)]"
+          >
+            {t('common.retry')}
+          </button>
         </div>
         {showLeaveModal && <LeaveModalContent onStay={handleStay} onLeave={handleLeave} score={score} streak={streak} />}
       </>
@@ -462,7 +472,7 @@ function LeaveModalContent({ onStay, onLeave, score, streak }: {
         </p>
         <div className="mb-4 flex items-center gap-4 rounded-lg bg-[var(--color-muted)] px-4 py-3 text-sm">
           <span className="font-medium text-[var(--color-foreground)]">
-            {t('quiz.leaveScore') || 'Score: {score}'}: {score}
+            {t('quiz.leaveScore', { score })}
           </span>
           {streak >= 5 && (
             <span className="text-amber-600 dark:text-amber-400">
