@@ -227,6 +227,33 @@ export interface RankingsResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+export type NotificationType =
+  | 'friend_request'
+  | 'friend_request_accepted'
+  | 'new_message';
+
+export interface Notification {
+  id: EntityId;
+  userId: EntityId;
+  type: NotificationType;
+  fromUserId: EntityId;
+  fromUsername?: string;
+  fromDisplayName?: string;
+  fromAvatarUrl?: string;
+  metadata: Record<string, unknown>;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface NotificationsResponse {
+  notifications: Notification[];
+  unreadCount: number;
+}
+
+// ---------------------------------------------------------------------------
 // Socket Events
 // ---------------------------------------------------------------------------
 
@@ -249,6 +276,10 @@ export interface UserOnlinePayload {
 
 export interface UserOfflinePayload {
   userId: EntityId;
+}
+
+export interface NotificationPayload {
+  notification: Notification;
 }
 
 // ---------------------------------------------------------------------------

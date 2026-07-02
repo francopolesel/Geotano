@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { NotificationBell } from './NotificationBell';
 import logo from '../assets/logo.png';
 
 const navItems = [
@@ -58,6 +59,7 @@ export function AppShell() {
                 {user.displayName ?? user.username}
               </span>
             )}
+            {user && <NotificationBell />}
             <button
               onClick={handleLogout}
               className="rounded-md px-3 py-1.5 min-h-[44px] text-sm font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)]"

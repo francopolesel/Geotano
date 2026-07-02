@@ -4,12 +4,19 @@ import { verifyToken } from '../auth/index.js';
 import { db } from '../db/index.js';
 import { chatMessages, friends } from '../db/schema/index.js';
 import { eq, and, or } from 'drizzle-orm';
+import { createNotification } from '../services/notifications.js';
 
 /**
  * In-memory map: userId → Set of socket IDs.
  * Resets on deploy — acceptable for MVP (see design.md).
  */
 const userSockets = new Map<string, Set<string>>();
+let ioInstance: SocketIOServer | null = null;
+
+export function getIO(): SocketIOServer {
+  if (!ioInstance) throw new Error('Socket.io not initialized yet');
+  return ioInstance;
+}
 
 function addUserSocket(userId: string, socketId: string) {
   const existing = userSockets.get(userId) ?? new Set();
@@ -26,12 +33,12 @@ function removeUserSocket(userId: string, socketId: string) {
   }
 }
 
-function getUserSocketIds(userId: string): string[] {
+export function getUserSocketIds(userId: string): string[] {
   return Array.from(userSockets.get(userId) ?? []);
 }
 
 export function initSocket(app: FastifyInstance) {
-  const io = new SocketIOServer(app.server, {
+  ioInstance = new SocketIOServer(app.server, {
     cors: {
       origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
       credentials: true,
@@ -39,7 +46,7 @@ export function initSocket(app: FastifyInstance) {
   });
 
   // JWT auth middleware
-  io.use((socket, next) => {
+  ioInstance!.use((socket, next) => {
     const token = socket.handshake.auth?.token as string | undefined;
     if (!token) {
       return next(new Error('Authentication required'));
@@ -53,7 +60,7 @@ export function initSocket(app: FastifyInstance) {
     }
   });
 
-  io.on('connection', async (socket) => {
+  ioInstance!.on('connection', async (socket) => {
     const userId = (socket as any).userId as string;
     console.log(`[socket] user connected: ${userId} (socket: ${socket.id})`);
 
@@ -64,7 +71,7 @@ export function initSocket(app: FastifyInstance) {
     for (const friendId of friendIds) {
       const friendSockets = getUserSocketIds(friendId);
       for (const sid of friendSockets) {
-        io.to(sid).emit('user:online', { userId });
+        ioInstance!.to(sid).emit('user:online', { userId });
       }
     }
 
@@ -103,11 +110,19 @@ export function initSocket(app: FastifyInstance) {
       // Send to receiver's sockets
       const receiverSockets = getUserSocketIds(receiverId);
       for (const sid of receiverSockets) {
-        io.to(sid).emit('chat:message', messageData);
+        ioInstance!.to(sid).emit('chat:message', messageData);
       }
 
       // Send back to sender for confirmation
       socket.emit('chat:message', messageData);
+
+      // Notify the receiver about the new message (fire-and-forget)
+      createNotification({
+        userId: receiverId,
+        type: 'new_message',
+        fromUserId: userId,
+        metadata: { content: content.trim().slice(0, 100) },
+      }).catch(() => {});
     });
 
     // Handle disconnect
@@ -121,7 +136,7 @@ export function initSocket(app: FastifyInstance) {
           for (const friendId of friendIds) {
             const friendSockets = getUserSocketIds(friendId);
             for (const sid of friendSockets) {
-              io.to(sid).emit('user:offline', { userId });
+              ioInstance!.to(sid).emit('user:offline', { userId });
             }
           }
         });
@@ -129,8 +144,10 @@ export function initSocket(app: FastifyInstance) {
     });
   });
 
-  return io;
+  return ioInstance!;
 }
+
+export { ioInstance };
 
 async function getFriendIds(userId: string): Promise<string[]> {
   const rows = await db

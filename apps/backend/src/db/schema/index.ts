@@ -6,3 +6,4 @@ export { gameAnswers } from './gameAnswers.js';
 export { friends } from './friends.js';
 export { chatMessages } from './chatMessages.js';
 export { dailyRankings } from './dailyRankings.js';
+export { notifications } from './notifications.js';

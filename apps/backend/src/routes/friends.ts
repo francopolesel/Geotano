@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { users, friends } from '../db/schema/index.js';
 import { authGuard } from '../auth/index.js';
 import { eq, and, or, ne, sql, inArray } from 'drizzle-orm';
+import { createNotification } from '../services/notifications.js';
 
 export async function friendsRoutes(app: FastifyInstance) {
   // GET /api/users/search?q= — search users by username (case-insensitive, limit 10)
@@ -107,6 +108,13 @@ export async function friendsRoutes(app: FastifyInstance) {
         })
         .returning();
 
+      // Notify the target user
+      createNotification({
+        userId: targetUser.id,
+        type: 'friend_request',
+        fromUserId: userId,
+      }).catch(() => {});
+
       return {
         id: request_.id,
         status: request_.status,
@@ -149,6 +157,13 @@ export async function friendsRoutes(app: FastifyInstance) {
         .set({ status: 'accepted' })
         .where(eq(friends.id, requestId))
         .returning();
+
+      // Notify the original sender that their request was accepted
+      createNotification({
+        userId: friendRequest.userId,
+        type: 'friend_request_accepted',
+        fromUserId: userId,
+      }).catch(() => {});
 
       return {
         id: updated.id,
@@ -426,6 +441,13 @@ export async function friendsRoutes(app: FastifyInstance) {
               .set({ status: 'accepted' })
               .where(eq(friends.id, existing[0].id))
               .returning();
+
+            // Notify the inviter that their request was accepted
+            createNotification({
+              userId: targetUser.id,
+              type: 'friend_request_accepted',
+              fromUserId: userId,
+            }).catch(() => {});
 
             return {
               id: updated.id,

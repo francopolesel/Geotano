@@ -131,5 +131,14 @@
   "common.error": "Something went wrong",
   "common.retry": "Retry",
   "common.save": "Save",
-  "common.cancel": "Cancel"
+  "common.cancel": "Cancel",
+
+  "notifications.title": "Notifications",
+  "notifications.empty": "No notifications yet",
+  "notifications.markAllRead": "Mark all as read",
+  "notifications.friendRequest": "Friend request",
+  "notifications.friendRequestAccepted": "Friend request accepted",
+  "notifications.newMessage": "New message",
+  "notifications.friendRequestFrom": "{{name}} sent you a friend request",
+  "notifications.friendAccepted": "{{name}} accepted your friend request"
 }

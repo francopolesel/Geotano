@@ -1,15 +1,18 @@
 import { io, Socket } from 'socket.io-client';
 import { useFriendsStore } from '../store/friendsStore';
-import type { ChatMessage } from '@geotano/shared';
+import { useNotificationStore } from '../store/notificationStore';
+import type { ChatMessage, Notification } from '@geotano/shared';
 
 let socket: Socket | null = null;
 
 type ChatMessageHandler = (message: ChatMessage) => void;
 type UserStatusHandler = (payload: { userId: string }) => void;
+type NotificationHandler = (notification: Notification) => void;
 
 let onChatMessage: ChatMessageHandler | null = null;
 let onUserOnline: UserStatusHandler | null = null;
 let onUserOffline: UserStatusHandler | null = null;
+let onNotification: NotificationHandler | null = null;
 
 // If VITE_API_URL has an /api suffix (common in production), strip it for socket.io
 // Socket.io needs the root server URL, not the API prefix.
@@ -62,6 +65,13 @@ export function connectSocket(token: string): Socket {
     }
   });
 
+  socket.on('notification:new', (data: { notification: Notification }) => {
+    useNotificationStore.getState().addNotification(data.notification);
+    if (onNotification) {
+      onNotification(data.notification);
+    }
+  });
+
   return socket;
 }
 
@@ -88,4 +98,8 @@ export function setUserOnlineHandler(handler: UserStatusHandler) {
 
 export function setUserOfflineHandler(handler: UserStatusHandler) {
   onUserOffline = handler;
+}
+
+export function setNotificationHandler(handler: NotificationHandler) {
+  onNotification = handler;
 }

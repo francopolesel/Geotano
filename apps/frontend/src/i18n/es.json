@@ -131,5 +131,14 @@
   "common.error": "Algo salió mal",
   "common.retry": "Reintentar",
   "common.save": "Guardar",
-  "common.cancel": "Cancelar"
+  "common.cancel": "Cancelar",
+
+  "notifications.title": "Notificaciones",
+  "notifications.empty": "Todavía no hay notificaciones",
+  "notifications.markAllRead": "Marcar todo como leído",
+  "notifications.friendRequest": "Solicitud de amistad",
+  "notifications.friendRequestAccepted": "Solicitud de amistad aceptada",
+  "notifications.newMessage": "Nuevo mensaje",
+  "notifications.friendRequestFrom": "{{name}} te envió una solicitud de amistad",
+  "notifications.friendAccepted": "{{name}} aceptó tu solicitud de amistad"
 }

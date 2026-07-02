@@ -276,11 +276,13 @@ export function QuizPage() {
         : 'bg-red-500';
 
   // ── Loading state ─────────────────────────────────────────────────────────
-  if (sessionMutation.isPending) {
+  // Show spinner while mutation is pending OR until we have a question.
+  // This prevents a flash of empty content between mount and mutation start.
+  if (sessionMutation.isPending || !currentQuestion) {
     return (
       <>
-        <div className="flex items-center justify-center py-24">
-          <img src={logo} alt="Geotano" className="h-48 w-48 animate-logo-spin" />
+        <div className="flex items-center justify-center py-32">
+          <img src={logo} alt="Geotano" className="h-72 w-72 animate-logo-spin" />
         </div>
         <LeaveModal />
       </>
@@ -366,15 +368,6 @@ export function QuizPage() {
   }
 
   // ── Quiz screen ───────────────────────────────────────────────────────────
-  if (!currentQuestion) {
-    return (
-      <>
-        {null}
-        <LeaveModal />
-      </>
-    );
-  }
-
   return (
     <>
     <div className="mx-auto max-w-2xl py-4">
