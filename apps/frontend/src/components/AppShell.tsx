@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import logo from '../assets/logo.png';
 
 const navItems = [
   { to: '/', label: 'home.title' },
@@ -45,7 +46,8 @@ export function AppShell() {
                 )}
               </svg>
             </button>
-            <NavLink to="/" className="text-xl font-bold text-[var(--color-foreground)]">
+            <NavLink to="/" className="flex items-center gap-2 text-xl font-bold text-[var(--color-foreground)]">
+              <img src={logo} alt="Geotano" className="h-8 w-8" />
               {t('app.name')}
             </NavLink>
           </div>

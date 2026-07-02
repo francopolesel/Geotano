@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
+import logo from '../../assets/logo.png';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -125,6 +126,7 @@ export function RegisterPage() {
       <LanguageToggle />
       <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 shadow-sm">
         <div className="mb-6 text-center">
+          <img src={logo} alt="Geotano" className="mx-auto mb-3 h-16 w-16" />
           <h1 className="text-2xl font-bold text-[var(--color-foreground)]">{t('app.name')}</h1>
           <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{t('app.tagline')}</p>
         </div>

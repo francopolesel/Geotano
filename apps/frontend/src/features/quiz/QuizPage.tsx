@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useGameStore } from '../../store/gameStore';
 import { useTimer } from '../../hooks/useTimer';
+import logo from '../../assets/logo.png';
 import type {
   QuizQuestion,
   QuizAnswerResponse,
@@ -219,8 +220,9 @@ export function QuizPage() {
   // ── Loading state ─────────────────────────────────────────────────────────
   if (sessionMutation.isPending) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-[var(--color-muted-foreground)]">{t('common.loading')}</p>
+      <div className="flex flex-col items-center justify-center gap-6 py-24">
+        <img src={logo} alt="Geotano" className="h-20 w-20 animate-logo-spin" />
+        <p className="text-sm text-[var(--color-muted-foreground)]">{t('common.loading')}</p>
       </div>
     );
   }
@@ -394,12 +396,7 @@ export function QuizPage() {
         </div>
       )}
 
-      {/* Answer mutation loading */}
-      {answerMutation.isPending && (
-        <p className="mt-4 text-center text-sm text-[var(--color-muted-foreground)]">
-          {t('common.loading')}
-        </p>
-      )}
+
     </div>
   );
 }

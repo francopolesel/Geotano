@@ -44,3 +44,13 @@ body {
   color: var(--color-foreground);
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+/* ─── Animations ──────────────────────────────── */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.animate-logo-spin {
+  animation: spin-slow 1.5s ease-in-out infinite;
+}
