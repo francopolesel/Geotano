@@ -151,6 +151,7 @@ export function QuizPage() {
     remainingMs,
     expired,
     start: timerStart,
+    pause: timerPause,
     reset: timerReset,
   } = useTimer({
     durationMs: currentQuestion?.timeLimitMs ?? 15000,
@@ -175,6 +176,7 @@ export function QuizPage() {
 
   const handleAnswer = (index: number) => {
     if (answerState !== 'idle' || !currentQuestion) return;
+    timerPause(); // Stop the timer bar — answer was selected
     setSelectedIndex(index);
     setCorrectIndex(currentQuestion.correctIndex);
 
@@ -323,8 +325,8 @@ export function QuizPage() {
             ))}
           </div>
 
-          {/* Streak */}
-          {streak > 0 && (
+          {/* Streak — show fire icon after 5 consecutive correct answers */}
+          {streak >= 5 && (
             <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
               🔥 {t('quiz.streak')} {streak}
             </span>
