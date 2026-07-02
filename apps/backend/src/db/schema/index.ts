@@ -1,8 +1,8 @@
-export { users } from './users';
-export { countries } from './countries';
-export { gameModes } from './gameModes';
-export { gameSessions } from './gameSessions';
-export { gameAnswers } from './gameAnswers';
-export { friends } from './friends';
-export { chatMessages } from './chatMessages';
-export { dailyRankings } from './dailyRankings';
+export { users } from './users.js';
+export { countries } from './countries.js';
+export { gameModes } from './gameModes.js';
+export { gameSessions } from './gameSessions.js';
+export { gameAnswers } from './gameAnswers.js';
+export { friends } from './friends.js';
+export { chatMessages } from './chatMessages.js';
+export { dailyRankings } from './dailyRankings.js';

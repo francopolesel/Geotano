@@ -5,7 +5,7 @@ import {
   boolean,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import { users } from './users';
+import { users } from './users.js';
 
 export const chatMessages = pgTable(
   'chat_messages',

@@ -6,8 +6,8 @@ import {
   integer,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import { gameSessions } from './gameSessions';
-import { countries } from './countries';
+import { gameSessions } from './gameSessions.js';
+import { countries } from './countries.js';
 
 export const gameAnswers = pgTable(
   'game_answers',

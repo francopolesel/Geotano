@@ -6,8 +6,8 @@ import {
   date,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { users } from './users';
-import { gameModes } from './gameModes';
+import { users } from './users.js';
+import { gameModes } from './gameModes.js';
 
 export const dailyRankings = pgTable(
   'daily_rankings',

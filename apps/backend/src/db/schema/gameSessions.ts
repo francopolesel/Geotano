@@ -7,8 +7,8 @@ import {
   uniqueIndex,
   index,
 } from 'drizzle-orm/pg-core';
-import { users } from './users';
-import { gameModes } from './gameModes';
+import { users } from './users.js';
+import { gameModes } from './gameModes.js';
 
 export const gameSessions = pgTable(
   'game_sessions',
