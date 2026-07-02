@@ -11,20 +11,33 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
   const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(user.displayName ?? '');
   const [username, setUsername] = useState(user.username);
-  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? '');
+  const [avatarPreview, setAvatarPreview] = useState(user.avatarUrl ?? '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMsg(null);
     try {
-      const updated = await api.patch<UserProfile>('/auth/profile', {
+      const body: Record<string, any> = {
         displayName: displayName.trim() || null,
-        avatarUrl: avatarUrl.trim() || null,
         username: username.trim() || undefined,
-      });
+      };
+      if (avatarFile) {
+        body.avatarData = avatarPreview; // base64 data URI from file
+      }
+      const updated = await api.patch<UserProfile>('/auth/profile', body);
       onUpdated(updated);
       setMsg({ type: 'success', text: t('settings.saved') });
     } catch (err) {
@@ -40,27 +53,28 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
         {t('settings.profile')}
       </h3>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Avatar preview */}
+        {/* Avatar picker */}
         <div className="flex items-center gap-4">
-          <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-2xl font-bold text-[var(--color-primary)]">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+          <label className="relative flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-2xl font-bold text-[var(--color-primary)]">
+            {avatarPreview ? (
+              <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
             ) : (
               (displayName || user.username).charAt(0).toUpperCase()
             )}
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-[var(--color-foreground)]">
-              {t('settings.avatarUrl')}
-            </label>
             <input
-              type="url"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://example.com/avatar.jpg"
-              className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={handleFileChange}
+              className="absolute inset-0 cursor-pointer opacity-0"
             />
-            <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{t('settings.avatarHint')}</p>
+          </label>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-[var(--color-foreground)]">
+              {t('settings.avatar')}
+            </p>
+            <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
+              {avatarFile ? avatarFile.name : t('settings.avatarHint')}
+            </p>
           </div>
         </div>
 

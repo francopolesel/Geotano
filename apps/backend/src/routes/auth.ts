@@ -204,9 +204,10 @@ export async function authRoutes(app: FastifyInstance) {
     { preHandler: authGuard },
     async (request, reply) => {
       const { userId } = (request as any).user;
-      const { displayName, avatarUrl, language, username } = request.body as {
+      const { displayName, avatarUrl, avatarData, language, username } = request.body as {
         displayName?: string;
         avatarUrl?: string;
+        avatarData?: string;
         language?: string;
         username?: string;
       };
@@ -214,6 +215,17 @@ export async function authRoutes(app: FastifyInstance) {
       const updates: Record<string, any> = {};
       if (displayName !== undefined) updates.displayName = displayName || null;
       if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl || null;
+      if (avatarData !== undefined) {
+        // Validate base64 image data URI
+        if (!/^data:image\/(png|jpe?g|webp|gif);base64,/.test(avatarData)) {
+          return reply.status(400).send({ message: 'avatarData must be a valid base64 image (PNG, JPEG, WebP, or GIF)' });
+        }
+        // ~2 MB limit (base64 is ~33% larger than binary, so ~2.8 MB base64 ≈ 2 MB binary)
+        if (avatarData.length > 2_800_000) {
+          return reply.status(400).send({ message: 'Image must be smaller than 2 MB' });
+        }
+        updates.avatarUrl = avatarData;
+      }
       if (language !== undefined) {
         if (!['en', 'es'].includes(language)) {
           return reply.status(400).send({ message: 'Language must be "en" or "es"' });

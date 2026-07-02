@@ -80,56 +80,51 @@ export function RankingsPage() {
         ))}
       </div>
 
-      {/* Filters row: scope + period toggles */}
-      <div className="mb-6 flex items-center gap-4">
-        {/* Scope toggle */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
+      {/* Filters row: scope + period pills */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="flex rounded-lg border border-[var(--color-border)] p-1">
+          <button
+            onClick={() => setScope('global')}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+              scope === 'global'
+                ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]'
+                : 'text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]'
+            }`}
+          >
             {t('rankings.global')}
-          </span>
+          </button>
           <button
-            onClick={() => setScope(scope === 'global' ? 'friends' : 'global')}
-            className={`relative inline-flex h-6 w-10 min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors ${
+            onClick={() => setScope('friends')}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
               scope === 'friends'
-                ? 'bg-[var(--color-primary)]'
-                : 'bg-[var(--color-border)]'
+                ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]'
+                : 'text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]'
             }`}
-            aria-label={`Switch to ${scope === 'global' ? 'friends' : 'global'} rankings`}
           >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                scope === 'friends' ? 'translate-x-[18px]' : 'translate-x-[2px]'
-              }`}
-            />
-          </button>
-          <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
             {t('rankings.friends')}
-          </span>
-        </div>
-
-        {/* Period toggle */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
-            {t('rankings.forever')}
-          </span>
-          <button
-            onClick={() => setPeriod(period === 'forever' ? 'daily' : 'forever')}
-            className={`relative inline-flex h-6 w-10 min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors ${
-              period === 'daily'
-                ? 'bg-[var(--color-primary)]'
-                : 'bg-[var(--color-border)]'
-            }`}
-            aria-label={`Switch to ${period === 'forever' ? 'daily' : 'forever'} period`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                period === 'daily' ? 'translate-x-[18px]' : 'translate-x-[2px]'
-              }`}
-            />
           </button>
-          <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
+        </div>
+        <div className="flex rounded-lg border border-[var(--color-border)] p-1">
+          <button
+            onClick={() => setPeriod('forever')}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+              period === 'forever'
+                ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]'
+                : 'text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]'
+            }`}
+          >
+            {t('rankings.forever')}
+          </button>
+          <button
+            onClick={() => setPeriod('daily')}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
+              period === 'daily'
+                ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]'
+                : 'text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]'
+            }`}
+          >
             {t('rankings.daily')}
-          </span>
+          </button>
         </div>
       </div>
 
