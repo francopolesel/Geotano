@@ -222,9 +222,8 @@ export function QuizPage() {
   // ── Loading state ─────────────────────────────────────────────────────────
   if (sessionMutation.isPending) {
     return (
-      <div className="flex flex-col items-center justify-center gap-6 py-24">
-        <img src={logo} alt="Geotano" className="h-20 w-20 animate-logo-spin" />
-        <p className="text-sm text-[var(--color-muted-foreground)]">{t('common.loading')}</p>
+      <div className="flex items-center justify-center py-24">
+        <img src={logo} alt="Geotano" className="h-28 w-28 animate-logo-spin" />
       </div>
     );
   }

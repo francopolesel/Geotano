@@ -163,7 +163,7 @@ export function LoginPage() {
       <LanguageToggle />
       <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 shadow-sm">
         <div className="mb-6 text-center">
-          <img src={logo} alt="Geotano" className="mx-auto mb-3 h-16 w-16" />
+          <img src={logo} alt="Geotano" className="mx-auto mb-4 h-28 w-28" />
           <h1 className="text-2xl font-bold text-[var(--color-foreground)]">{t('app.name')}</h1>
           <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{t('app.tagline')}</p>
         </div>
