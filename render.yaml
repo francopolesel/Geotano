@@ -9,7 +9,7 @@ services:
     repo: https://github.com/francopolesel/Geotano
     plan: free
     region: oregon
-    buildCommand: npm install -g pnpm@9 && pnpm install --frozen-lockfile && pnpm --filter=@geotano/backend run build
+    buildCommand: npm install -g pnpm@9 && NODE_ENV=development pnpm install --frozen-lockfile && pnpm --filter=@geotano/backend run build
     startCommand: cd apps/backend && node dist/index.js
     healthCheckPath: /api/health
     envVars:
