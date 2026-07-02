@@ -192,8 +192,8 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
 
   fetchBlocked: async () => {
     try {
-      const data = await api.get<{ blocked: BlockedUser[] }>('/friends/blocked');
-      set({ blockedUsers: data.blocked });
+      const data = await api.get<BlockedUser[]>('/friends/blocked');
+      set({ blockedUsers: data });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load blocked users';
       set({ error: message });

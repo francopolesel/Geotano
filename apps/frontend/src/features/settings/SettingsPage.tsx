@@ -81,7 +81,7 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
               {t('settings.avatar')}
             </p>
             <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
-              {avatarFile ? avatarFile.name : t('settings.avatarHint')}
+              {t('settings.avatarHint')}
             </p>
           </div>
         </div>
