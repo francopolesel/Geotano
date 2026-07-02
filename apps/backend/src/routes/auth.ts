@@ -4,6 +4,7 @@ import { users } from '../db/schema/index.js';
 import { signToken, authGuard, hashPassword, verifyPassword } from '../auth/index.js';
 import { eq, and, ne, or } from 'drizzle-orm';
 import crypto from 'crypto';
+import { isEmailConfigured, sendPasswordResetEmail } from '../lib/email.js';
 
 function generateJoinCode(): string {
   return crypto.randomBytes(4).toString('hex');
@@ -309,6 +310,48 @@ export async function authRoutes(app: FastifyInstance) {
       return { success: true };
     },
   );
+
+  // POST /api/auth/forgot-password — send a new random password by email
+  app.post('/api/auth/forgot-password', async (request, reply) => {
+    const { email } = request.body as { email?: string };
+
+    if (!email) {
+      return reply.status(400).send({ message: 'Email is required' });
+    }
+
+    if (!isEmailConfigured()) {
+      return reply.status(500).send({ message: 'Email service is not configured' });
+    }
+
+    // Find user by email
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (!user) {
+      // Don't reveal whether the email exists — security best practice
+      return { message: 'If that email is registered, you will receive a new password shortly.' };
+    }
+
+    // Generate random password (16 chars, alphanumeric)
+    const newPassword = crypto.randomBytes(12).toString('hex');
+
+    // Hash and update
+    const newHash = await hashPassword(newPassword);
+    await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, user.id));
+
+    // Send email (fire-and-forget — don't fail the request on mail error)
+    try {
+      await sendPasswordResetEmail(email, newPassword);
+    } catch (err) {
+      console.error('Failed to send password reset email:', err);
+      return reply.status(500).send({ message: 'Failed to send email. Please try again later.' });
+    }
+
+    return { message: 'If that email is registered, you will receive a new password shortly.' };
+  });
 
   // GET /api/auth/me  (protected)
   app.get('/api/auth/me', { preHandler: authGuard }, async (request, reply) => {

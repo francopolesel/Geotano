@@ -50,6 +50,10 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSending, setResetSending] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   // ── Google OAuth ────────────────────────────────────────────────────────
 
@@ -99,6 +103,25 @@ export function LoginPage() {
       }));
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  // ── Forgot password ─────────────────────────────────────────────────────
+
+  const handleForgotPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) return;
+    setResetSending(true);
+    try {
+      await api.post('/auth/forgot-password', { email: resetEmail.trim() });
+      setResetSent(true);
+    } catch (err) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        forgotPassword: err instanceof Error ? err.message : 'Failed to send reset email',
+      }));
+    } finally {
+      setResetSending(false);
     }
   };
 
@@ -238,7 +261,49 @@ export function LoginPage() {
           >
             {isLoading ? t('common.loading') : t('auth.login')}
           </button>
+
+          {/* Forgot password link */}
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => { setShowForgotPassword(!showForgotPassword); setResetSent(false); setValidationErrors((p) => ({ ...p, forgotPassword: '' })); }}
+              className="text-xs text-[var(--color-muted-foreground)] underline transition-colors hover:text-[var(--color-primary)]"
+            >
+              {t('auth.forgotPassword')}
+            </button>
+          </div>
         </form>
+
+        {/* Forgot password form */}
+        {showForgotPassword && (
+          <form onSubmit={handleForgotPassword} className="mt-4 space-y-3 rounded-lg border border-[var(--color-border)] p-4">
+            <p className="text-xs text-[var(--color-muted-foreground)]">
+              {t('auth.resetInstructions')}
+            </p>
+            <input
+              type="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
+              autoComplete="email"
+            />
+            {validationErrors.forgotPassword && (
+              <p className="text-xs text-[var(--color-destructive)]">{validationErrors.forgotPassword}</p>
+            )}
+            {resetSent ? (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">{t('auth.resetSent')}</p>
+            ) : (
+              <button
+                type="submit"
+                disabled={resetSending || !resetEmail.trim()}
+                className="w-full min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
+              >
+                {resetSending ? t('common.loading') : t('auth.sendReset')}
+              </button>
+            )}
+          </form>
+        )}
 
         <p className="mt-4 text-center text-sm text-[var(--color-muted-foreground)]">
           {t('auth.noAccount')}{' '}

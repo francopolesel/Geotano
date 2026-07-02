@@ -19,6 +19,10 @@
   "auth.validation.passwordMin": "Password must be at least 8 characters",
   "auth.validation.usernameTaken": "Username already taken",
   "auth.sessionExpired": "Session expired. Please log in again.",
+  "auth.forgotPassword": "Forgot your password?",
+  "auth.resetInstructions": "Enter your email and we'll send you a new temporary password.",
+  "auth.sendReset": "Send reset email",
+  "auth.resetSent": "Check your email for the new password.",
 
   "home.title": "Choose your mode",
   "home.start": "Start Quiz",

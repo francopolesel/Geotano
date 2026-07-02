@@ -19,6 +19,10 @@
   "auth.validation.passwordMin": "La contraseña debe tener al menos 8 caracteres",
   "auth.validation.usernameTaken": "El nombre de usuario ya está en uso",
   "auth.sessionExpired": "Sesión expirada. Iniciá sesión de nuevo.",
+  "auth.forgotPassword": "¿Olvidaste tu contraseña?",
+  "auth.resetInstructions": "Ingresá tu email y te enviaremos una contraseña nueva temporal.",
+  "auth.sendReset": "Enviar email de recuperación",
+  "auth.resetSent": "Revisá tu email para la nueva contraseña.",
 
   "home.title": "Elegí tu modo",
   "home.start": "Empezar quiz",
