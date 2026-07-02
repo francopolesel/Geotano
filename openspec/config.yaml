@@ -1,0 +1,43 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: Node.js + React (frontend) + PostgreSQL (database)
+  Architecture: Monorepo with React SPA frontend and Node.js REST API backend
+  Testing: None detected (greenfield project)
+  Style: Standard JavaScript/TypeScript conventions, component-based React
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+
+strict_tdd: false
+
+testing:
+  runner: null
+  unit: null
+  integration: null
+  e2e: null
+  coverage: null
+  linter: null
+  type_checker: null
+  formatter: null

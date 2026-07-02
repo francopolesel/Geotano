@@ -1,0 +1,396 @@
+import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useMutation } from '@tanstack/react-query';
+import { api } from '../../lib/api';
+import { useGameStore } from '../../store/gameStore';
+import { useTimer } from '../../hooks/useTimer';
+import type {
+  QuizQuestion,
+  QuizAnswerResponse,
+  QuizSessionResult,
+} from '@geotano/shared';
+
+interface SessionResponse {
+  sessionId: string;
+  question: QuizQuestion;
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
+const btnBase =
+  'w-full min-h-[44px] rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition-all duration-200 outline-none';
+
+function getOptionBtnStyle(
+  index: number,
+  selected: number | null,
+  correctIndex: number | null,
+  answerState: 'idle' | 'correct' | 'wrong',
+): string {
+  const isSelected = selected === index;
+  const isCorrect = correctIndex === index;
+  const isIdle = answerState === 'idle';
+
+  if (isIdle) {
+    const colors = [
+      'border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30',
+      'border-emerald-200 dark:border-emerald-800 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30',
+      'border-amber-200 dark:border-amber-800 hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30',
+      'border-rose-200 dark:border-rose-800 hover:border-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30',
+    ];
+    return `${btnBase} ${colors[index]} bg-[var(--color-card)] text-[var(--color-card-foreground)] cursor-pointer`;
+  }
+
+  if (answerState === 'correct') {
+    if (isCorrect || isSelected) {
+      return `${btnBase} border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 cursor-default`;
+    }
+    return `${btnBase} border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] opacity-50 cursor-default`;
+  }
+
+  // answerState === 'wrong'
+  if (isSelected && !isCorrect) {
+    return `${btnBase} border-red-500 bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 cursor-default`;
+  }
+  if (isCorrect) {
+    return `${btnBase} border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 cursor-default`;
+  }
+  return `${btnBase} border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] opacity-50 cursor-default`;
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
+export function QuizPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode') ?? 'flag-guess';
+
+  const {
+    sessionId,
+    currentQuestion,
+    score,
+    lives,
+    streak,
+    isPlaying,
+    startSession,
+    setQuestion,
+    updateScore,
+    loseLife,
+    incrementStreak,
+    resetStreak,
+    endGame,
+    reset,
+  } = useGameStore();
+
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [correctIndex, setCorrectIndex] = useState<number | null>(null);
+  const [answerState, setAnswerState] = useState<'idle' | 'correct' | 'wrong'>('idle');
+  const [feedbackText, setFeedbackText] = useState('');
+  const [gameResult, setGameResult] = useState<QuizSessionResult | null>(null);
+
+  // ── Start session mutation ────────────────────────────────────────────────
+  const sessionMutation = useMutation({
+    mutationFn: () =>
+      api.get<SessionResponse>(`/quiz/session?mode=${mode}`),
+    onSuccess: (data) => {
+      startSession(data.sessionId);
+      setQuestion(data.question);
+    },
+  });
+
+  // ── Answer mutation ───────────────────────────────────────────────────────
+  const answerMutation = useMutation({
+    mutationFn: (params: { answer: string; timeMs: number }) =>
+      api.post<QuizAnswerResponse>('/quiz/answer', {
+        sessionId,
+        questionId: currentQuestion?.id,
+        answer: params.answer,
+        timeMs: params.timeMs,
+      }),
+    onSuccess: (data) => {
+      if (data.correct) {
+        setAnswerState('correct');
+        incrementStreak();
+        updateScore(data.score);
+        setFeedbackText(t('quiz.correct'));
+      } else {
+        setAnswerState('wrong');
+        resetStreak();
+        loseLife();
+        setFeedbackText(`${t('quiz.wrong')} — ${data.correctAnswer}`);
+      }
+
+      const correctIdx = currentQuestion?.options.indexOf(data.correctAnswer) ?? -1;
+      setCorrectIndex(correctIdx);
+
+      if (data.result) {
+        setGameResult(data.result);
+        endGame();
+      } else if (data.nextQuestion) {
+        // Delay before showing next question
+        setTimeout(() => {
+          setQuestion(data.nextQuestion!);
+          setSelectedIndex(null);
+          setCorrectIndex(null);
+          setAnswerState('idle');
+          setFeedbackText('');
+          timerReset();
+          timerStart();
+        }, 1500);
+      }
+    },
+  });
+
+  // ── Timer ─────────────────────────────────────────────────────────────────
+  const handleTimerExpire = useCallback(() => {
+    if (answerState !== 'idle') return; // Already answered
+    // Auto-submit wrong answer on timeout
+    answerMutation.mutate({ answer: '', timeMs: currentQuestion?.timeLimitMs ?? 15000 });
+  }, [answerState, answerMutation, currentQuestion]);
+
+  const {
+    fraction,
+    remainingMs,
+    expired,
+    start: timerStart,
+    reset: timerReset,
+  } = useTimer({
+    durationMs: currentQuestion?.timeLimitMs ?? 15000,
+    onExpire: handleTimerExpire,
+    stopOnExpire: true,
+  });
+
+  // ── Start game on mount / mode change ─────────────────────────────────────
+  useEffect(() => {
+    reset();
+    sessionMutation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  // ── Start timer when question changes ─────────────────────────────────────
+  useEffect(() => {
+    if (currentQuestion && isPlaying && answerState === 'idle') {
+      timerReset();
+      timerStart();
+    }
+  }, [currentQuestion, isPlaying, answerState, timerReset, timerStart]);
+
+  const handleAnswer = (index: number) => {
+    if (answerState !== 'idle' || !currentQuestion) return;
+    setSelectedIndex(index);
+    const answerText = currentQuestion.options[index];
+    const timeMs = currentQuestion.timeLimitMs - remainingMs;
+    answerMutation.mutate({ answer: answerText, timeMs });
+  };
+
+  const handlePlayAgain = () => {
+    setGameResult(null);
+    setSelectedIndex(null);
+    setCorrectIndex(null);
+    setAnswerState('idle');
+    setFeedbackText('');
+    reset();
+    sessionMutation.mutate();
+  };
+
+  const handleGoHome = () => {
+    reset();
+    navigate('/');
+  };
+
+  // ── Timer bar color ───────────────────────────────────────────────────────
+  const timerColor =
+    fraction > 0.5
+      ? 'bg-emerald-500'
+      : fraction > 0.25
+        ? 'bg-amber-500'
+        : 'bg-red-500';
+
+  // ── Loading state ─────────────────────────────────────────────────────────
+  if (sessionMutation.isPending) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <p className="text-[var(--color-muted-foreground)]">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  if (sessionMutation.isError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
+        <p className="text-[var(--color-destructive)]">{t('common.error')}</p>
+        <button
+          onClick={() => sessionMutation.mutate()}
+          className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)]"
+        >
+          {t('common.retry')}
+        </button>
+      </div>
+    );
+  }
+
+  // ── Game over screen ──────────────────────────────────────────────────────
+  if (gameResult) {
+    return (
+      <div className="mx-auto max-w-md py-12">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
+          <h2 className="text-3xl font-bold text-[var(--color-foreground)]">
+            {t('quiz.gameOver')}
+          </h2>
+
+          <div className="my-8 space-y-3">
+            <p className="text-5xl font-bold text-[var(--color-primary)]">
+              {gameResult.totalScore}
+            </p>
+            <p className="text-sm text-[var(--color-muted-foreground)]">
+              {t('quiz.result', { score: gameResult.totalScore })}
+            </p>
+
+            <div className="mt-6 grid grid-cols-3 gap-4">
+              <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
+                <p className="text-lg font-bold text-[var(--color-foreground)]">
+                  {gameResult.correctCount}/{gameResult.totalQuestions}
+                </p>
+                <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.correct')}</p>
+              </div>
+              <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
+                <p className="text-lg font-bold text-[var(--color-foreground)]">
+                  {gameResult.streakMax}
+                </p>
+                <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.streak')}</p>
+              </div>
+              <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
+                <p className="text-lg font-bold text-[var(--color-foreground)]">
+                  {gameResult.totalQuestions}
+                </p>
+                <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.question', { number: '' }).replace(/ \d*$/, '')}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handlePlayAgain}
+              className="w-full min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
+            >
+              {t('quiz.playAgain')}
+            </button>
+            <button
+              onClick={handleGoHome}
+              className="w-full min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
+            >
+              {t('quiz.backToHome')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Quiz screen ───────────────────────────────────────────────────────────
+  if (!currentQuestion) {
+    return null;
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl py-4">
+      {/* Top bar: score, lives, streak */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* Lives */}
+          <div className="flex gap-0.5">
+            {Array.from({ length: 3 }, (_, i) => (
+              <span
+                key={i}
+                className={`text-lg transition-opacity ${
+                  i < lives ? 'opacity-100' : 'opacity-20'
+                }`}
+              >
+                ♥
+              </span>
+            ))}
+          </div>
+
+          {/* Streak */}
+          {streak > 0 && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+              🔥 {t('quiz.streak')} {streak}
+            </span>
+          )}
+        </div>
+
+        {/* Score */}
+        <span className="text-lg font-bold text-[var(--color-foreground)]">
+          {t('quiz.score')}: {score}
+        </span>
+      </div>
+
+      {/* Timer bar */}
+      <div className="mb-6 h-2 w-full overflow-hidden rounded-full bg-[var(--color-muted)]">
+        <div
+          className={`h-full rounded-full transition-all duration-100 ${timerColor}`}
+          style={{ width: `${fraction * 100}%` }}
+        />
+      </div>
+
+      {/* Question number */}
+      <p className="mb-2 text-sm font-medium text-[var(--color-muted-foreground)]">
+        {t('quiz.question', { number: currentQuestion.questionNumber })}
+      </p>
+
+      {/* Question text */}
+      <h2 className="mb-6 text-xl font-semibold text-[var(--color-foreground)] sm:text-2xl">
+        {currentQuestion.questionText}
+      </h2>
+
+      {/* Flag image */}
+      {currentQuestion.flagUrl && (
+        <div className="mb-6 flex justify-center">
+          <img
+            src={currentQuestion.flagUrl}
+            alt="Flag"
+            className="h-32 rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-40"
+          />
+        </div>
+      )}
+
+      {/* Answer options */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {currentQuestion.options.map((option, index) => (
+          <button
+            key={index}
+            onClick={() => handleAnswer(index)}
+            disabled={answerState !== 'idle'}
+            className={getOptionBtnStyle(index, selectedIndex, correctIndex, answerState)}
+          >
+            <span className="mr-2 inline-block w-6 h-6 rounded-full bg-[var(--color-muted)] text-center text-xs leading-6 font-bold text-[var(--color-muted-foreground)]">
+              {String.fromCharCode(65 + index)}
+            </span>
+            {option}
+          </button>
+        ))}
+      </div>
+
+      {/* Feedback */}
+      {feedbackText && (
+        <div
+          className={`mt-4 rounded-lg px-4 py-3 text-sm font-medium ${
+            answerState === 'correct'
+              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
+              : 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200'
+          }`}
+        >
+          {feedbackText}
+        </div>
+      )}
+
+      {/* Answer mutation loading */}
+      {answerMutation.isPending && (
+        <p className="mt-4 text-center text-sm text-[var(--color-muted-foreground)]">
+          {t('common.loading')}
+        </p>
+      )}
+    </div>
+  );
+}

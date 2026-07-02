@@ -1,0 +1,7 @@
+export { healthRoutes } from './health.js';
+export { authRoutes } from './auth.js';
+export { quizRoutes } from './quiz.js';
+export { countriesRoutes } from './countries.js';
+export { friendsRoutes } from './friends.js';
+export { chatRoutes } from './chat.js';
+export { rankingsRoutes } from './rankings.js';

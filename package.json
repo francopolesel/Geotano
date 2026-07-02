@@ -1,0 +1,26 @@
+{
+  "name": "geotano",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Geography quiz game — flags, capitals, continents with friend chat and rankings",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,yaml,md}\"",
+    "check-types": "turbo check-types",
+    "test": "turbo run test",
+    "test:backend": "cd apps/backend && vitest run",
+    "test:frontend": "cd apps/frontend && vitest run"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
