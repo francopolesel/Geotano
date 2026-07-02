@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation } from '@tanstack/react-query';
@@ -226,46 +226,20 @@ export function QuizPage() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [isPlaying, gameResult]);
 
+  // Stable refs for blocker to avoid stale closures
+  const blockerRef = useRef(blocker);
+  blockerRef.current = blocker;
+
   // ── Leave confirmation modal ──────────────────────────────────────────────
-  function LeaveModal() {
-    if (blocker.state !== 'blocked') return null;
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-lg">
-          <h3 className="mb-2 text-lg font-semibold text-[var(--color-foreground)]">
-            Leave game?
-          </h3>
-          <p className="mb-1 text-sm text-[var(--color-muted-foreground)]">
-            You are in the middle of a game. If you leave now, your progress will be lost!
-          </p>
-          <div className="mb-4 flex items-center gap-4 rounded-lg bg-[var(--color-muted)] px-4 py-3 text-sm">
-            <span className="font-medium text-[var(--color-foreground)]">
-              Score: {score}
-            </span>
-            {streak >= 5 && (
-              <span className="text-amber-600 dark:text-amber-400">
-                🔥 {streak} streak
-              </span>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => blocker.reset()}
-              className="flex-1 min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
-            >
-              Stay — keep playing
-            </button>
-            <button
-              onClick={() => blocker.proceed()}
-              className="flex-1 min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)]"
-            >
-              Leave anyway
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleStay = useCallback(() => {
+    blockerRef.current?.reset?.();
+  }, []);
+
+  const handleLeave = useCallback(() => {
+    blockerRef.current?.proceed?.();
+  }, []);
+
+  const showLeaveModal = blocker.state === 'blocked';
 
   // ── Timer bar color ───────────────────────────────────────────────────────
   const timerColor =
@@ -284,7 +258,7 @@ export function QuizPage() {
         <div className="flex items-center justify-center py-32">
           <img src={logo} alt="Geotano" className="h-72 w-72 animate-logo-spin" />
         </div>
-        <LeaveModal />
+        {showLeaveModal && <LeaveModalContent onStay={handleStay} onLeave={handleLeave} score={score} streak={streak} />}
       </>
     );
   }
@@ -301,7 +275,7 @@ export function QuizPage() {
             {t('common.retry')}
           </button>
         </div>
-        <LeaveModal />
+        {showLeaveModal && <LeaveModalContent onStay={handleStay} onLeave={handleLeave} score={score} streak={streak} />}
       </>
     );
   }
@@ -362,7 +336,7 @@ export function QuizPage() {
             </div>
           </div>
         </div>
-        <LeaveModal />
+        {showLeaveModal && <LeaveModalContent onStay={handleStay} onLeave={handleLeave} score={score} streak={streak} />}
       </>
     );
   }
@@ -463,7 +437,54 @@ export function QuizPage() {
 
 
     </div>
-    <LeaveModal />
+    {showLeaveModal && (
+      <LeaveModalContent onStay={handleStay} onLeave={handleLeave} score={score} streak={streak} />
+    )}
     </>
+  );
+}
+
+function LeaveModalContent({ onStay, onLeave, score, streak }: {
+  onStay: () => void;
+  onLeave: () => void;
+  score: number;
+  streak: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-lg">
+        <h3 className="mb-2 text-lg font-semibold text-[var(--color-foreground)]">
+          {t('quiz.leaveTitle') || 'Leave game?'}
+        </h3>
+        <p className="mb-1 text-sm text-[var(--color-muted-foreground)]">
+          {t('quiz.leaveWarning') || 'If you leave now, your progress will be lost!'}
+        </p>
+        <div className="mb-4 flex items-center gap-4 rounded-lg bg-[var(--color-muted)] px-4 py-3 text-sm">
+          <span className="font-medium text-[var(--color-foreground)]">
+            {t('quiz.leaveScore') || 'Score: {score}'}: {score}
+          </span>
+          {streak >= 5 && (
+            <span className="text-amber-600 dark:text-amber-400">
+              🔥 {streak} streak
+            </span>
+          )}
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onStay}
+            className="flex-1 min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
+          >
+            {t('quiz.leaveStay') || 'Stay — keep playing'}
+          </button>
+          <button
+            onClick={onLeave}
+            className="flex-1 min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)]"
+          >
+            {t('quiz.leaveAnyway') || 'Leave anyway'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

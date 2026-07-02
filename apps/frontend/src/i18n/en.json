@@ -42,6 +42,11 @@
   "quiz.gameOver": "Game Over",
   "quiz.result": "Final Score: {{score}}",
   "quiz.playAgain": "Play Again",
+  "quiz.leaveTitle": "Leave game?",
+  "quiz.leaveWarning": "If you leave now, your progress will be lost!",
+  "quiz.leaveScore": "Score: {{score}}",
+  "quiz.leaveStay": "Stay — keep playing",
+  "quiz.leaveAnyway": "Leave anyway",
   "quiz.backToHome": "Back to Home",
   "quiz.totalQuestions": "Total",
 
