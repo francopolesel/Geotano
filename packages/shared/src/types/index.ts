@@ -106,6 +106,8 @@ export interface QuizQuestion {
   questionText: string;
   /** Four answer options. */
   options: string[];
+  /** Index of the correct option in the options array (0–3). */
+  correctIndex: number;
   /** URL to flag image — only relevant for flag-related modes. */
   flagUrl?: string;
   /** Time limit in milliseconds. */

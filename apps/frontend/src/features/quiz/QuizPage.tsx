@@ -100,6 +100,8 @@ export function QuizPage() {
   });
 
   // ── Answer mutation ───────────────────────────────────────────────────────
+  // The mutation is used for backend scoring/validation.
+  // The frontend shows feedback IMMEDIATELY using correctIndex from the question.
   const answerMutation = useMutation({
     mutationFn: (params: { answer: string; timeMs: number }) =>
       api.post<QuizAnswerResponse>('/quiz/answer', {
@@ -109,20 +111,14 @@ export function QuizPage() {
         timeMs: params.timeMs,
       }),
     onSuccess: (data) => {
+      // Update score/lives from backend (authoritative)
       if (data.correct) {
-        setAnswerState('correct');
         incrementStreak();
         updateScore(data.score);
-        setFeedbackText(t('quiz.correct'));
       } else {
-        setAnswerState('wrong');
         resetStreak();
         loseLife();
-        setFeedbackText(`${t('quiz.wrong')} — ${data.correctAnswer}`);
       }
-
-      const correctIdx = currentQuestion?.options.indexOf(data.correctAnswer) ?? -1;
-      setCorrectIndex(correctIdx);
 
       if (data.result) {
         setGameResult(data.result);
@@ -179,6 +175,19 @@ export function QuizPage() {
   const handleAnswer = (index: number) => {
     if (answerState !== 'idle' || !currentQuestion) return;
     setSelectedIndex(index);
+    setCorrectIndex(currentQuestion.correctIndex);
+
+    // Show feedback IMMEDIATELY — no backend round-trip
+    const isCorrect = index === currentQuestion.correctIndex;
+    if (isCorrect) {
+      setAnswerState('correct');
+      setFeedbackText(t('quiz.correct'));
+    } else {
+      setAnswerState('wrong');
+      setFeedbackText(`${t('quiz.wrong')} — ${currentQuestion.options[currentQuestion.correctIndex]}`);
+    }
+
+    // Send answer to backend in background for scoring/validation
     const answerText = currentQuestion.options[index];
     const timeMs = currentQuestion.timeLimitMs - remainingMs;
     answerMutation.mutate({ answer: answerText, timeMs });

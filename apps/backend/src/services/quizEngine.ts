@@ -25,6 +25,7 @@ export interface GeneratedQuestion {
   questionType: QuestionType;
   questionText: string;
   options: string[];
+  correctIndex: number;
   correctAnswer: string;
   optionsCountryIds: string[];
   flagUrl?: string;
@@ -63,7 +64,7 @@ interface CachedQuestion {
   currentStreak: number;
 }
 
-/** Client-facing question — correct answer and internal IDs are stripped. */
+/** Client-facing question — correct answer text and internal IDs are stripped, but correctIndex is included for immediate UI feedback. */
 export type ClientQuestion = Omit<GeneratedQuestion, 'correctAnswer' | 'optionsCountryIds'>;
 
 export interface StartSessionResponse {
@@ -201,6 +202,7 @@ async function generateQuestion(
     questionType,
     questionText: getQuestionText(correctCountry, questionType),
     options,
+    correctIndex: indices.indexOf(0), // index 0 was the correct answer before shuffle
     correctAnswer: correctText,
     flagUrl:
       questionType === 'flag-to-country' || questionType === 'country-to-flag'
