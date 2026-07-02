@@ -1,6 +1,6 @@
 # ─── Render Blueprint ──────────────────────────────────────────────────────
-# Deploy the backend as a Web Service + frontend as a Static Site.
-# See https://render.com/docs/blueprint-spec for details.
+# Backend Web Service only. Frontend is created manually as a Static Site
+# from the Render dashboard (Blueprint doesn't support type: static).
 
 services:
   - type: web
@@ -26,21 +26,4 @@ services:
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
-        sync: false
-
-  - type: static
-    name: geotano-frontend
-    repo: https://github.com/francopolesel/Geotano
-    plan: free
-    region: oregon
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter=@geotano/frontend run build
-    staticPublishPath: apps/frontend/dist
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-    envVars:
-      - key: VITE_API_URL
-        value: https://geotano-backend.onrender.com
-      - key: VITE_GOOGLE_CLIENT_ID
         sync: false
