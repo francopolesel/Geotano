@@ -5,3 +5,4 @@ export { countriesRoutes } from './countries.js';
 export { friendsRoutes } from './friends.js';
 export { chatRoutes } from './chat.js';
 export { rankingsRoutes } from './rankings.js';
+export { profileRoutes } from './profile.js';

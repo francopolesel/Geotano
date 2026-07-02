@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
@@ -29,6 +30,7 @@ async function fetchRankings(
 
 export function RankingsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const userId = useAuthStore((s) => s.user?.id);
 
   const [scope, setScope] = useState<Scope>('global');
@@ -188,7 +190,8 @@ export function RankingsPage() {
                     return (
                       <tr
                         key={entry.userId}
-                        className={`border-b border-[var(--color-border)] transition-colors last:border-0 ${
+                        onClick={() => navigate(`/profile/${entry.userId}`)}
+                        className={`cursor-pointer border-b border-[var(--color-border)] transition-colors last:border-0 ${
                           isCurrentUser
                             ? 'bg-[var(--color-primary)]/5'
                             : 'hover:bg-[var(--color-muted)]/30'

@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import { env } from './config/index.js';
 import { registerCors } from './plugins/index.js';
-import { healthRoutes, authRoutes, quizRoutes, countriesRoutes, friendsRoutes, chatRoutes, rankingsRoutes } from './routes/index.js';
+import { healthRoutes, authRoutes, quizRoutes, countriesRoutes, friendsRoutes, chatRoutes, rankingsRoutes, profileRoutes } from './routes/index.js';
 import { initSocket } from './socket/index.js';
 
 async function buildApp() {
@@ -22,6 +22,7 @@ async function buildApp() {
   await app.register(friendsRoutes);
   await app.register(chatRoutes);
   await app.register(rankingsRoutes);
+  await app.register(profileRoutes);
 
   return app;
 }

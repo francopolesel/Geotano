@@ -10,6 +10,7 @@ import { FriendsPage } from '../features/friends/FriendsPage';
 import { ChatPage } from '../features/friends/ChatPage';
 import { RankingsPage } from '../features/rankings/RankingsPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
+import { ProfilePage } from '../features/profile/ProfilePage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +37,7 @@ export function App() {
               <Route path="/quiz" element={<QuizPage />} />
               <Route path="/friends" element={<FriendsPage />} />
               <Route path="/friends/chat/:userId" element={<ChatPage />} />
+              <Route path="/profile/:userId" element={<ProfilePage />} />
               <Route path="/rankings" element={<RankingsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>

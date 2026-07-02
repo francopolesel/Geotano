@@ -39,11 +39,21 @@ interface SearchUser {
   avatarUrl?: string;
 }
 
+interface BlockedUser {
+  id: string;
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  blockedAt: string;
+}
+
 interface FriendsState {
   friends: FriendUser[];
   pendingIncoming: PendingIncoming[];
   pendingOutgoing: PendingOutgoing[];
   searchResults: SearchUser[];
+  blockedUsers: BlockedUser[];
   onlineUsers: Set<string>;
   isLoading: boolean;
   error: string | null;
@@ -55,6 +65,10 @@ interface FriendsState {
   declineRequest: (requestId: string) => Promise<void>;
   getInviteLink: () => Promise<string>;
   redeemInvite: (code: string) => Promise<void>;
+  fetchBlocked: () => Promise<void>;
+  blockUser: (friendId: string) => Promise<void>;
+  unblockUser: (friendId: string) => Promise<void>;
+  removeFriend: (friendId: string) => Promise<void>;
   setOnline: (userId: string) => void;
   setOffline: (userId: string) => void;
   clearSearch: () => void;
@@ -66,6 +80,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
   pendingIncoming: [],
   pendingOutgoing: [],
   searchResults: [],
+  blockedUsers: [],
   onlineUsers: new Set<string>(),
   isLoading: false,
   error: null,
@@ -157,6 +172,48 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       const message = err instanceof Error ? err.message : 'Invalid invite code';
       set({ error: message });
       throw err;
+    }
+  },
+
+  fetchBlocked: async () => {
+    try {
+      const data = await api.get<{ blocked: BlockedUser[] }>('/friends/blocked');
+      set({ blockedUsers: data.blocked });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load blocked users';
+      set({ error: message });
+    }
+  },
+
+  blockUser: async (friendId: string) => {
+    try {
+      await api.post('/friends/block', { friendId });
+      await get().fetchFriends();
+      await get().fetchBlocked();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to block user';
+      set({ error: message });
+    }
+  },
+
+  unblockUser: async (friendId: string) => {
+    try {
+      await api.post('/friends/unblock', { friendId });
+      await get().fetchBlocked();
+      await get().fetchFriends();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to unblock user';
+      set({ error: message });
+    }
+  },
+
+  removeFriend: async (friendId: string) => {
+    try {
+      await api.post('/friends/remove', { friendId });
+      await get().fetchFriends();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to remove friend';
+      set({ error: message });
     }
   },
 

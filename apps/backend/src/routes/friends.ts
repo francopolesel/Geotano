@@ -461,4 +461,175 @@ export async function friendsRoutes(app: FastifyInstance) {
       };
     },
   );
+
+  // ── Block / Unblock / Remove ─────────────────────────────────────────────
+
+  // POST /api/friends/block — block a friend
+  app.post(
+    '/api/friends/block',
+    { preHandler: authGuard },
+    async (request, reply) => {
+      const { userId } = (request as any).user;
+      const { friendId } = request.body as { friendId: string };
+
+      if (!friendId) {
+        return reply.status(400).send({ message: 'friendId is required' });
+      }
+
+      // Find the friendship in either direction
+      const [existing] = await db
+        .select()
+        .from(friends)
+        .where(
+          or(
+            and(eq(friends.userId, userId), eq(friends.friendId, friendId)),
+            and(eq(friends.userId, friendId), eq(friends.friendId, userId)),
+          ),
+        )
+        .limit(1);
+
+      if (!existing) {
+        // No relationship exists — create a blocked entry
+        const [blocked] = await db
+          .insert(friends)
+          .values({ userId, friendId, status: 'blocked' })
+          .returning();
+        return { id: blocked.id, status: 'blocked' };
+      }
+
+      if (existing.status === 'blocked' && existing.userId === userId) {
+        return reply.status(409).send({ message: 'User is already blocked' });
+      }
+
+      const [updated] = await db
+        .update(friends)
+        .set({ status: 'blocked' })
+        .where(eq(friends.id, existing.id))
+        .returning();
+
+      return { id: updated.id, status: 'blocked' };
+    },
+  );
+
+  // POST /api/friends/unblock — unblock a user
+  app.post(
+    '/api/friends/unblock',
+    { preHandler: authGuard },
+    async (request, reply) => {
+      const { userId } = (request as any).user;
+      const { friendId } = request.body as { friendId: string };
+
+      if (!friendId) {
+        return reply.status(400).send({ message: 'friendId is required' });
+      }
+
+      const [existing] = await db
+        .select()
+        .from(friends)
+        .where(
+          and(
+            eq(friends.userId, userId),
+            eq(friends.friendId, friendId),
+            eq(friends.status, 'blocked'),
+          ),
+        )
+        .limit(1);
+
+      if (!existing) {
+        return reply.status(404).send({ message: 'Blocked relationship not found' });
+      }
+
+      // Remove the blocked relationship (clean slate)
+      await db.delete(friends).where(eq(friends.id, existing.id));
+
+      return { success: true };
+    },
+  );
+
+  // POST /api/friends/remove — remove/unfriend
+  app.post(
+    '/api/friends/remove',
+    { preHandler: authGuard },
+    async (request, reply) => {
+      const { userId } = (request as any).user;
+      const { friendId } = request.body as { friendId: string };
+
+      if (!friendId) {
+        return reply.status(400).send({ message: 'friendId is required' });
+      }
+
+      const [existing] = await db
+        .select()
+        .from(friends)
+        .where(
+          and(
+            or(
+              and(eq(friends.userId, userId), eq(friends.friendId, friendId)),
+              and(eq(friends.userId, friendId), eq(friends.friendId, userId)),
+            ),
+            eq(friends.status, 'accepted'),
+          ),
+        )
+        .limit(1);
+
+      if (!existing) {
+        return reply.status(404).send({ message: 'Friendship not found' });
+      }
+
+      await db.delete(friends).where(eq(friends.id, existing.id));
+
+      return { success: true };
+    },
+  );
+
+  // GET /api/friends/blocked — list blocked users
+  app.get(
+    '/api/friends/blocked',
+    { preHandler: authGuard },
+    async (request, reply) => {
+      const { userId } = (request as any).user;
+
+      const blocked = await db
+        .select({
+          id: friends.id,
+          friendId: friends.friendId,
+          createdAt: friends.createdAt,
+        })
+        .from(friends)
+        .where(
+          and(
+            eq(friends.userId, userId),
+            eq(friends.status, 'blocked'),
+          ),
+        );
+
+      // Enrich with user profiles
+      const blockedIds = blocked.map((b) => b.friendId);
+      const profiles = blockedIds.length > 0
+        ? await db
+            .select({
+              id: users.id,
+              username: users.username,
+              displayName: users.displayName,
+              avatarUrl: users.avatarUrl,
+            })
+            .from(users)
+            .where(inArray(users.id, blockedIds))
+        : [];
+
+      const profileMap = new Map(profiles.map((p) => [p.id, p]));
+
+      return blocked.map((b) => {
+        const profile = profileMap.get(b.friendId);
+        return {
+          id: b.id,
+          userId: b.friendId,
+          username: profile?.username,
+          displayName: profile?.displayName,
+          avatarUrl: profile?.avatarUrl,
+          blockedAt: b.createdAt.toISOString(),
+        };
+      });
+    },
+  );
 }

@@ -10,6 +10,7 @@ import type { UserProfile } from '@geotano/shared';
 function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u: UserProfile) => void }) {
   const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(user.displayName ?? '');
+  const [username, setUsername] = useState(user.username);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? '');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -22,6 +23,7 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
       const updated = await api.patch<UserProfile>('/auth/profile', {
         displayName: displayName.trim() || null,
         avatarUrl: avatarUrl.trim() || null,
+        username: username.trim() || undefined,
       });
       onUpdated(updated);
       setMsg({ type: 'success', text: t('settings.saved') });
@@ -76,12 +78,18 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
           />
         </div>
 
-        {/* Username (read-only) */}
+        {/* Username */}
         <div>
-          <label className="block text-sm font-medium text-[var(--color-muted-foreground)]">
+          <label className="block text-sm font-medium text-[var(--color-foreground)]">
             {t('auth.username')}
           </label>
-          <p className="mt-1 text-sm text-[var(--color-foreground)]">@{user.username}</p>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
+          />
+          <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">Only letters, numbers, and underscores. At least 3 characters.</p>
         </div>
 
         {/* Email (read-only) */}

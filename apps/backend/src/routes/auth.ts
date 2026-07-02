@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../db/index.js';
 import { users } from '../db/schema/index.js';
 import { signToken, authGuard, hashPassword, verifyPassword } from '../auth/index.js';
-import { eq, or } from 'drizzle-orm';
+import { eq, and, ne, or } from 'drizzle-orm';
 import crypto from 'crypto';
 
 function generateJoinCode(): string {
@@ -204,10 +204,11 @@ export async function authRoutes(app: FastifyInstance) {
     { preHandler: authGuard },
     async (request, reply) => {
       const { userId } = (request as any).user;
-      const { displayName, avatarUrl, language } = request.body as {
+      const { displayName, avatarUrl, language, username } = request.body as {
         displayName?: string;
         avatarUrl?: string;
         language?: string;
+        username?: string;
       };
 
       const updates: Record<string, any> = {};
@@ -218,6 +219,25 @@ export async function authRoutes(app: FastifyInstance) {
           return reply.status(400).send({ message: 'Language must be "en" or "es"' });
         }
         updates.language = language;
+      }
+      if (username !== undefined) {
+        const trimmed = username.trim();
+        if (trimmed.length < 3) {
+          return reply.status(400).send({ message: 'Username must be at least 3 characters' });
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+          return reply.status(400).send({ message: 'Username can only contain letters, numbers, and underscores' });
+        }
+        // Check uniqueness
+        const [existing] = await db
+          .select()
+          .from(users)
+          .where(and(eq(users.username, trimmed), ne(users.id, userId)))
+          .limit(1);
+        if (existing) {
+          return reply.status(409).send({ message: 'Username already taken' });
+        }
+        updates.username = trimmed;
       }
 
       if (Object.keys(updates).length === 0) {

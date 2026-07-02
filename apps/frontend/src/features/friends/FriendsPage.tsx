@@ -5,7 +5,7 @@ import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, disconnectSocket } from '../../lib/socket';
 
-type Tab = 'friends' | 'requests' | 'search';
+type Tab = 'friends' | 'requests' | 'search' | 'blocked';
 
 export function FriendsPage() {
   const { t } = useTranslation();
@@ -16,6 +16,7 @@ export function FriendsPage() {
     pendingIncoming,
     pendingOutgoing,
     searchResults,
+    blockedUsers,
     onlineUsers,
     isLoading,
     error,
@@ -25,6 +26,10 @@ export function FriendsPage() {
     acceptRequest,
     declineRequest,
     getInviteLink,
+    fetchBlocked,
+    blockUser,
+    unblockUser,
+    removeFriend,
     clearSearch,
     clearError,
   } = useFriendsStore();
@@ -106,12 +111,13 @@ export function FriendsPage() {
 
       {/* Tabs */}
       <div className="mb-6 flex gap-1 rounded-lg border border-[var(--color-border)] p-1">
-        {(['friends', 'requests', 'search'] as Tab[]).map((tab) => (
+        {(['friends', 'requests', 'search', 'blocked'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => {
               setActiveTab(tab);
               if (tab !== 'search') clearSearch();
+              if (tab === 'blocked') fetchBlocked();
               clearError();
             }}
             className={`flex-1 rounded-md px-3 py-2 min-h-[44px] text-sm font-medium transition-colors ${
@@ -123,6 +129,7 @@ export function FriendsPage() {
             {tab === 'friends' && t('friends.title')}
             {tab === 'requests' && t('friends.pending')}
             {tab === 'search' && t('friends.search')}
+            {tab === 'blocked' && t('friends.blocked')}
           </button>
         ))}
       </div>
@@ -150,29 +157,55 @@ export function FriendsPage() {
             </p>
           ) : (
             friends.map((friend) => (
-              <button
+              <div
                 key={friend.id}
-                onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
-                className="flex w-full items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-left transition-colors hover:bg-[var(--color-muted)]"
+                className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
               >
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
-                  {(friend.displayName ?? friend.username).charAt(0).toUpperCase()}
-                  {onlineUsers.has(friend.friendId) && (
-                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-card)] bg-green-500" />
-                  )}
+                <button
+                  onClick={() => navigate(`/profile/${friend.friendId}`)}
+                  className="flex items-center gap-3 flex-1 min-h-[44px] text-left"
+                >
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
+                    {(friend.displayName ?? friend.username).charAt(0).toUpperCase()}
+                    {onlineUsers.has(friend.friendId) && (
+                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-card)] bg-green-500" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-[var(--color-foreground)]">
+                      {friend.displayName ?? friend.username}
+                    </p>
+                    <p className="text-xs text-[var(--color-muted-foreground)]">
+                      @{friend.username}
+                    </p>
+                  </div>
+                </button>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
+                    className="rounded-md min-h-[44px] min-w-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
+                    title="Chat"
+                  >
+                    💬
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await removeFriend(friend.friendId);
+                    }}
+                    className="rounded-md min-h-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)]"
+                  >
+                    {t('friends.remove')}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await blockUser(friend.friendId);
+                    }}
+                    className="rounded-md min-h-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
+                  >
+                    {t('friends.block')}
+                  </button>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[var(--color-foreground)]">
-                    {friend.displayName ?? friend.username}
-                  </p>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">
-                    @{friend.username}
-                  </p>
-                </div>
-                {onlineUsers.has(friend.friendId) && (
-                  <span className="text-xs text-green-500">Online</span>
-                )}
-              </button>
+              </div>
             ))
           )}
         </div>
@@ -348,6 +381,44 @@ export function FriendsPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tab: Blocked */}
+      {activeTab === 'blocked' && !isLoading && (
+        <div className="space-y-2">
+          {blockedUsers.length === 0 ? (
+            <p className="py-8 text-center text-sm text-[var(--color-muted-foreground)]">
+              {t('friends.noBlocked')}
+            </p>
+          ) : (
+            blockedUsers.map((blocked) => (
+              <div
+                key={blocked.id}
+                className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
+              >
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-destructive)]/10 text-sm font-bold text-[var(--color-destructive)]">
+                  {(blocked.displayName ?? blocked.username).charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-[var(--color-foreground)]">
+                    {blocked.displayName ?? blocked.username}
+                  </p>
+                  <p className="text-xs text-[var(--color-muted-foreground)]">
+                    @{blocked.username}
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    await unblockUser(blocked.userId);
+                  }}
+                  className="rounded-md min-h-[44px] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
+                >
+                  {t('friends.unblock')}
+                </button>
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
