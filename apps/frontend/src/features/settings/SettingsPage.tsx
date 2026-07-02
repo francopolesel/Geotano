@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { api, ApiError } from '../../lib/api';
+import { resizeImage } from '../../lib/image';
 import type { UserProfile } from '@geotano/shared';
 
 // ─── Sections ───────────────────────────────────────────────────────────────
@@ -16,13 +17,20 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setAvatarFile(file);
-    const reader = new FileReader();
-    reader.onload = () => setAvatarPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      // Resize locally before showing preview or uploading
+      const resized = await resizeImage(file, 400, 0.7);
+      setAvatarPreview(resized);
+    } catch {
+      // Fallback: show original if resize fails
+      const reader = new FileReader();
+      reader.onload = () => setAvatarPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {

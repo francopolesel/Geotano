@@ -123,9 +123,9 @@ export function ChatPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col">
+    <div className="mx-auto flex max-w-2xl flex-col h-dvh">
       {/* Chat header */}
-      <div className="mb-4 flex items-center gap-3 border-b border-[var(--color-border)] pb-4">
+      <div className="shrink-0 flex items-center gap-3 border-b border-[var(--color-border)] px-0 pb-4">
         <button
           onClick={() => navigate('/friends')}
           className="rounded-md p-2 min-h-[44px] min-w-[44px] text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
@@ -151,8 +151,8 @@ export function ChatPage() {
         </div>
       </div>
 
-      {/* Messages area */}
-      <div className="mb-4 flex-1 space-y-3 overflow-y-auto max-h-[60vh] sm:max-h-none">
+      {/* Messages area — flex-1 fills remaining space, overflow-y-auto for scroll */}
+      <div className="flex-1 space-y-3 overflow-y-auto py-4" style={{ overscrollBehavior: 'contain' }}>
         {loadingMessages ? (
           <div className="flex items-center justify-center py-8">
             <p className="text-sm text-[var(--color-muted-foreground)]">{t('common.loading')}</p>
@@ -201,8 +201,8 @@ export function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area */}
-      <div className="flex gap-2 border-t border-[var(--color-border)] pt-4">
+      {/* Input area — sticky bottom within the flex container */}
+      <div className="shrink-0 flex gap-2 border-t border-[var(--color-border)] pt-4 pb-safe-bottom">
         <input
           ref={inputRef}
           type="text"
