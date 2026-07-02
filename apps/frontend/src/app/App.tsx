@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthGuard } from '../components/AuthGuard';
 import { AppShell } from '../components/AppShell';
@@ -21,31 +21,38 @@ const queryClient = new QueryClient({
   },
 });
 
+const router = createBrowserRouter([
+  // Public routes — no shell
+  { path: '/login', element: <LoginPage /> },
+  { path: '/register', element: <RegisterPage /> },
+
+  // Protected routes — with shell layout
+  {
+    element: <AuthGuard />,
+    children: [
+      {
+        element: <AppShell />,
+        children: [
+          { index: true, element: <HomePage /> },
+          { path: 'quiz', element: <QuizPage /> },
+          { path: 'friends', element: <FriendsPage /> },
+          { path: 'friends/chat/:userId', element: <ChatPage /> },
+          { path: 'profile/:userId', element: <ProfilePage /> },
+          { path: 'rankings', element: <RankingsPage /> },
+          { path: 'settings', element: <SettingsPage /> },
+        ],
+      },
+    ],
+  },
+
+  // Catch-all redirect
+  { path: '*', element: <Navigate to="/" replace /> },
+]);
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes — no shell */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-
-          {/* Protected routes — with shell layout */}
-          <Route element={<AuthGuard />}>
-            <Route element={<AppShell />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/quiz" element={<QuizPage />} />
-              <Route path="/friends" element={<FriendsPage />} />
-              <Route path="/friends/chat/:userId" element={<ChatPage />} />
-              <Route path="/profile/:userId" element={<ProfilePage />} />
-              <Route path="/rankings" element={<RankingsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
-          </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   );
 }
