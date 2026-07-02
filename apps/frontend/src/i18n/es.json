@@ -50,6 +50,7 @@
   "friends.sendRequest": "Agregar amigo",
   "friends.pending": "Pendiente",
   "friends.accept": "Aceptar",
+  "friends.cancel": "Cancelar",
   "friends.reject": "Rechazar",
   "friends.noFriends": "Todavía no tenés amigos",
   "friends.invite": "Invitar amigos",

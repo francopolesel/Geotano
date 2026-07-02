@@ -23,6 +23,7 @@ export function FriendsPage() {
     fetchFriends,
     searchUsers,
     sendRequest,
+    cancelRequest,
     acceptRequest,
     declineRequest,
     getInviteLink,
@@ -327,9 +328,19 @@ export function FriendsPage() {
                         @{req.username}
                       </p>
                     </div>
-                    <span className="rounded-md bg-[var(--color-muted)] px-2.5 py-1 text-xs text-[var(--color-muted-foreground)]">
-                      {t('friends.pending')}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-md bg-[var(--color-muted)] px-2.5 py-1 text-xs text-[var(--color-muted-foreground)]">
+                        {t('friends.pending')}
+                      </span>
+                      <button
+                        onClick={async () => {
+                          await cancelRequest(req.id);
+                        }}
+                        className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)]"
+                      >
+                        {t('friends.cancel')}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

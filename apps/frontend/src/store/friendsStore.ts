@@ -61,6 +61,7 @@ interface FriendsState {
   fetchFriends: () => Promise<void>;
   searchUsers: (query: string) => Promise<void>;
   sendRequest: (username: string) => Promise<void>;
+  cancelRequest: (requestId: string) => Promise<void>;
   acceptRequest: (requestId: string) => Promise<void>;
   declineRequest: (requestId: string) => Promise<void>;
   getInviteLink: () => Promise<string>;
@@ -124,11 +125,25 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
     set({ error: null });
     try {
       await api.post('/friends/request', { username });
+      // Remove the user from search results so the button doesn't show "Add friend"
+      set((state) => ({
+        searchResults: state.searchResults.filter((u) => u.username !== username),
+      }));
       await get().fetchFriends();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to send request';
       set({ error: message });
       throw err;
+    }
+  },
+
+  cancelRequest: async (requestId: string) => {
+    try {
+      await api.post('/friends/cancel', { requestId });
+      await get().fetchFriends();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to cancel request';
+      set({ error: message });
     }
   },
 

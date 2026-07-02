@@ -210,7 +210,7 @@ export function ChatPage() {
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t('chat.input')}
-          className="flex-1 min-h-[44px] rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
+          className="flex-1 min-h-[44px] rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-base text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
         />
         <button
           onClick={handleSend}

@@ -123,6 +123,41 @@ export async function friendsRoutes(app: FastifyInstance) {
     },
   );
 
+  // POST /api/friends/cancel — cancel an outgoing friend request
+  app.post(
+    '/api/friends/cancel',
+    { preHandler: authGuard },
+    async (request, reply) => {
+      const { userId } = (request as any).user;
+      const { requestId } = request.body as { requestId: string };
+
+      if (!requestId) {
+        return reply.status(400).send({ message: 'requestId is required' });
+      }
+
+      // Find the friend request — must be owned by current user and pending
+      const [friendRequest] = await db
+        .select()
+        .from(friends)
+        .where(
+          and(
+            eq(friends.id, requestId),
+            eq(friends.userId, userId),
+            eq(friends.status, 'pending'),
+          ),
+        )
+        .limit(1);
+
+      if (!friendRequest) {
+        return reply.status(404).send({ message: 'Friend request not found' });
+      }
+
+      await db.delete(friends).where(eq(friends.id, requestId));
+
+      return { success: true };
+    },
+  );
+
   // POST /api/friends/accept — accept friend request
   app.post(
     '/api/friends/accept',
