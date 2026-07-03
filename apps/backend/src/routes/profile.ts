@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { users, friends, gameSessions, gameModes } from '../db/schema/index.js';
 import { authGuard } from '../auth/index.js';
 import { eq, and, sql } from 'drizzle-orm';
+import { getUserAchievements } from '../services/achievements.js';
 
 export async function profileRoutes(app: FastifyInstance) {
   // GET /api/users/:id/profile — public profile
@@ -19,6 +20,7 @@ export async function profileRoutes(app: FastifyInstance) {
           username: users.username,
           displayName: users.displayName,
           avatarUrl: users.avatarUrl,
+          bio: users.bio,
           createdAt: users.createdAt,
         })
         .from(users)
@@ -81,12 +83,15 @@ export async function profileRoutes(app: FastifyInstance) {
         .orderBy(sql`${gameSessions.completedAt} DESC`)
         .limit(10);
 
+      const achievements = await getUserAchievements(id);
+
       return {
         user: {
           id: user.id,
           username: user.username,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
+          bio: user.bio,
           createdAt: user.createdAt.toISOString(),
         },
         stats: {
@@ -104,6 +109,7 @@ export async function profileRoutes(app: FastifyInstance) {
           gameModeNameEn: g.gameModeNameEn,
           completedAt: g.completedAt?.toISOString(),
         })),
+        achievements,
       };
     },
   );

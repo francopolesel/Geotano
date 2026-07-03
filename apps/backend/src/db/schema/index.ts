@@ -7,3 +7,5 @@ export { friends } from './friends.js';
 export { chatMessages } from './chatMessages.js';
 export { dailyRankings } from './dailyRankings.js';
 export { notifications } from './notifications.js';
+export { achievements } from './achievements.js';
+export { userAchievements } from './userAchievements.js';

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { authGuard } from '../auth/index.js';
 import { startSession, submitAnswer } from '../services/quizEngine.js';
+import { checkAchievements } from '../services/achievements.js';
 import { isValidModeSlug } from '../services/gameModes.js';
 import type { GameModeSlug } from '@geotano/shared';
 
@@ -52,6 +53,12 @@ export async function quizRoutes(app: FastifyInstance) {
 
       try {
         const result = await submitAnswer(sessionId, userId, answer, timeMs);
+        // Fire-and-forget achievement check after a completed game
+        if (result.result) {
+          checkAchievements(userId).catch((err) =>
+            request.log.error(err, 'Failed to check achievements'),
+          );
+        }
         return result;
       } catch (err: any) {
         if (err.message?.includes('not found') || err.message?.includes('completed')) {

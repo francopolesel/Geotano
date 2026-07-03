@@ -15,6 +15,7 @@ export const users = pgTable(
     passwordHash: text('password_hash').notNull(),
     displayName: text('display_name'),
     avatarUrl: text('avatar_url'),
+    bio: text('bio'),
     language: text('language').default('en').notNull(),
     joinCode: text('join_code').unique(),
     createdAt: timestamp('created_at').defaultNow().notNull(),

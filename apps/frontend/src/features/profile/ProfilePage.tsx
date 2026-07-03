@@ -1,7 +1,9 @@
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import type { Achievement } from '@geotano/shared';
 import { UserAvatar } from '../../components/ui/UserAvatar';
+import { AchievementBadge } from '../../components/ui/AchievementBadge';
 import { api } from '../../lib/api';
 
 // ---------------------------------------------------------------------------
@@ -30,9 +32,11 @@ interface ProfileResponse {
     username: string;
     displayName?: string;
     avatarUrl?: string;
+    bio?: string;
   };
   stats: UserStats;
   recentGames: RecentGame[];
+  achievements: Achievement[];
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +104,9 @@ export function ProfilePage() {
     );
   }
 
-  const { user, stats, recentGames } = data;
+  const { user, stats, recentGames, achievements } = data;
+
+  const earnedCount = achievements.filter((a) => a.earnedAt).length;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-12">
@@ -119,6 +125,11 @@ export function ProfilePage() {
           <p className="text-sm text-[var(--color-muted-foreground)]">
             @{user.username}
           </p>
+          {user.bio && (
+            <p className="mt-2 max-w-md text-sm text-[var(--color-muted-foreground)]">
+              {user.bio}
+            </p>
+          )}
         </div>
       </div>
 
@@ -133,6 +144,29 @@ export function ProfilePage() {
           <StatCard label={t('profile.bestScore')} value={stats.bestScore.toLocaleString()} />
           <StatCard label={t('profile.friends')} value={stats.friends.toLocaleString()} />
         </div>
+      </section>
+
+      {/* Achievements */}
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-[var(--color-foreground)]">
+          {t('profile.achievements')}
+        </h2>
+        {achievements.length === 0 ? (
+          <p className="py-4 text-center text-sm text-[var(--color-muted-foreground)]">
+            {t('profile.noAchievements')}
+          </p>
+        ) : (
+          <>
+            <p className="mb-3 text-xs text-[var(--color-muted-foreground)]">
+              {earnedCount} / {achievements.length} {t('profile.achievementsEarned')}
+            </p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {achievements.map((ach) => (
+                <AchievementBadge key={ach.slug} achievement={ach} />
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
       {/* Recent games */}

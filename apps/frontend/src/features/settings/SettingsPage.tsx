@@ -12,6 +12,7 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
   const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(user.displayName ?? '');
   const [username, setUsername] = useState(user.username);
+  const [bio, setBio] = useState(user.bio ?? '');
   const [avatarPreview, setAvatarPreview] = useState(user.avatarUrl ?? '');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -41,6 +42,7 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
       const body: Record<string, any> = {
         displayName: displayName.trim() || null,
         username: username.trim() || undefined,
+        bio: bio.trim() || null,
       };
       if (avatarFile) {
         body.avatarData = avatarPreview; // base64 data URI from file
@@ -98,6 +100,22 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
             placeholder={user.username}
             className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
           />
+        </div>
+
+        {/* Bio */}
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-foreground)]">
+            {t('settings.bio')}
+          </label>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            maxLength={500}
+            rows={3}
+            placeholder="..."
+            className="mt-1 block w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
+          />
+          <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{t('settings.bioHint')}</p>
         </div>
 
         {/* Username */}

@@ -1,1 +1,20 @@
-{"version":"7","dialect":"postgresql","entries":[{"idx":0,"version":"7","when":1720000000000,"tag":"0000_add_notifications","breakpoints":true}]}
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1720000000000,
+      "tag": "0000_add_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783042538055,
+      "tag": "0001_broken_matthew_murdock",
+      "breakpoints": true
+    }
+  ]
+}

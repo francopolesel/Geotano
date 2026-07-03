@@ -75,6 +75,9 @@
   "profile.friends": "Amigos",
   "profile.recentGames": "Partidas Recientes",
   "profile.noGames": "Todavía no jugó ninguna partida",
+  "profile.achievements": "Logros",
+  "profile.noAchievements": "Todavía no hay logros. ¡Jugá partidas para ganarlos!",
+  "profile.achievementsEarned": "obtenidos",
 
   "chat.title": "Chat",
   "chat.input": "Escribí un mensaje...",
@@ -100,6 +103,8 @@
   "settings.displayName": "Nombre visible",
   "settings.avatar": "Foto de Perfil",
   "settings.avatarHint": "Tocá para seleccionar una imagen de tu dispositivo",
+  "settings.bio": "Biografía",
+  "settings.bioHint": "Contale a otros sobre vos (máx 500 caracteres)",
   "settings.saved": "¡Perfil guardado!",
   "settings.changePassword": "Cambiar contraseña",
   "settings.currentPassword": "Contraseña actual",

@@ -80,6 +80,9 @@
   "profile.friends": "Friends",
   "profile.recentGames": "Recent Games",
   "profile.noGames": "No games played yet",
+  "profile.achievements": "Achievements",
+  "profile.noAchievements": "No achievements yet. Play games to earn them!",
+  "profile.achievementsEarned": "earned",
 
   "chat.title": "Chat",
   "chat.input": "Type a message...",
@@ -105,6 +108,8 @@
   "settings.displayName": "Display name",
   "settings.avatar": "Profile Picture",
   "settings.avatarHint": "Tap to select an image from your device",
+  "settings.bio": "Bio",
+  "settings.bioHint": "Tell others about yourself (max 500 characters)",
   "settings.saved": "Profile saved!",
   "settings.changePassword": "Change password",
   "settings.currentPassword": "Current password",

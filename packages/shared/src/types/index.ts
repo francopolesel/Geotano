@@ -18,6 +18,7 @@ export interface UserProfile {
   email: string;
   displayName?: string;
   avatarUrl?: string;
+  bio?: string;
   language: Locale;
   joinCode: string;
   createdAt: string;
@@ -251,6 +252,22 @@ export interface Notification {
 export interface NotificationsResponse {
   notifications: Notification[];
   unreadCount: number;
+}
+
+// ---------------------------------------------------------------------------
+// Achievements
+// ---------------------------------------------------------------------------
+
+export interface Achievement {
+  slug: string;
+  nameEn: string;
+  nameEs: string;
+  descriptionEn: string;
+  descriptionEs: string;
+  icon: string;
+  category: string;
+  tier: number | null;
+  earnedAt: string | null;
 }
 
 // ---------------------------------------------------------------------------

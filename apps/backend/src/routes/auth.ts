@@ -205,12 +205,13 @@ export async function authRoutes(app: FastifyInstance) {
     { preHandler: authGuard },
     async (request, reply) => {
       const { userId } = (request as any).user;
-      const { displayName, avatarUrl, avatarData, language, username } = request.body as {
+      const { displayName, avatarUrl, avatarData, language, username, bio } = request.body as {
         displayName?: string;
         avatarUrl?: string;
         avatarData?: string;
         language?: string;
         username?: string;
+        bio?: string;
       };
 
       const updates: Record<string, any> = {};
@@ -226,6 +227,12 @@ export async function authRoutes(app: FastifyInstance) {
           return reply.status(400).send({ message: 'Image must be smaller than 2 MB' });
         }
         updates.avatarUrl = avatarData;
+      }
+      if (bio !== undefined) {
+        if (bio.length > 500) {
+          return reply.status(400).send({ message: 'Bio must be 500 characters or less' });
+        }
+        updates.bio = bio || null;
       }
       if (language !== undefined) {
         if (!['en', 'es'].includes(language)) {
