@@ -106,6 +106,7 @@ export function QuizPage() {
   // but the BACKEND's correctAnswer is authoritative — we update feedback text
   // on mutation success to ensure the user always sees the real correct answer.
   const answerMutation = useMutation({
+    retry: 0,
     mutationFn: (params: { answer: string; timeMs: number }) =>
       api.post<QuizAnswerResponse>('/quiz/answer', {
         sessionId,
@@ -145,6 +146,16 @@ export function QuizPage() {
           timerStart();
         }, 200);
       }
+    },
+    onError: () => {
+      // If the submission failed (server cold-start, network blip),
+      // reset state so the user can retry on the current question.
+      setAnswerState('idle');
+      setSelectedIndex(null);
+      setCorrectIndex(null);
+      setFeedbackText(t('quiz.submitError'));
+      timerReset();
+      timerStart();
     },
   });
 

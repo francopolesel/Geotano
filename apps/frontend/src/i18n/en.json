@@ -61,6 +61,7 @@
   "quiz.totalQuestions": "Total",
   "quiz.streakWithCount": "🔥 {{count}} streak",
   "quiz.flagAlt": "Flag",
+  "quiz.submitError": "Connection error — tap an option to retry",
 
   "friends.title": "Friends",
   "friends.search": "Search users",

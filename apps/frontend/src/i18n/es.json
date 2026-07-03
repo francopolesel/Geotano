@@ -61,6 +61,7 @@
   "quiz.totalQuestions": "Total",
   "quiz.streakWithCount": "🔥 {{count}} racha",
   "quiz.flagAlt": "Bandera",
+  "quiz.submitError": "Error de conexión — toccá una opción para reintentar",
 
   "friends.title": "Amigos",
   "friends.search": "Buscar usuarios",

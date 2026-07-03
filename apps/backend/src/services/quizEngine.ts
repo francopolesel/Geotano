@@ -293,10 +293,18 @@ async function refillPool(sessionId: string, modeSlug: GameModeSlug, lang: strin
       ? pool[pool.length - 1].questionNumber + 1
       : 1;
 
+    // CRITICAL: also exclude countries from PENDING pool questions,
+    // not just already-answered ones. Otherwise the refill batch
+    // can generate the same country again while it's still in the queue.
+    const poolCountryIds = pool
+      .map((q) => q.countryId)
+      .filter(Boolean);
+    const allExcludeIds = [...new Set([...usedCountryIds, ...poolCountryIds])];
+
     const refill = await generateQuestionBatch(
       modeSlug,
       existingStartNumber,
-      usedCountryIds,
+      allExcludeIds,
       POOL_INITIAL_SIZE,
       lang,
     );
