@@ -108,7 +108,7 @@ export function NotificationBell() {
       {open && (
         <div
           ref={dropdownRef}
-          className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg"
+          className="fixed left-4 right-4 top-16 z-50 sm:absolute sm:right-0 sm:left-auto sm:top-full sm:mt-2 w-80 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
