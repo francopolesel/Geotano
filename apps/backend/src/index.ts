@@ -14,6 +14,14 @@ async function buildApp() {
   // Plugins
   await registerCors(app);
 
+  // Prevent caching of all API responses (helps with old Android WebView proxies)
+  app.addHook('onSend', async (_request, reply, payload) => {
+    reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    reply.header('Pragma', 'no-cache');
+    reply.header('Expires', '0');
+    return payload;
+  });
+
   // Routes
   await app.register(healthRoutes);
   await app.register(authRoutes);
