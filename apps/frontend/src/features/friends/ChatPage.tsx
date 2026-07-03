@@ -11,7 +11,7 @@ import type { ChatMessage } from '@geotano/shared';
 
 export function ChatPage() {
   const { userId } = useParams<{ userId: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const token = useAuthStore((s) => s.token);
@@ -117,12 +117,12 @@ export function ChatPage() {
   if (!userId || !activeFriend) {
     return (
       <div className="py-12 text-center">
-        <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">Select a friend to chat with</p>
+        <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">{t('chat.selectFriend')}</p>
         <button
           onClick={() => navigate('/friends')}
           className="rounded-md min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)]"
         >
-          Back to Friends
+          {t('chat.backToFriends')}
         </button>
       </div>
     );
@@ -135,7 +135,7 @@ export function ChatPage() {
         <button
           onClick={() => navigate('/friends')}
           className="rounded-md p-2 min-h-[44px] min-w-[44px] text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] -ml-2"
-          aria-label="Back"
+          aria-label={t('chat.back')}
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -158,7 +158,7 @@ export function ChatPage() {
             {activeFriend.displayName ?? activeFriend.username}
           </p>
           <p className="text-xs text-[var(--color-muted-foreground)]">
-            {isOnline ? 'Online' : 'Offline'}
+            {isOnline ? t('chat.online') : t('chat.offline')}
           </p>
         </div>
       </div>
@@ -205,7 +205,7 @@ export function ChatPage() {
                           : 'text-[var(--color-muted-foreground)]'
                       }`}
                     >
-                      {new Date(msg.createdAt).toLocaleTimeString([], {
+                      {new Date(msg.createdAt).toLocaleTimeString(i18n.language, {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}

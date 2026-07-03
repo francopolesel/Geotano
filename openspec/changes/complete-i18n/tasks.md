@@ -47,16 +47,16 @@ Chain strategy: size-exception
 
 ## Phase 5: Frontend Hardcoded String Cleanup
 
-- [ ] 5.1 Modify `apps/frontend/src/lib/api.ts` — append `?lang=` from `i18n.language` on every request; replace "Session expired" with `t('errors.session_expired')`
-- [ ] 5.2 Modify `apps/frontend/src/store/authStore.ts` — translate catch fallback messages via `i18n.t()`
-- [ ] 5.3 Modify `apps/frontend/src/store/friendsStore.ts` — translate ~10 catch fallback messages via `i18n.t()`
-- [ ] 5.4 Modify `apps/frontend/src/features/friends/FriendsPage.tsx` — replace ~15 hardcoded strings with `t()`
-- [ ] 5.5 Modify `apps/frontend/src/features/friends/ChatPage.tsx` — translate "Online"/"Offline", "Select a friend", "Back to Friends"
-- [ ] 5.6 Modify `apps/frontend/src/features/settings/SettingsPage.tsx` — translate placeholders, validation text, catch fallbacks
-- [ ] 5.7 Modify `apps/frontend/src/features/profile/ProfilePage.tsx` — translate "User ID is missing"
-- [ ] 5.8 Modify `apps/frontend/src/components/NotificationBell.tsx` — translate `getDescription()` fallback format string
-- [ ] 5.9 Modify `apps/frontend/src/components/ui/AchievementBadge.tsx` — translate GOLD/SILVER/BRONZE tier labels
-- [ ] 5.10 Modify `apps/frontend/src/features/quiz/QuizPage.tsx` — translate leave modal `||` fallbacks and streak fallback text
+- [x] 5.1 Modify `apps/frontend/src/lib/api.ts` — append `?lang=` from `i18n.language` on every request; replace "Session expired" with `t('errors.session_expired')`
+- [x] 5.2 Modify `apps/frontend/src/store/authStore.ts` — translate catch fallback messages via `i18n.t()`
+- [x] 5.3 Modify `apps/frontend/src/store/friendsStore.ts` — translate ~10 catch fallback messages via `i18n.t()`
+- [x] 5.4 Modify `apps/frontend/src/features/friends/FriendsPage.tsx` — replace ~15 hardcoded strings with `t()`
+- [x] 5.5 Modify `apps/frontend/src/features/friends/ChatPage.tsx` — translate "Online"/"Offline", "Select a friend", "Back to Friends"
+- [x] 5.6 Modify `apps/frontend/src/features/settings/SettingsPage.tsx` — translate placeholders, validation text, catch fallbacks
+- [x] 5.7 Modify `apps/frontend/src/features/profile/ProfilePage.tsx` — translate "User ID is missing"
+- [x] 5.8 Modify `apps/frontend/src/components/NotificationBell.tsx` — translate `getDescription()` fallback format string
+- [x] 5.9 Modify `apps/frontend/src/components/ui/AchievementBadge.tsx` — translate GOLD/SILVER/BRONZE tier labels
+- [x] 5.10 Modify `apps/frontend/src/features/quiz/QuizPage.tsx` — translate leave modal `||` fallbacks and streak fallback text
 
 ## Phase 6: Testing
 

@@ -66,7 +66,7 @@ export function NotificationBell() {
   };
 
   const getDescription = (notification: (typeof notifications)[0]) => {
-    const fromName = notification.fromDisplayName || notification.fromUsername || 'Someone';
+    const fromName = notification.fromDisplayName || notification.fromUsername || t('notifications.someone');
     const label = getLabel(notification.type);
 
     if (notification.type === 'new_message') {
@@ -79,7 +79,7 @@ export function NotificationBell() {
     if (notification.type === 'friend_request_accepted') {
       return t('notifications.friendAccepted', { name: fromName });
     }
-    return `${fromName} — ${label}`;
+    return t('notifications.descriptionFormat', { fromName, label });
   };
 
   return (

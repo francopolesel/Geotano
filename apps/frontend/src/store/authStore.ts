@@ -40,7 +40,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed';
+      const message = err instanceof Error ? err.message : i18n.t('errors.common.loginFailed');
       set({ isLoading: false, error: message });
       throw err;
     }
@@ -66,7 +66,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (err instanceof ApiError && err.status === 409) {
         set({ isLoading: false, error: i18n.t('auth.validation.usernameTaken') });
       } else {
-        const message = err instanceof Error ? err.message : 'Registration failed';
+        const message = err instanceof Error ? err.message : i18n.t('errors.common.registrationFailed');
         set({ isLoading: false, error: message });
       }
       throw err;

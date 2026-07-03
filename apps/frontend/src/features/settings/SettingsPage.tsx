@@ -51,7 +51,7 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
       onUpdated(updated);
       setMsg({ type: 'success', text: t('settings.saved') });
     } catch (err) {
-      setMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save' });
+      setMsg({ type: 'error', text: err instanceof Error ? err.message : t('errors.common.saveFailed') });
     } finally {
       setSaving(false);
     }
@@ -112,7 +112,7 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
             onChange={(e) => setBio(e.target.value)}
             maxLength={500}
             rows={3}
-            placeholder="..."
+            placeholder={t('settings.bioPlaceholder')}
             className="mt-1 block w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
           />
           <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{t('settings.bioHint')}</p>
@@ -129,7 +129,7 @@ function ProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated: (u:
             onChange={(e) => setUsername(e.target.value)}
             className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
           />
-          <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">Only letters, numbers, and underscores. At least 3 characters.</p>
+          <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{t('settings.usernameHint')}</p>
         </div>
 
         {/* Email (read-only) */}
@@ -193,7 +193,7 @@ function PasswordSection() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      setMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to change password' });
+      setMsg({ type: 'error', text: err instanceof Error ? err.message : t('errors.common.passwordChangeFailed') });
     } finally {
       setSaving(false);
     }

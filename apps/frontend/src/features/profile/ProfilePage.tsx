@@ -86,7 +86,7 @@ export function ProfilePage() {
   if (!userId) {
     return (
       <div className="mx-auto max-w-2xl py-12 text-center text-sm text-[var(--color-muted-foreground)]">
-        User ID is missing
+        {t('profile.userIdMissing')}
       </div>
     );
   }

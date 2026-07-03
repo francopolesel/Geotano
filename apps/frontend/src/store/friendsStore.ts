@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '../lib/api';
+import i18n from '../i18n/i18n';
 import type { UserProfile } from '@geotano/shared';
 
 interface FriendUser {
@@ -101,7 +102,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
         isLoading: false,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load friends';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.loadFailed');
       set({ isLoading: false, error: message });
     }
   },
@@ -131,7 +132,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       }));
       await get().fetchFriends();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to send request';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.sendFailed');
       set({ error: message });
       throw err;
     }
@@ -142,7 +143,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       await api.post('/friends/cancel', { requestId });
       await get().fetchFriends();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to cancel request';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.cancelFailed');
       set({ error: message });
     }
   },
@@ -152,7 +153,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       await api.post('/friends/accept', { requestId });
       await get().fetchFriends();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to accept request';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.acceptFailed');
       set({ error: message });
     }
   },
@@ -162,7 +163,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       await api.post('/friends/decline', { requestId });
       await get().fetchFriends();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to decline request';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.declineFailed');
       set({ error: message });
     }
   },
@@ -172,7 +173,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       const data = await api.get<{ code: string; inviteLink: string }>('/invite-link');
       return data.inviteLink;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to get invite link';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.inviteLoadFailed');
       set({ error: message });
       return '';
     }
@@ -184,7 +185,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       await api.post('/friends/invite', { code });
       await get().fetchFriends();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid invite code';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.inviteInvalid');
       set({ error: message });
       throw err;
     }
@@ -195,7 +196,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       const data = await api.get<BlockedUser[]>('/friends/blocked');
       set({ blockedUsers: data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load blocked users';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.blockFetchFailed');
       set({ error: message });
     }
   },
@@ -206,7 +207,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       await get().fetchFriends();
       await get().fetchBlocked();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to block user';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.blockFailed');
       set({ error: message });
     }
   },
@@ -217,7 +218,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       await get().fetchBlocked();
       await get().fetchFriends();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to unblock user';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.unblockFailed');
       set({ error: message });
     }
   },
@@ -227,7 +228,7 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       await api.post('/friends/remove', { friendId });
       await get().fetchFriends();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to remove friend';
+      const message = err instanceof Error ? err.message : i18n.t('errors.friends.removeFailed');
       set({ error: message });
     }
   },

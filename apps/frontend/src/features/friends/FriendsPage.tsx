@@ -119,10 +119,10 @@ export function FriendsPage() {
     setRedeemSuccess(null);
     try {
       await redeemInvite(code);
-      setRedeemSuccess('Friend added successfully! Check your friends list.');
+      setRedeemSuccess(t('friends.redeemSuccess'));
       setRedeemCode('');
     } catch (err) {
-      setRedeemError(err instanceof Error ? err.message : 'Invalid invite code');
+      setRedeemError(err instanceof Error ? err.message : t('errors.friends.inviteInvalid'));
     } finally {
       setRedeemLoading(false);
     }
@@ -184,21 +184,21 @@ export function FriendsPage() {
                 {t('friends.noFriends')}
               </p>
               <p className="mb-4 text-xs text-[var(--color-muted-foreground)]">
-                Search for users or share your invite code to connect!
+                {t('friends.noFriendsHint')}
               </p>
               <button
                 onClick={() => setActiveTab('search')}
                 className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
               >
-                Find friends
+                {t('friends.findFriends')}
               </button>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between px-1">
                 <p className="text-xs text-[var(--color-muted-foreground)]">
-                  {friends.length} {friends.length === 1 ? 'friend' : 'friends'}
-                  {onlineUsers.size > 0 && ` · ${onlineUsers.size} online`}
+                  {t('friends.friendCount', { count: friends.length })}
+                  {onlineUsers.size > 0 && t('friends.onlineCount', { count: onlineUsers.size })}
                 </p>
               </div>
             {friends.map((friend) => (
@@ -232,7 +232,7 @@ export function FriendsPage() {
                   <button
                     onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
                     className="rounded-md min-h-[44px] min-w-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
-                    title="Chat"
+                    title={t('friends.chat')}
                   >
                     💬
                   </button>
@@ -267,7 +267,7 @@ export function FriendsPage() {
           {pendingIncoming.length > 0 && (
             <div>
               <h3 className="mb-3 text-sm font-medium text-[var(--color-muted-foreground)]">
-                Incoming
+                {t('friends.incoming')}
               </h3>
               <div className="space-y-2">
                   {pendingIncoming.map((req) => (
@@ -318,7 +318,7 @@ export function FriendsPage() {
           {pendingOutgoing.length > 0 && (
             <div>
               <h3 className="mb-3 text-sm font-medium text-[var(--color-muted-foreground)]">
-                Outgoing
+                {t('friends.outgoing')}
               </h3>
               <div className="space-y-2">
                   {pendingOutgoing.map((req) => (
@@ -362,9 +362,9 @@ export function FriendsPage() {
 
           {pendingIncoming.length === 0 && pendingOutgoing.length === 0 && (
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center">
-              <p className="text-sm text-[var(--color-muted-foreground)]">No pending requests</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">{t('friends.noRequests')}</p>
               <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
-                Share your invite code or search for users to connect!
+                {t('friends.noRequestsHint')}
               </p>
             </div>
           )}
@@ -383,7 +383,7 @@ export function FriendsPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search by username..."
+              placeholder={t('friends.searchPlaceholder')}
               className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
             />
           </div>
@@ -393,7 +393,7 @@ export function FriendsPage() {
             <div className="space-y-2">
               {searchResults.length === 0 ? (
                 <p className="py-4 text-center text-sm text-[var(--color-muted-foreground)]">
-                  No users found
+                  {t('friends.noUsersFound')}
                 </p>
               ) : (
                   searchResults.map((user) => (
@@ -431,11 +431,11 @@ export function FriendsPage() {
           )}
           {/* Invite link section — your code to share */}
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <h3 className="mb-2 text-sm font-medium text-[var(--color-foreground)]">
-              Your invite code
-            </h3>
+              <h3 className="mb-2 text-sm font-medium text-[var(--color-foreground)]">
+                {t('friends.inviteYourCode')}
+              </h3>
             <p className="mb-3 text-xs text-[var(--color-muted-foreground)]">
-              Share this code with friends so they can add you instantly!
+              {t('friends.inviteShareDesc')}
             </p>
             <div className="flex gap-2">
               <input
@@ -449,18 +449,18 @@ export function FriendsPage() {
                 onClick={handleCopyInvite}
                 className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
               >
-                {copied ? 'Copied!' : 'Copy'}
+                {copied ? t('friends.inviteCopied') : t('friends.inviteCopy')}
               </button>
             </div>
           </div>
 
           {/* Redeem invite code — enter someone else's code */}
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <h3 className="mb-2 text-sm font-medium text-[var(--color-foreground)]">
-              Add by invite code
-            </h3>
+              <h3 className="mb-2 text-sm font-medium text-[var(--color-foreground)]">
+                {t('friends.addByCode')}
+              </h3>
             <p className="mb-3 text-xs text-[var(--color-muted-foreground)]">
-              Paste a friend's invite code to connect with them immediately.
+              {t('friends.addByCodeDesc')}
             </p>
             <div className="flex gap-2">
               <input
@@ -477,7 +477,7 @@ export function FriendsPage() {
                     handleRedeemInvite();
                   }
                 }}
-                placeholder="Paste invite code..."
+                placeholder={t('friends.redeemPlaceholder')}
                 className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm font-mono text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
               />
               <button
@@ -485,7 +485,7 @@ export function FriendsPage() {
                 disabled={redeemLoading || !redeemCode.trim()}
                 className="rounded-lg min-h-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
               >
-                {redeemLoading ? 'Adding...' : 'Add friend'}
+                {redeemLoading ? t('friends.redeemLoading') : t('friends.sendRequest')}
               </button>
             </div>
             {redeemError && (

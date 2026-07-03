@@ -14,7 +14,7 @@ interface AchievementBadgeProps {
 // ---------------------------------------------------------------------------
 
 export function AchievementBadge({ achievement }: AchievementBadgeProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const locale = i18n.language.startsWith('es') ? 'es' : 'en';
 
   const name = locale === 'es' ? achievement.nameEs : achievement.nameEn;
@@ -52,10 +52,10 @@ export function AchievementBadge({ achievement }: AchievementBadgeProps) {
           }`}
         >
           {achievement.tier === 3
-            ? 'GOLD'
+            ? t('achievements.tierGold')
             : achievement.tier === 2
-              ? 'SILVER'
-              : 'BRONZE'}
+              ? t('achievements.tierSilver')
+              : t('achievements.tierBronze')}
         </span>
       )}
     </div>

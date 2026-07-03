@@ -379,7 +379,7 @@ export function QuizPage() {
           {/* Streak — show fire icon after 5 consecutive correct answers */}
           {streak >= 5 && (
             <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
-              🔥 {t('quiz.streak')} {streak}
+              {t('quiz.streakWithCount', { count: streak })}
             </span>
           )}
         </div>
@@ -413,7 +413,7 @@ export function QuizPage() {
         <div className="mb-6 flex justify-center">
           <img
             src={currentQuestion.flagUrl}
-            alt="Flag"
+            alt={t('quiz.flagAlt')}
             className="h-32 rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-40"
           />
         </div>
@@ -469,10 +469,10 @@ function LeaveModalContent({ onStay, onLeave, score, streak }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-lg">
         <h3 className="mb-2 text-lg font-semibold text-[var(--color-foreground)]">
-          {t('quiz.leaveTitle') || 'Leave game?'}
+          {t('quiz.leaveTitle')}
         </h3>
         <p className="mb-1 text-sm text-[var(--color-muted-foreground)]">
-          {t('quiz.leaveWarning') || 'If you leave now, your progress will be lost!'}
+          {t('quiz.leaveWarning')}
         </p>
         <div className="mb-4 flex items-center gap-4 rounded-lg bg-[var(--color-muted)] px-4 py-3 text-sm">
           <span className="font-medium text-[var(--color-foreground)]">
@@ -480,7 +480,7 @@ function LeaveModalContent({ onStay, onLeave, score, streak }: {
           </span>
           {streak >= 5 && (
             <span className="text-amber-600 dark:text-amber-400">
-              🔥 {streak} streak
+              {t('quiz.streakWithCount', { count: streak })}
             </span>
           )}
         </div>
@@ -489,13 +489,13 @@ function LeaveModalContent({ onStay, onLeave, score, streak }: {
             onClick={onStay}
             className="flex-1 min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
           >
-            {t('quiz.leaveStay') || 'Stay — keep playing'}
+            {t('quiz.leaveStay')}
           </button>
           <button
             onClick={onLeave}
             className="flex-1 min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)]"
           >
-            {t('quiz.leaveAnyway') || 'Leave anyway'}
+            {t('quiz.leaveAnyway')}
           </button>
         </div>
       </div>

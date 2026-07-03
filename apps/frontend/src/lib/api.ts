@@ -1,3 +1,5 @@
+import i18n from '../i18n/i18n';
+
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) || '/api';
 
 export class ApiError extends Error {
@@ -43,7 +45,7 @@ async function request<T>(
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
     window.location.href = '/login';
-    throw new ApiError('Session expired. Please log in again.', 401);
+    throw new ApiError(i18n.t('errors.common.sessionExpired'), 401);
   }
 
   if (!res.ok) {
