@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { Achievement } from '@geotano/shared';
 import { UserAvatar } from '../../components/ui/UserAvatar';
+import { AvatarLightbox } from '../../components/ui/AvatarLightbox';
 import { AchievementBadge } from '../../components/ui/AchievementBadge';
 import { api } from '../../lib/api';
 
@@ -72,6 +74,7 @@ function formatDate(dateStr: string): string {
 export function ProfilePage() {
   const { t } = useTranslation();
   const { userId } = useParams<{ userId: string }>();
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery<ProfileResponse>({
     queryKey: ['profile', userId],
@@ -117,6 +120,7 @@ export function ProfilePage() {
           username={user.username}
           displayName={user.displayName}
           className="h-16 w-16 text-2xl"
+          onClick={user.avatarUrl ? () => setLightboxUrl(user.avatarUrl!) : undefined}
         />
         <div>
           <h1 className="text-xl font-bold text-[var(--color-foreground)]">
@@ -201,6 +205,14 @@ export function ProfilePage() {
           </div>
         )}
       </section>
+
+      {lightboxUrl && (
+        <AvatarLightbox
+          avatarUrl={lightboxUrl}
+          displayName={user?.displayName ?? user?.username ?? ''}
+          onClose={() => setLightboxUrl(null)}
+        />
+      )}
     </div>
   );
 }
