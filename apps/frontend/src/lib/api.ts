@@ -31,6 +31,7 @@ async function request<T>(
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
+    cache: 'no-store',
   });
 
   if (res.status === 401) {
