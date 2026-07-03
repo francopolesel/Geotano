@@ -207,31 +207,29 @@ export function FriendsPage() {
                 key={friend.id}
                 className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
               >
+              <div className="relative shrink-0">
+                <UserAvatar
+                  avatarUrl={friend.avatarUrl}
+                  username={friend.username}
+                  displayName={friend.displayName}
+                  className="h-10 w-10 text-sm"
+                  onClick={friend.avatarUrl ? () => setLightboxUrl(friend.avatarUrl!) : undefined}
+                />
+                {onlineUsers.has(friend.friendId) && (
+                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-card)] bg-green-500" />
+                )}
+              </div>
               <button
                 onClick={() => navigate(`/profile/${friend.friendId}`)}
-                  className="flex items-center gap-3 flex-1 min-h-[44px] text-left"
-                >
-                    <div className="relative shrink-0">
-                     <UserAvatar
-                       avatarUrl={friend.avatarUrl}
-                       username={friend.username}
-                       displayName={friend.displayName}
-                       className="h-10 w-10 text-sm"
-                       onClick={friend.avatarUrl ? () => setLightboxUrl(friend.avatarUrl!) : undefined}
-                     />
-                     {onlineUsers.has(friend.friendId) && (
-                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-card)] bg-green-500" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-[var(--color-foreground)]">
-                      {friend.displayName ?? friend.username}
-                    </p>
-                    <p className="text-xs text-[var(--color-muted-foreground)]">
-                      @{friend.username}
-                    </p>
-                  </div>
-                </button>
+                className="min-w-0 flex-1 text-left min-h-[44px]"
+              >
+                <p className="text-sm font-medium text-[var(--color-foreground)]">
+                  {friend.displayName ?? friend.username}
+                </p>
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  @{friend.username}
+                </p>
+              </button>
                 <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
