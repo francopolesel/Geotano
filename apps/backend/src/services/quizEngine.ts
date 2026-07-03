@@ -17,6 +17,11 @@ const STREAK_THRESHOLD = 3;
 const STREAK_MULTIPLIER = 1.5;
 const OPTIONS_COUNT = 4;
 
+/** How many questions to pre-generate at session start. */
+const POOL_INITIAL_SIZE = 5;
+/** When remaining pool drops below this, trigger background refill. */
+const POOL_REFILL_THRESHOLD = 2;
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export interface GeneratedQuestion {
@@ -72,10 +77,18 @@ export interface StartSessionResponse {
   question: ClientQuestion;
 }
 
-// ─── In-memory Question Cache ───────────────────────────────────────────────
+// ─── In-memory State ────────────────────────────────────────────────────────
 // Stores dispatched question data for server-authoritative answer validation.
 // Reset on server restart — acceptable for MVP (per design decision).
 const questionCache = new Map<string, CachedQuestion>();
+
+/**
+ * Pool of pre-generated questions keyed by sessionId.
+ * Questions are generated in batches at session start and refilled in the
+ * background as the user answers, so the next question is always ready
+ * without a blocking DB query.
+ */
+const questionPool = new Map<string, GeneratedQuestion[]>();
 
 // ─── Question Generation ───────────────────────────────────────────────────
 
@@ -145,8 +158,6 @@ async function generateQuestion(
 
   const questionType: QuestionType =
     config.questionTypes[Math.floor(Math.random() * config.questionTypes.length)];
-
-  
 
   // Pick the correct country (avoid repeats)
   let correctCountry: any;
@@ -218,6 +229,63 @@ async function generateQuestion(
   };
 }
 
+/**
+ * Generate a batch of questions sequentially, each excluding countries
+ * from all previous questions in the batch (plus the global exclude set).
+ */
+async function generateQuestionBatch(
+  modeSlug: GameModeSlug,
+  startNumber: number,
+  excludeCountryIds: string[],
+  count: number,
+): Promise<GeneratedQuestion[]> {
+  const batch: GeneratedQuestion[] = [];
+  const cumulativeExclude = [...excludeCountryIds];
+
+  for (let i = 0; i < count; i++) {
+    const q = await generateQuestion(modeSlug, startNumber + i, cumulativeExclude);
+    batch.push(q);
+    cumulativeExclude.push(q.countryId);
+  }
+
+  return batch;
+}
+
+/**
+ * Refill the question pool in the background.
+ * Queries the DB for the latest answered countries to avoid reusing them.
+ */
+async function refillPool(sessionId: string, modeSlug: GameModeSlug): Promise<void> {
+  try {
+    // Fetch latest used countries from DB to avoid stale exclude lists
+    const prevAnswers = await db
+      .select()
+      .from(gameAnswers)
+      .where(eq(gameAnswers.sessionId, sessionId));
+
+    const usedCountryIds = prevAnswers
+      .filter((a) => a.countryId)
+      .map((a) => a.countryId);
+
+    // Calculate where to start numbering based on what's already in the pool
+    const pool = questionPool.get(sessionId) ?? [];
+    const existingStartNumber = pool.length > 0
+      ? pool[pool.length - 1].questionNumber + 1
+      : 1;
+
+    const refill = await generateQuestionBatch(
+      modeSlug,
+      existingStartNumber,
+      usedCountryIds,
+      POOL_INITIAL_SIZE,
+    );
+
+    questionPool.set(sessionId, [...pool, ...refill]);
+  } catch (err) {
+    console.error('[refillPool] Failed to refill question pool:', err);
+  }
+}
+
 // ─── Scoring ───────────────────────────────────────────────────────────────
 
 export function calculateScore(
@@ -250,6 +318,7 @@ export function calculateScore(
 
 /**
  * Start a new quiz session and return the first question.
+ * Pre-generates a pool of questions so subsequent answers are instant.
  */
 export async function startSession(
   userId: string,
@@ -300,27 +369,41 @@ export async function startSession(
     throw new Error('Failed to create session');
   }
 
-  // Generate first question and cache it server-side
-  const question = await generateQuestion(modeSlug, 1);
+  // ── Generate initial question pool ────────────────────────────────────
+  // Generate POOL_INITIAL_SIZE questions upfront. Q1 goes to the client,
+  // the rest are cached for instant retrieval on subsequent answers.
+  const batch = await generateQuestionBatch(modeSlug, 1, [], POOL_INITIAL_SIZE);
 
+  if (batch.length === 0) {
+    throw new Error('No countries available. Seed countries before starting a quiz.');
+  }
+
+  const firstQuestion = batch[0];
+  const poolQuestions = batch.slice(1);
+
+  // Cache Q1 for current answer validation
   questionCache.set(session.id, {
-    correctCountryId: question.countryId,
-    correctAnswer: question.correctAnswer,
-    questionType: question.questionType,
+    correctCountryId: firstQuestion.countryId,
+    correctAnswer: firstQuestion.correctAnswer,
+    questionType: firstQuestion.questionType,
     dispatchTime: Date.now(),
-    timeLimitMs: question.timeLimitMs,
-    optionsCountryIds: question.optionsCountryIds,
+    timeLimitMs: firstQuestion.timeLimitMs,
+    optionsCountryIds: firstQuestion.optionsCountryIds,
     currentStreak: 0,
   });
 
-  // Return sessionId + question WITHOUT the correct answer / internal IDs
-  const { correctAnswer: _, optionsCountryIds: __, ...clientQuestion } = question;
+  // Store Q2+ for instant retrieval
+  questionPool.set(session.id, poolQuestions);
+
+  // Return Q1 to client (without correct answer / internal IDs)
+  const { correctAnswer: _, optionsCountryIds: __, ...clientQuestion } = firstQuestion;
 
   return { sessionId: session.id, question: clientQuestion };
 }
 
 /**
  * Submit an answer for the current question and get the result + next question.
+ * The next question is returned from the pre-generated pool — no blocking DB query.
  */
 export async function submitAnswer(
   sessionId: string,
@@ -364,7 +447,6 @@ export async function submitAnswer(
   const config = getModeConfig(modeRecord.slug as GameModeSlug);
 
   // ── Timer enforcement ──────────────────────────────────────────────────
-  // If the client reports time exceeding the limit + 2s grace, treat as wrong
   const GRACE_MS = 2000;
   const timeExceeded = timeMs > cached.timeLimitMs + GRACE_MS;
 
@@ -373,7 +455,7 @@ export async function submitAnswer(
     answer.trim().toLowerCase() === cached.correctAnswer.trim().toLowerCase();
   const wasCorrect = !timeExceeded && answerMatch;
 
-  // ── Streak tracking (C4 fix: use current streak, not all-time max) ─────
+  // ── Streak tracking ────────────────────────────────────────────────────
   const streakBefore = cached.currentStreak;
   const newStreak = wasCorrect ? streakBefore + 1 : 0;
 
@@ -409,7 +491,7 @@ export async function submitAnswer(
     .where(eq(gameSessions.id, sessionId))
     .returning();
 
-  // ── Record answer (C3 fix: use actual UUIDs from cache) ────────────────
+  // ── Record answer ──────────────────────────────────────────────────────
   await db.insert(gameAnswers).values({
     sessionId,
     countryId: cached.correctCountryId,
@@ -431,6 +513,7 @@ export async function submitAnswer(
 
   if (gameOver) {
     questionCache.delete(sessionId);
+    questionPool.delete(sessionId);
 
     result.result = {
       totalScore: updatedSession.score,
@@ -443,21 +526,37 @@ export async function submitAnswer(
     return result;
   }
 
-  // ── Generate next question ─────────────────────────────────────────────
-  const prevAnswers = await db
-    .select()
-    .from(gameAnswers)
-    .where(eq(gameAnswers.sessionId, sessionId));
+  // ── Pop next question from pre-generated pool ──────────────────────────
+  const pool = questionPool.get(sessionId);
+  let nextQuestion: GeneratedQuestion | null = null;
 
-  const usedCountryIds = prevAnswers
-    .filter((a) => a.countryId)
-    .map((a) => a.countryId);
+  if (pool && pool.length > 0) {
+    nextQuestion = pool.shift()!;
 
-  const nextQuestion = await generateQuestion(
-    modeRecord.slug as GameModeSlug,
-    updatedSession.totalQuestions + 1,
-    usedCountryIds,
-  );
+    // Update questionNumbers to reflect actual progress
+    const actualQuestionNumber = updatedSession.totalQuestions + 1;
+    if (nextQuestion.questionNumber !== actualQuestionNumber) {
+      nextQuestion = { ...nextQuestion, questionNumber: actualQuestionNumber };
+    }
+  }
+
+  if (!nextQuestion) {
+    // Fallback: generate synchronously (slow path — DB query)
+    const prevAnswers = await db
+      .select()
+      .from(gameAnswers)
+      .where(eq(gameAnswers.sessionId, sessionId));
+
+    const usedCountryIds = prevAnswers
+      .filter((a) => a.countryId)
+      .map((a) => a.countryId);
+
+    nextQuestion = await generateQuestion(
+      modeRecord.slug as GameModeSlug,
+      updatedSession.totalQuestions + 1,
+      usedCountryIds,
+    );
+  }
 
   // ── Cache the next question for authoritatve validation ────────────────
   questionCache.set(sessionId, {
@@ -469,6 +568,16 @@ export async function submitAnswer(
     optionsCountryIds: nextQuestion.optionsCountryIds,
     currentStreak: newStreak,
   });
+
+  // ── Background pool refill ────────────────────────────────────────────
+  // If pool is running low, top it up asynchronously
+  const currentPool = questionPool.get(sessionId);
+  if (!currentPool || currentPool.length < POOL_REFILL_THRESHOLD) {
+    // Fire-and-forget background refill
+    refillPool(sessionId, modeRecord.slug as GameModeSlug).catch((err) =>
+      console.error('[quizEngine] Background pool refill failed:', err),
+    );
+  }
 
   // Strip sensitive fields before returning to client
   const {

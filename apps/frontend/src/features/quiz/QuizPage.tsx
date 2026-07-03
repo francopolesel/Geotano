@@ -143,7 +143,7 @@ export function QuizPage() {
           setFeedbackText('');
           timerReset();
           timerStart();
-        }, 400);
+        }, 200);
       }
     },
   });
