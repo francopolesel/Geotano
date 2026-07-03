@@ -26,6 +26,9 @@ export function ChatPage() {
   const otherUserId = userId || '';
   const isOnline = onlineUsers.has(otherUserId);
 
+  // Track initial load so we skip smooth scroll on first render
+  const isFirstRender = useRef(true);
+
   // Load friends list if not loaded
   useEffect(() => {
     if (friends.length === 0) {
@@ -36,7 +39,7 @@ export function ChatPage() {
   // Connect socket and set message handler
   useEffect(() => {
     if (!token) return;
-    const socket = connectSocket(token);
+    connectSocket(token);
 
     setChatMessageHandler((message: ChatMessage) => {
       // Only add if it's relevant to this conversation
@@ -75,15 +78,15 @@ export function ChatPage() {
     loadMessages();
   }, [userId]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages.
+  // Auto on first render (instant), smooth after that.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length === 0) return;
+    messagesEndRef.current?.scrollIntoView({
+      behavior: isFirstRender.current ? 'auto' : 'smooth',
+    });
+    isFirstRender.current = false;
   }, [messages]);
-
-  // Focus input on mount
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   const handleSend = useCallback(() => {
     const trimmed = inputValue.trim();
@@ -123,26 +126,26 @@ export function ChatPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col h-dvh">
-      {/* Chat header */}
-      <div className="shrink-0 flex items-center gap-3 border-b border-[var(--color-border)] px-0 pb-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col min-h-0">
+      {/* Chat header — compact, shrink-0 */}
+      <div className="shrink-0 flex items-center gap-3 pb-3">
         <button
           onClick={() => navigate('/friends')}
-          className="rounded-md p-2 min-h-[44px] min-w-[44px] text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
+          className="rounded-md p-2 min-h-[44px] min-w-[44px] text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] -ml-2"
           aria-label="Back"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
           {(activeFriend.displayName ?? activeFriend.username).charAt(0).toUpperCase()}
           {isOnline && (
             <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-background)] bg-green-500" />
           )}
         </div>
-        <div>
-          <p className="text-sm font-medium text-[var(--color-foreground)]">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-[var(--color-foreground)]">
             {activeFriend.displayName ?? activeFriend.username}
           </p>
           <p className="text-xs text-[var(--color-muted-foreground)]">
@@ -151,8 +154,14 @@ export function ChatPage() {
         </div>
       </div>
 
-      {/* Messages area — flex-1 fills remaining space, overflow-y-auto for scroll */}
-      <div className="flex-1 space-y-3 overflow-y-auto py-4" style={{ overscrollBehavior: 'contain' }}>
+      {/* Divider */}
+      <div className="shrink-0 border-b border-[var(--color-border)]" />
+
+      {/* Messages area — flex-1 overflow-y-auto, fills all remaining space */}
+      <div
+        className="flex-1 overflow-y-auto space-y-3 py-4 min-h-0"
+        style={{ overscrollBehavior: 'contain' }}
+      >
         {loadingMessages ? (
           <div className="flex items-center justify-center py-8">
             <p className="text-sm text-[var(--color-muted-foreground)]">{t('common.loading')}</p>
@@ -164,7 +173,7 @@ export function ChatPage() {
             </p>
           </div>
         ) : (
-          <>
+          <div className="px-1">
             {messages.map((msg) => {
               const isMine = msg.senderId === currentUserId;
               return (
@@ -196,13 +205,13 @@ export function ChatPage() {
                 </div>
               );
             })}
-          </>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area — sticky bottom within the flex container */}
-      <div className="shrink-0 flex gap-2 border-t border-[var(--color-border)] pt-4 pb-safe-bottom">
+      {/* Input area — shrink-0, sticky at the bottom */}
+      <div className="shrink-0 flex items-end gap-2 border-t border-[var(--color-border)] pb-safe-bottom pt-3">
         <input
           ref={inputRef}
           type="text"
@@ -210,12 +219,12 @@ export function ChatPage() {
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t('chat.input')}
-          className="flex-1 min-h-[44px] rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-base text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
+          className="flex-1 min-h-[44px] rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 text-base text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
         />
         <button
           onClick={handleSend}
           disabled={!inputValue.trim()}
-          className="rounded-lg min-h-[44px] min-w-[44px] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
+          className="rounded-xl min-h-[44px] min-w-[44px] bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
         >
           {t('chat.send')}
         </button>
