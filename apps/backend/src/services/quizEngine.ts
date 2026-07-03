@@ -196,13 +196,20 @@ async function generateQuestion(
   const options = indices.map((i) => allTexts[i]);
   const optionsCountryIds = indices.map((i) => allCountryIds[i]);
 
+  const correctIndex = indices.indexOf(0); // index 0 was the correct answer before shuffle
+
+  // Debug: log generated question data
+  console.log(
+    `[quiz] Generated Q${questionNumber} type=${questionType} correct="${correctText}" (idx=${correctIndex}) options=[${options.join(', ')}]`,
+  );
+
   return {
     id: crypto.randomUUID(),
     countryId: correctCountry.id,
     questionType,
     questionText: getQuestionText(correctCountry, questionType),
     options,
-    correctIndex: indices.indexOf(0), // index 0 was the correct answer before shuffle
+    correctIndex,
     correctAnswer: correctText,
     flagUrl:
       questionType === 'flag-to-country' || questionType === 'country-to-flag'
@@ -365,9 +372,13 @@ export async function submitAnswer(
   const timeExceeded = timeMs > cached.timeLimitMs + GRACE_MS;
 
   // ── Evaluate answer (server-authoritative — compared against cache) ────
-  const wasCorrect =
-    !timeExceeded &&
+  const answerMatch =
     answer.trim().toLowerCase() === cached.correctAnswer.trim().toLowerCase();
+  const wasCorrect = !timeExceeded && answerMatch;
+
+  console.log(
+    `[quiz] Answer session=${sessionId.slice(0, 8)} answer="${answer}" cachedCorrect="${cached.correctAnswer}" match=${answerMatch} timeExceeded=${timeExceeded} wasCorrect=${wasCorrect}`,
+  );
 
   // ── Streak tracking (C4 fix: use current streak, not all-time max) ─────
   const streakBefore = cached.currentStreak;

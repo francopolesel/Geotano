@@ -102,7 +102,9 @@ export function QuizPage() {
 
   // ── Answer mutation ───────────────────────────────────────────────────────
   // The mutation is used for backend scoring/validation.
-  // The frontend shows feedback IMMEDIATELY using correctIndex from the question.
+  // The frontend shows feedback IMMEDIATELY using correctIndex from the question,
+  // but the BACKEND's correctAnswer is authoritative — we update feedback text
+  // on mutation success to ensure the user always sees the real correct answer.
   const answerMutation = useMutation({
     mutationFn: (params: { answer: string; timeMs: number }) =>
       api.post<QuizAnswerResponse>('/quiz/answer', {
@@ -120,6 +122,13 @@ export function QuizPage() {
         resetStreak();
         loseLife();
       }
+
+      // Overwrite feedback text with backend's authoritative correctAnswer
+      setFeedbackText(
+        data.correct
+          ? t('quiz.correct')
+          : `${t('quiz.wrong')} — ${data.correctAnswer}`,
+      );
 
       if (data.result) {
         setGameResult(data.result);
@@ -143,13 +152,12 @@ export function QuizPage() {
   const handleTimerExpire = useCallback(() => {
     if (answerState !== 'idle' || !currentQuestion) return; // Already answered
 
-    const correctIdx = currentQuestion.correctIndex;
-
-    // Show feedback IMMEDIATELY — lost life, reveal correct answer
+    // Show generic wrong feedback immediately; the authoritative correctAnswer
+    // text will be filled in by onSuccess from the backend response.
     setSelectedIndex(null); // No option was selected
-    setCorrectIndex(correctIdx);
+    setCorrectIndex(currentQuestion.correctIndex);
     setAnswerState('wrong');
-    setFeedbackText(`${t('quiz.wrong')} — ${currentQuestion.options[correctIdx]}`);
+    setFeedbackText(t('quiz.wrong'));
 
     // Submit empty answer to backend for scoring/validation
     answerMutation.mutate({ answer: '', timeMs: currentQuestion.timeLimitMs });
@@ -189,15 +197,11 @@ export function QuizPage() {
     setSelectedIndex(index);
     setCorrectIndex(currentQuestion.correctIndex);
 
-    // Show feedback IMMEDIATELY — no backend round-trip
+    // Show feedback IMMEDIATELY using correctIndex for visual style (green/red borders).
+    // The answer TEXT will be set by the backend's authoritative onSuccess.
     const isCorrect = index === currentQuestion.correctIndex;
-    if (isCorrect) {
-      setAnswerState('correct');
-      setFeedbackText(t('quiz.correct'));
-    } else {
-      setAnswerState('wrong');
-      setFeedbackText(`${t('quiz.wrong')} — ${currentQuestion.options[currentQuestion.correctIndex]}`);
-    }
+    setAnswerState(isCorrect ? 'correct' : 'wrong');
+    setFeedbackText(t(isCorrect ? 'quiz.correct' : 'quiz.wrong'));
 
     // Send answer to backend in background for scoring/validation
     const answerText = currentQuestion.options[index];
