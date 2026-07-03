@@ -11,6 +11,8 @@ interface NotificationState {
   addNotification: (notification: Notification) => void;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  /** Mark as read on backend AND remove from local list immediately */
+  dismissNotification: (id: string) => Promise<void>;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
@@ -66,6 +68,31 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       }));
     } catch {
       // Silently fail
+    }
+  },
+
+  dismissNotification: async (id) => {
+    // Optimistically remove from local list immediately
+    const prev = get().notifications;
+    const removed = prev.find((n) => n.id === id);
+    set((state) => ({
+      notifications: state.notifications.filter((n) => n.id !== id),
+      unreadCount: Math.max(0, state.unreadCount - (removed && !removed.read ? 1 : 0)),
+    }));
+
+    try {
+      // Mark as read on backend
+      await api.post(`/notifications/read/${id}`, {});
+      // Then delete it so it doesn't come back on refresh
+      await api.delete(`/notifications/${id}`);
+    } catch {
+      // Restore on failure
+      if (removed) {
+        set((state) => ({
+          notifications: [...state.notifications, removed],
+          unreadCount: state.unreadCount + (removed.read ? 0 : 1),
+        }));
+      }
     }
   },
 }));

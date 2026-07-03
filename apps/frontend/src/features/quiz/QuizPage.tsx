@@ -430,11 +430,11 @@ export function QuizPage() {
         </div>
       )}
 
-      {/* Answer options */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* Answer options — keyed by question id to force remount on old Android browsers that otherwise reuse stale DOM */}
+      <div key={currentQuestion.id} className="grid gap-3 sm:grid-cols-2">
         {currentQuestion.options.map((option, index) => (
           <button
-            key={index}
+            key={`${currentQuestion.id}-${index}`}
             onClick={() => handleAnswer(index)}
             disabled={answerState !== 'idle'}
             className={getOptionBtnStyle(index, selectedIndex, correctIndex, answerState)}

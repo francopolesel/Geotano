@@ -5,6 +5,7 @@ import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../lib/socket';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/i18n';
 
 const NOTIFICATION_LABELS: Record<string, string> = {
   friend_request: 'notifications.friendRequest',
@@ -16,7 +17,7 @@ export function NotificationBell() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const token = useAuthStore((s) => s.token);
-  const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } =
+  const { notifications, unreadCount, fetchNotifications, dismissNotification, markAllAsRead } =
     useNotificationStore();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -47,9 +48,7 @@ export function NotificationBell() {
   }, [open]);
 
   const handleNotificationClick = (notification: (typeof notifications)[0]) => {
-    if (!notification.read) {
-      markAsRead(notification.id);
-    }
+    dismissNotification(notification.id);
     setOpen(false);
 
     // Navigate based on type
@@ -159,7 +158,7 @@ export function NotificationBell() {
                         {getDescription(n)}
                       </p>
                       <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">
-                        {new Date(n.createdAt).toLocaleDateString(undefined, {
+                        {new Date(n.createdAt).toLocaleDateString(i18n.language, {
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
