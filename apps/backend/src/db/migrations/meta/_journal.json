@@ -22,6 +22,13 @@
       "when": 1783043413922,
       "tag": "0002_deep_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783044000000,
+      "tag": "0003_safe_migration",
+      "breakpoints": true
     }
   ]
 }
