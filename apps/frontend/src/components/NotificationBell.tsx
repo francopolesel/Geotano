@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { UserAvatar } from './ui/UserAvatar';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../lib/socket';
@@ -107,7 +108,7 @@ export function NotificationBell() {
       {open && (
         <div
           ref={dropdownRef}
-          className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg"
+          className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
@@ -143,9 +144,12 @@ export function NotificationBell() {
                 >
                   <div className="flex items-start gap-2">
                     {/* Avatar */}
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-xs font-bold text-[var(--color-primary)]">
-                      {(n.fromDisplayName || n.fromUsername || '?')[0].toUpperCase()}
-                    </div>
+                    <UserAvatar
+                      avatarUrl={n.fromAvatarUrl}
+                      username={n.fromUsername || '?'}
+                      displayName={n.fromDisplayName}
+                      className="mt-0.5 h-8 w-8 text-xs"
+                    />
                     <div className="min-w-0 flex-1">
                       <p
                         className={`truncate ${

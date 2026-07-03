@@ -298,7 +298,7 @@ export async function authRoutes(app: FastifyInstance) {
 
       const valid = await verifyPassword(currentPassword, user.passwordHash);
       if (!valid) {
-        return reply.status(401).send({ message: 'Current password is incorrect' });
+        return reply.status(400).send({ message: 'Current password is incorrect' });
       }
 
       const newHash = await hashPassword(newPassword);

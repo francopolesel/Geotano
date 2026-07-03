@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, disconnectSocket } from '../../lib/socket';
@@ -208,8 +209,13 @@ export function FriendsPage() {
                 onClick={() => navigate(`/profile/${friend.friendId}`)}
                   className="flex items-center gap-3 flex-1 min-h-[44px] text-left"
                 >
-                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
-                    {(friend.displayName ?? friend.username).charAt(0).toUpperCase()}
+                   <div className="relative shrink-0">
+                    <UserAvatar
+                      avatarUrl={friend.avatarUrl}
+                      username={friend.username}
+                      displayName={friend.displayName}
+                      className="h-10 w-10 text-sm"
+                    />
                     {onlineUsers.has(friend.friendId) && (
                       <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-card)] bg-green-500" />
                     )}
@@ -265,14 +271,17 @@ export function FriendsPage() {
                 Incoming
               </h3>
               <div className="space-y-2">
-                {pendingIncoming.map((req) => (
+                  {pendingIncoming.map((req) => (
                   <div
                     key={req.id}
                     className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
                   >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
-                      {(req.displayName ?? req.username).charAt(0).toUpperCase()}
-                    </div>
+                    <UserAvatar
+                      avatarUrl={req.avatarUrl}
+                      username={req.username}
+                      displayName={req.displayName}
+                      className="h-10 w-10 text-sm"
+                    />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-[var(--color-foreground)]">
                         {req.displayName ?? req.username}
@@ -312,14 +321,17 @@ export function FriendsPage() {
                 Outgoing
               </h3>
               <div className="space-y-2">
-                {pendingOutgoing.map((req) => (
+                  {pendingOutgoing.map((req) => (
                   <div
                     key={req.id}
                     className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
                   >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
-                      {(req.displayName ?? req.username).charAt(0).toUpperCase()}
-                    </div>
+                    <UserAvatar
+                      avatarUrl={req.avatarUrl}
+                      username={req.username}
+                      displayName={req.displayName}
+                      className="h-10 w-10 text-sm"
+                    />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-[var(--color-foreground)]">
                         {req.displayName ?? req.username}
@@ -383,14 +395,17 @@ export function FriendsPage() {
                   No users found
                 </p>
               ) : (
-                searchResults.map((user) => (
+                  searchResults.map((user) => (
                   <div
                     key={user.id}
                     className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
                   >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
-                      {(user.displayName ?? user.username).charAt(0).toUpperCase()}
-                    </div>
+                    <UserAvatar
+                      avatarUrl={user.avatarUrl}
+                      username={user.username}
+                      displayName={user.displayName}
+                      className="h-10 w-10 text-sm"
+                    />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-[var(--color-foreground)]">
                         {user.displayName ?? user.username}

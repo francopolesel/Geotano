@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import { api } from '../../lib/api';
 
 // ---------------------------------------------------------------------------
@@ -105,9 +106,12 @@ export function ProfilePage() {
     <div className="mx-auto max-w-2xl space-y-6 pb-12">
       {/* User info header */}
       <div className="flex items-center gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-2xl font-bold text-[var(--color-primary)]">
-          {(user.displayName ?? user.username).charAt(0).toUpperCase()}
-        </div>
+        <UserAvatar
+          avatarUrl={user.avatarUrl}
+          username={user.username}
+          displayName={user.displayName}
+          className="h-16 w-16 text-2xl"
+        />
         <div>
           <h1 className="text-xl font-bold text-[var(--color-foreground)]">
             {user.displayName ?? user.username}

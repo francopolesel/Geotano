@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 import type { RankingsResponse } from '@geotano/shared';
@@ -197,9 +198,11 @@ export function RankingsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-xs font-bold text-[var(--color-primary)]">
-                              {entry.username.charAt(0).toUpperCase()}
-                            </div>
+                            <UserAvatar
+                              avatarUrl={entry.avatarUrl}
+                              username={entry.username}
+                              className="h-8 w-8 text-xs"
+                            />
                             <div>
                               <span
                                 className={`text-sm font-medium ${
@@ -240,9 +243,11 @@ export function RankingsPage() {
                   <span className="font-mono text-lg font-bold text-[var(--color-foreground)]">
                     #{data.userRank.rank}
                   </span>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-xs font-bold text-[var(--color-primary)]">
-                    {data.userRank.username.charAt(0).toUpperCase()}
-                  </div>
+                  <UserAvatar
+                    avatarUrl={data.userRank.avatarUrl}
+                    username={data.userRank.username}
+                    className="h-8 w-8 text-xs"
+                  />
                   <span className="text-sm font-medium text-[var(--color-foreground)]">
                     {data.userRank.username}
                   </span>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, sendChatMessage, setChatMessageHandler } from '../../lib/socket';
@@ -138,8 +139,13 @@ export function ChatPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-sm font-bold text-[var(--color-primary)]">
-          {(activeFriend.displayName ?? activeFriend.username).charAt(0).toUpperCase()}
+        <div className="relative shrink-0">
+          <UserAvatar
+            avatarUrl={activeFriend.avatarUrl}
+            username={activeFriend.username}
+            displayName={activeFriend.displayName}
+            className="h-10 w-10 text-sm"
+          />
           {isOnline && (
             <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-background)] bg-green-500" />
           )}
