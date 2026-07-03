@@ -182,7 +182,7 @@ export function ChatPage() {
             </p>
           </div>
         ) : (
-          <div className="px-1">
+          <div className="flex flex-col gap-3 px-1">
             {messages.map((msg) => {
               const isMine = msg.senderId === currentUserId;
               return (
