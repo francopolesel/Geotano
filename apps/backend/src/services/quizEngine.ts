@@ -146,26 +146,53 @@ async function generateQuestion(
   const questionType: QuestionType =
     config.questionTypes[Math.floor(Math.random() * config.questionTypes.length)];
 
+  // Debug: log exclude IDs
+  console.log(
+    `[quiz] Q${questionNumber} excludeCountryIds count=${excludeCountryIds.length} ids=${excludeCountryIds.slice(0, 5).join(',')}`,
+  );
+
+  // Count total countries in DB
+  const [countResult] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(countries);
+  console.log(
+    `[quiz] Q${questionNumber} total countries in DB: ${countResult?.count ?? 'unknown'}`,
+  );
+
   // Pick the correct country (avoid repeats)
   let correctCountry: any;
   if (excludeCountryIds.length > 0) {
     const available = await pickRandomCountries(1, excludeCountryIds);
+    console.log(
+      `[quiz] Q${questionNumber} pickRandomCountries(1, ...) returned ${available.length} rows`,
+    );
     if (available.length > 0) {
       correctCountry = available[0];
+      console.log(
+        `[quiz] Q${questionNumber} correctCountry selected: "${correctCountry?.nameEn}" (id=${correctCountry?.id?.slice(0, 8)})`,
+      );
     }
   }
   if (!correctCountry) {
+    console.log(`[quiz] Q${questionNumber} NO correct country from exclusion — using fallback`);
     const fallback = await pickRandomCountries(1);
     if (fallback.length === 0) {
       throw new Error('No countries available. Seed countries before starting a quiz.');
     }
     correctCountry = fallback[0];
+    console.log(
+      `[quiz] Q${questionNumber} fallback correctCountry: "${correctCountry?.nameEn}" (id=${correctCountry?.id?.slice(0, 8)})`,
+    );
   }
 
   // Pick distractor countries (distinct from correct)
   const distractorPool = await pickRandomCountries(
     OPTIONS_COUNT - 1,
     [correctCountry.id, ...excludeCountryIds],
+  );
+
+  console.log(
+    `[quiz] Q${questionNumber} distractorPool length=${distractorPool.length} names=${distractorPool.map((d: any) => d.nameEn).join(', ')}`,
   );
 
   // Generate option strings and track country IDs
@@ -456,9 +483,22 @@ export async function submitAnswer(
     .from(gameAnswers)
     .where(eq(gameAnswers.sessionId, sessionId));
 
+  console.log(
+    `[quiz] prevAnswers for session=${sessionId.slice(0, 8)} count=${prevAnswers.length}`,
+  );
+  prevAnswers.forEach((a, i) => {
+    console.log(
+      `[quiz]   answer[${i}] countryId="${a.countryId?.slice(0, 8) ?? 'NULL'}" wasCorrect=${a.wasCorrect}`,
+    );
+  });
+
   const usedCountryIds = prevAnswers
     .filter((a) => a.countryId)
     .map((a) => a.countryId);
+
+  console.log(
+    `[quiz] usedCountryIds count=${usedCountryIds.length} ids=${usedCountryIds.slice(0, 5).join(',')}`,
+  );
 
   const nextQuestion = await generateQuestion(
     modeRecord.slug as GameModeSlug,
