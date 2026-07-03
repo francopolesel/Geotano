@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/ui/UserAvatar';
+import { AvatarLightbox } from '../../components/ui/AvatarLightbox';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, sendChatMessage, setChatMessageHandler } from '../../lib/socket';
@@ -12,6 +13,7 @@ export function ChatPage() {
   const { userId } = useParams<{ userId: string }>();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const token = useAuthStore((s) => s.token);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const { friends, onlineUsers, fetchFriends } = useFriendsStore();
@@ -145,6 +147,7 @@ export function ChatPage() {
             username={activeFriend.username}
             displayName={activeFriend.displayName}
             className="h-10 w-10 text-sm"
+            onClick={activeFriend.avatarUrl ? () => setLightboxUrl(activeFriend.avatarUrl!) : undefined}
           />
           {isOnline && (
             <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-background)] bg-green-500" />
@@ -235,6 +238,14 @@ export function ChatPage() {
           {t('chat.send')}
         </button>
       </div>
+
+      {lightboxUrl && (
+        <AvatarLightbox
+          avatarUrl={lightboxUrl}
+          displayName={activeFriend.displayName ?? activeFriend.username}
+          onClose={() => setLightboxUrl(null)}
+        />
+      )}
     </div>
   );
 }

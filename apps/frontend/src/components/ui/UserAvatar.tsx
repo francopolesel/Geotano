@@ -10,13 +10,15 @@ interface UserAvatarProps {
   displayName?: string | null;
   /** Tailwind size classes. Default: 'h-10 w-10 text-sm' */
   className?: string;
+  /** Optional click handler (e.g. to open lightbox) */
+  onClick?: () => void;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function UserAvatar({ avatarUrl, username, displayName, className }: UserAvatarProps) {
+export function UserAvatar({ avatarUrl, username, displayName, className, onClick }: UserAvatarProps) {
   const [imgError, setImgError] = useState(false);
   const initial = (displayName || username).charAt(0).toUpperCase();
 
@@ -27,7 +29,8 @@ export function UserAvatar({ avatarUrl, username, displayName, className }: User
         src={avatarUrl}
         alt={displayName || username}
         onError={() => setImgError(true)}
-        className={`shrink-0 rounded-full object-cover ${className ?? 'h-10 w-10'}`}
+        onClick={onClick}
+        className={`shrink-0 rounded-full object-cover ${onClick ? 'cursor-pointer' : ''} ${className ?? 'h-10 w-10'}`}
       />
     );
   }
@@ -35,7 +38,8 @@ export function UserAvatar({ avatarUrl, username, displayName, className }: User
   // Fallback: coloured circle with initial
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 font-bold text-[var(--color-primary)] ${className ?? 'h-10 w-10 text-sm'}`}
+      onClick={onClick}
+      className={`flex shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 font-bold text-[var(--color-primary)] ${onClick ? 'cursor-pointer' : ''} ${className ?? 'h-10 w-10 text-sm'}`}
     >
       {initial}
     </div>
