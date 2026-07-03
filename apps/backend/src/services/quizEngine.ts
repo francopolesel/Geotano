@@ -92,32 +92,50 @@ const questionPool = new Map<string, GeneratedQuestion[]>();
 
 // ─── Question Generation ───────────────────────────────────────────────────
 
-function getAnswerText(country: any, questionType: QuestionType): string {
+function getAnswerText(country: any, questionType: QuestionType, lang: string = 'en'): string {
+  const useEn = lang !== 'es';
   switch (questionType) {
     case 'flag-to-country':
     case 'capital-to-country':
-      return country.nameEn;
+      return useEn ? country.nameEn : country.nameEs;
     case 'country-to-flag':
-      return country.nameEn;
+      return useEn ? country.nameEn : country.nameEs;
     case 'continent':
       return country.continent;
     default:
-      return country.nameEn;
+      return useEn ? country.nameEn : country.nameEs;
   }
 }
 
-function getQuestionText(country: any, questionType: QuestionType): string {
+function getQuestionText(country: any, questionType: QuestionType, lang: string = 'en'): string {
+  const useEn = lang !== 'es';
   switch (questionType) {
     case 'flag-to-country':
-      return 'Which country does this flag belong to?';
-    case 'capital-to-country':
-      return `${country.capitalEn ?? 'Unknown'} is the capital of which country?`;
-    case 'country-to-flag':
-      return `Which flag belongs to ${country.nameEn}?`;
-    case 'continent':
-      return `${country.nameEn} is located in which continent?`;
+      return useEn
+        ? 'Which country does this flag belong to?'
+        : '¿A qué país pertenece esta bandera?';
+    case 'capital-to-country': {
+      const capital = useEn ? (country.capitalEn ?? 'Unknown') : (country.capitalEs ?? 'Desconocida');
+      return useEn
+        ? `${capital} is the capital of which country?`
+        : `${capital} es la capital de qué país?`;
+    }
+    case 'country-to-flag': {
+      const name = useEn ? country.nameEn : country.nameEs;
+      return useEn
+        ? `Which flag belongs to ${name}?`
+        : `¿Qué bandera pertenece a ${name}?`;
+    }
+    case 'continent': {
+      const name = useEn ? country.nameEn : country.nameEs;
+      return useEn
+        ? `${name} is located in which continent?`
+        : `${name} está ubicado en qué continente?`;
+    }
     default:
-      return 'What is the name of this country?';
+      return useEn
+        ? 'What is the name of this country?'
+        : '¿Cuál es el nombre de este país?';
   }
 }
 
@@ -153,6 +171,7 @@ async function generateQuestion(
   modeSlug: GameModeSlug,
   questionNumber: number,
   excludeCountryIds: string[] = [],
+  lang: string = 'en',
 ): Promise<GeneratedQuestion> {
   const config = getModeConfig(modeSlug);
 
@@ -182,9 +201,9 @@ async function generateQuestion(
   );
 
   // Generate option strings and track country IDs
-  const correctText = getAnswerText(correctCountry, questionType);
+  const correctText = getAnswerText(correctCountry, questionType, lang);
   const wrongTexts = distractorPool.map((d: any) =>
-    getAnswerText(d, questionType),
+    getAnswerText(d, questionType, lang),
   );
   const wrongCountryIds = distractorPool.map((d: any) => d.id);
 
@@ -195,7 +214,7 @@ async function generateQuestion(
       ...wrongCountryIds,
     ]);
     if (extra.length > 0) {
-      wrongTexts.push(getAnswerText(extra[0], questionType));
+      wrongTexts.push(getAnswerText(extra[0], questionType, lang));
       wrongCountryIds.push(extra[0].id);
     } else {
       break; // fallback — shouldn't happen with 200+ countries
@@ -215,7 +234,7 @@ async function generateQuestion(
     id: crypto.randomUUID(),
     countryId: correctCountry.id,
     questionType,
-    questionText: getQuestionText(correctCountry, questionType),
+    questionText: getQuestionText(correctCountry, questionType, lang),
     options,
     correctIndex,
     correctAnswer: correctText,
@@ -238,12 +257,13 @@ async function generateQuestionBatch(
   startNumber: number,
   excludeCountryIds: string[],
   count: number,
+  lang: string = 'en',
 ): Promise<GeneratedQuestion[]> {
   const batch: GeneratedQuestion[] = [];
   const cumulativeExclude = [...excludeCountryIds];
 
   for (let i = 0; i < count; i++) {
-    const q = await generateQuestion(modeSlug, startNumber + i, cumulativeExclude);
+    const q = await generateQuestion(modeSlug, startNumber + i, cumulativeExclude, lang);
     batch.push(q);
     cumulativeExclude.push(q.countryId);
   }
@@ -255,7 +275,7 @@ async function generateQuestionBatch(
  * Refill the question pool in the background.
  * Queries the DB for the latest answered countries to avoid reusing them.
  */
-async function refillPool(sessionId: string, modeSlug: GameModeSlug): Promise<void> {
+async function refillPool(sessionId: string, modeSlug: GameModeSlug, lang: string = 'en'): Promise<void> {
   try {
     // Fetch latest used countries from DB to avoid stale exclude lists
     const prevAnswers = await db
@@ -278,6 +298,7 @@ async function refillPool(sessionId: string, modeSlug: GameModeSlug): Promise<vo
       existingStartNumber,
       usedCountryIds,
       POOL_INITIAL_SIZE,
+      lang,
     );
 
     questionPool.set(sessionId, [...pool, ...refill]);
@@ -323,6 +344,7 @@ export function calculateScore(
 export async function startSession(
   userId: string,
   modeSlug: GameModeSlug,
+  lang: string = 'en',
 ): Promise<StartSessionResponse> {
   const config = getModeConfig(modeSlug);
 
@@ -372,7 +394,7 @@ export async function startSession(
   // ── Generate initial question pool ────────────────────────────────────
   // Generate POOL_INITIAL_SIZE questions upfront. Q1 goes to the client,
   // the rest are cached for instant retrieval on subsequent answers.
-  const batch = await generateQuestionBatch(modeSlug, 1, [], POOL_INITIAL_SIZE);
+  const batch = await generateQuestionBatch(modeSlug, 1, [], POOL_INITIAL_SIZE, lang);
 
   if (batch.length === 0) {
     throw new Error('No countries available. Seed countries before starting a quiz.');
@@ -410,6 +432,7 @@ export async function submitAnswer(
   userId: string,
   answer: string,
   timeMs: number,
+  lang: string = 'en',
 ): Promise<AnswerResult> {
   // ── Look up server-side cache for authoritatve validation ─────────────
   const cached = questionCache.get(sessionId);
@@ -555,6 +578,7 @@ export async function submitAnswer(
       modeRecord.slug as GameModeSlug,
       updatedSession.totalQuestions + 1,
       usedCountryIds,
+      lang,
     );
   }
 
@@ -574,7 +598,7 @@ export async function submitAnswer(
   const currentPool = questionPool.get(sessionId);
   if (!currentPool || currentPool.length < POOL_REFILL_THRESHOLD) {
     // Fire-and-forget background refill
-    refillPool(sessionId, modeRecord.slug as GameModeSlug).catch((err) =>
+    refillPool(sessionId, modeRecord.slug as GameModeSlug, lang).catch((err) =>
       console.error('[quizEngine] Background pool refill failed:', err),
     );
   }

@@ -11,7 +11,7 @@ export async function quizRoutes(app: FastifyInstance) {
     '/api/quiz/session',
     { preHandler: authGuard },
     async (request, reply) => {
-      const { mode } = request.query as { mode?: string };
+      const { mode, lang } = request.query as { mode?: string; lang?: string };
       const { userId } = (request as any).user;
 
       if (!mode || !isValidModeSlug(mode)) {
@@ -21,7 +21,7 @@ export async function quizRoutes(app: FastifyInstance) {
       }
 
       try {
-        const { sessionId, question } = await startSession(userId, mode as GameModeSlug);
+        const { sessionId, question } = await startSession(userId, mode as GameModeSlug, lang || 'en');
         return { sessionId, question };
       } catch (err) {
         if (err instanceof Error && err.message.includes('No countries available')) {
@@ -39,10 +39,11 @@ export async function quizRoutes(app: FastifyInstance) {
     { preHandler: authGuard },
     async (request, reply) => {
       const { userId } = (request as any).user;
-      const { sessionId, answer, timeMs } = request.body as {
+      const { sessionId, answer, timeMs, lang } = request.body as {
         sessionId: string;
         answer: string;
         timeMs: number;
+        lang?: string;
       };
 
       if (!sessionId || !answer || timeMs == null) {
@@ -52,7 +53,7 @@ export async function quizRoutes(app: FastifyInstance) {
       }
 
       try {
-        const result = await submitAnswer(sessionId, userId, answer, timeMs);
+        const result = await submitAnswer(sessionId, userId, answer, timeMs, lang || 'en');
         // Fire-and-forget achievement check after a completed game
         if (result.result) {
           checkAchievements(userId).catch((err) =>
