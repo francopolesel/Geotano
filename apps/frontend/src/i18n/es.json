@@ -228,5 +228,17 @@
   "errors.BLOCKED_NOT_FOUND": "Relación de bloqueo no encontrada",
   "errors.INVITE_CODE_INVALID": "Código de invitación inválido",
   "errors.CANNOT_INVITE_SELF": "No podés invitarte a vos mismo",
-  "errors.SESSION_NOT_FOUND": "Sesión no encontrada o expirada. Iniciá un nuevo juego."
+  "errors.SESSION_NOT_FOUND": "Sesión no encontrada o expirada. Iniciá un nuevo juego.",
+  "errors.WRONG_PASSWORD": "La contraseña actual es incorrecta",
+  "errors.EMAIL_NOT_CONFIGURED": "El servicio de email no está configurado",
+  "errors.GOOGLE_AUTH_FAILED": "Error al iniciar sesión con Google",
+  "errors.MISSING_CREDENTIAL": "Se requiere credencial de Google",
+  "errors.INVALID_GOOGLE_TOKEN": "Token de Google inválido",
+  "errors.INVALID_AVATAR": "Imagen de avatar inválida",
+  "errors.VALIDATION_ERROR": "Error de validación",
+  "errors.DUPLICATE_USERNAME": "El nombre de usuario ya está en uso",
+  "errors.WEAK_PASSWORD": "La contraseña es demasiado débil",
+  "errors.SHORT_QUERY": "La búsqueda es demasiado corta",
+  "errors.FRIENDSHIP_ERROR": "Error en la operación de amistad",
+  "errors.EMAIL_FAILED": "Error al enviar el email"
 }

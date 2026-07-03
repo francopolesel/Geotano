@@ -15,7 +15,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       const { userId } = (request as any).user;
 
       if (!q || q.trim().length < 2) {
-        return reply.status(400).send({ message: 'Query must be at least 2 characters' });
+        return reply.status(400).send({ errorCode: 'SHORT_QUERY', message: 'Query must be at least 2 characters' });
       }
 
       const searchPattern = `${q.trim()}%`;
@@ -57,7 +57,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       const { username } = request.body as { username: string };
 
       if (!username) {
-        return reply.status(400).send({ message: 'username is required' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'username is required' });
       }
 
       // Find target user
@@ -68,11 +68,11 @@ export async function friendsRoutes(app: FastifyInstance) {
         .limit(1);
 
       if (!targetUser) {
-        return reply.status(404).send({ message: 'User not found' });
+        return reply.status(404).send({ errorCode: 'USER_NOT_FOUND', message: 'User not found' });
       }
 
       if (targetUser.id === userId) {
-        return reply.status(400).send({ message: 'Cannot send friend request to yourself' });
+        return reply.status(400).send({ errorCode: 'SELF_REQUEST', message: 'Cannot send friend request to yourself' });
       }
 
       // Check existing friendship/request in either direction
@@ -90,12 +90,12 @@ export async function friendsRoutes(app: FastifyInstance) {
       if (existing.length > 0) {
         const status = existing[0].status;
         if (status === 'accepted') {
-          return reply.status(409).send({ message: 'Already friends' });
+          return reply.status(409).send({ errorCode: 'ALREADY_FRIENDS', message: 'Already friends' });
         }
         if (status === 'pending') {
-          return reply.status(409).send({ message: 'Friend request already sent' });
+          return reply.status(409).send({ errorCode: 'REQUEST_ALREADY_SENT', message: 'Friend request already sent' });
         }
-        return reply.status(409).send({ message: `Friendship status: ${status}` });
+        return reply.status(409).send({ errorCode: 'FRIENDSHIP_ERROR', message: `Friendship status: ${status}` });
       }
 
       // Create friend request (sender = userId, receiver = targetUser.id)
@@ -132,7 +132,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       const { requestId } = request.body as { requestId: string };
 
       if (!requestId) {
-        return reply.status(400).send({ message: 'requestId is required' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'requestId is required' });
       }
 
       // Find the friend request — must be owned by current user and pending
@@ -149,7 +149,7 @@ export async function friendsRoutes(app: FastifyInstance) {
         .limit(1);
 
       if (!friendRequest) {
-        return reply.status(404).send({ message: 'Friend request not found' });
+        return reply.status(404).send({ errorCode: 'REQUEST_NOT_FOUND', message: 'Friend request not found' });
       }
 
       await db.delete(friends).where(eq(friends.id, requestId));
@@ -167,7 +167,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       const { requestId } = request.body as { requestId: string };
 
       if (!requestId) {
-        return reply.status(400).send({ message: 'requestId is required' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'requestId is required' });
       }
 
       // Find the friend request — must be addressed to current user
@@ -184,7 +184,7 @@ export async function friendsRoutes(app: FastifyInstance) {
         .limit(1);
 
       if (!friendRequest) {
-        return reply.status(404).send({ message: 'Friend request not found' });
+        return reply.status(404).send({ errorCode: 'REQUEST_NOT_FOUND', message: 'Friend request not found' });
       }
 
       const [updated] = await db
@@ -217,7 +217,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       const { requestId } = request.body as { requestId: string };
 
       if (!requestId) {
-        return reply.status(400).send({ message: 'requestId is required' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'requestId is required' });
       }
 
       // Find the friend request — must be addressed to current user
@@ -234,7 +234,7 @@ export async function friendsRoutes(app: FastifyInstance) {
         .limit(1);
 
       if (!friendRequest) {
-        return reply.status(404).send({ message: 'Friend request not found' });
+        return reply.status(404).send({ errorCode: 'REQUEST_NOT_FOUND', message: 'Friend request not found' });
       }
 
       await db.delete(friends).where(eq(friends.id, requestId));
@@ -415,7 +415,7 @@ export async function friendsRoutes(app: FastifyInstance) {
         .limit(1);
 
       if (!user) {
-        return reply.status(404).send({ message: 'User not found' });
+        return reply.status(404).send({ errorCode: 'USER_NOT_FOUND', message: 'User not found' });
       }
 
       return {
@@ -434,7 +434,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       const { code } = request.body as { code: string };
 
       if (!code) {
-        return reply.status(400).send({ message: 'code is required' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'code is required' });
       }
 
       // Find user by join code
@@ -445,11 +445,11 @@ export async function friendsRoutes(app: FastifyInstance) {
         .limit(1);
 
       if (!targetUser) {
-        return reply.status(404).send({ message: 'Invalid invite code' });
+        return reply.status(404).send({ errorCode: 'INVITE_INVALID', message: 'Invalid invite code' });
       }
 
       if (targetUser.id === userId) {
-        return reply.status(400).send({ message: 'Cannot invite yourself' });
+        return reply.status(400).send({ errorCode: 'SELF_REQUEST', message: 'Cannot invite yourself' });
       }
 
       // Check existing friendship/request
@@ -466,7 +466,7 @@ export async function friendsRoutes(app: FastifyInstance) {
 
       if (existing.length > 0) {
         if (existing[0].status === 'accepted') {
-          return reply.status(409).send({ message: 'Already friends' });
+          return reply.status(409).send({ errorCode: 'ALREADY_FRIENDS', message: 'Already friends' });
         }
         if (existing[0].status === 'pending') {
           // If there's a pending request from target to us, auto-accept
@@ -494,7 +494,7 @@ export async function friendsRoutes(app: FastifyInstance) {
               message: 'Friend request accepted via invite',
             };
           }
-          return reply.status(409).send({ message: 'Friend request already sent' });
+          return reply.status(409).send({ errorCode: 'REQUEST_ALREADY_SENT', message: 'Friend request already sent' });
         }
       }
 
@@ -530,7 +530,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       const { friendId } = request.body as { friendId: string };
 
       if (!friendId) {
-        return reply.status(400).send({ message: 'friendId is required' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'friendId is required' });
       }
 
       // Find the friendship in either direction
@@ -555,7 +555,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       }
 
       if (existing.status === 'blocked' && existing.userId === userId) {
-        return reply.status(409).send({ message: 'User is already blocked' });
+        return reply.status(409).send({ errorCode: 'ALREADY_BLOCKED', message: 'User is already blocked' });
       }
 
       const [updated] = await db
@@ -577,7 +577,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       const { friendId } = request.body as { friendId: string };
 
       if (!friendId) {
-        return reply.status(400).send({ message: 'friendId is required' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'friendId is required' });
       }
 
       const [existing] = await db
@@ -593,7 +593,7 @@ export async function friendsRoutes(app: FastifyInstance) {
         .limit(1);
 
       if (!existing) {
-        return reply.status(404).send({ message: 'Blocked relationship not found' });
+        return reply.status(404).send({ errorCode: 'BLOCKED_NOT_FOUND', message: 'Blocked relationship not found' });
       }
 
       // Remove the blocked relationship (clean slate)
@@ -612,7 +612,7 @@ export async function friendsRoutes(app: FastifyInstance) {
       const { friendId } = request.body as { friendId: string };
 
       if (!friendId) {
-        return reply.status(400).send({ message: 'friendId is required' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'friendId is required' });
       }
 
       const [existing] = await db
@@ -630,7 +630,7 @@ export async function friendsRoutes(app: FastifyInstance) {
         .limit(1);
 
       if (!existing) {
-        return reply.status(404).send({ message: 'Friendship not found' });
+        return reply.status(404).send({ errorCode: 'FRIENDSHIP_NOT_FOUND', message: 'Friendship not found' });
       }
 
       await db.delete(friends).where(eq(friends.id, existing.id));

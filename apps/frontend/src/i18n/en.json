@@ -228,5 +228,17 @@
   "errors.BLOCKED_NOT_FOUND": "Blocked relationship not found",
   "errors.INVITE_CODE_INVALID": "Invalid invite code",
   "errors.CANNOT_INVITE_SELF": "Cannot invite yourself",
-  "errors.SESSION_NOT_FOUND": "Session not found or expired. Please start a new game."
+  "errors.SESSION_NOT_FOUND": "Session not found or expired. Please start a new game.",
+  "errors.WRONG_PASSWORD": "Current password is incorrect",
+  "errors.EMAIL_NOT_CONFIGURED": "Email service is not configured",
+  "errors.GOOGLE_AUTH_FAILED": "Google sign-in failed",
+  "errors.MISSING_CREDENTIAL": "Google credential is required",
+  "errors.INVALID_GOOGLE_TOKEN": "Invalid Google token",
+  "errors.INVALID_AVATAR": "Invalid avatar image",
+  "errors.VALIDATION_ERROR": "Validation error",
+  "errors.DUPLICATE_USERNAME": "Username already taken",
+  "errors.WEAK_PASSWORD": "Password is too weak",
+  "errors.SHORT_QUERY": "Search query is too short",
+  "errors.FRIENDSHIP_ERROR": "Friendship operation error",
+  "errors.EMAIL_FAILED": "Failed to send email"
 }

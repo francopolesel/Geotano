@@ -24,8 +24,8 @@ Chain strategy: size-exception
 
 ## Phase 1: Foundation — Hooks, Components, Translation Keys
 
-- [ ] 1.1 Create `apps/frontend/src/hooks/useLanguage.ts` — `useLanguage` hook with `lang`, `setLang`, `formatDate`, `formatTime` using `Intl.DateTimeFormat` with i18n locale
-- [ ] 1.2 Create `apps/frontend/src/components/LanguageToggle.tsx` — shared toggle (pill button \/ text label) with top-bar variant + mobile FAB variant, reads/writes `localStorage` + `i18n.changeLanguage()`
+- [x] 1.1 Create `apps/frontend/src/hooks/useLanguage.ts` — `useLanguage` hook with `lang`, `setLang`, `formatDate`, `formatTime` using `Intl.DateTimeFormat` with i18n locale
+- [x] 1.2 Create `apps/frontend/src/components/LanguageToggle.tsx` — shared toggle (pill button \/ text label) with top-bar variant + mobile FAB variant, reads/writes `localStorage` + `i18n.changeLanguage()`
 - [x] 1.3 Modify `apps/frontend/src/i18n/en.json` — add ~55–70 keys (domains: `errors.*`, `friends.*`, `chat.*`, `settings.*`, `auth.*`, `profile.*`, `achievements.*`, `app.*`, `notifications.*`)
 - [x] 1.4 Modify `apps/frontend/src/i18n/es.json` — add same keys as en.json + 5 missing `quiz.leave*` keys; verify full key parity (216 keys each, perfect parity)
 
@@ -37,13 +37,13 @@ Chain strategy: size-exception
 
 ## Phase 3: Backend Quiz Localization
 
-- [ ] 3.1 Modify `apps/backend/src/services/quizEngine.ts` — add `lang` param to `getQuestionText()`/`getAnswerText()`; return ES templates with `nameEs`/`capitalEs` when `lang=es`, fallback to EN otherwise
-- [ ] 3.2 Modify `apps/backend/src/routes/quiz.ts` — accept `?lang` query param; forward to `startSession` and `submitAnswer`; default `en`
+- [x] 3.1 Modify `apps/backend/src/services/quizEngine.ts` — add `lang` param to `getQuestionText()`/`getAnswerText()`; return ES templates with `nameEs`/`capitalEs` when `lang=es`, fallback to EN otherwise
+- [x] 3.2 Modify `apps/backend/src/routes/quiz.ts` — accept `?lang` query param; forward to `startSession` and `submitAnswer`; default `en`
 
 ## Phase 4: Backend Error Translation
 
-- [ ] 4.1 Modify `apps/backend/src/routes/auth.ts` — add `errorCode` field to all error responses (e.g. `INVALID_CREDENTIALS`, `EMAIL_EXISTS`)
-- [ ] 4.2 Modify `apps/backend/src/routes/friends.ts` — add `errorCode` field to all error responses (e.g. `FRIENDS_NOT_FOUND`, `ALREADY_FRIENDS`)
+- [x] 4.1 Modify `apps/backend/src/routes/auth.ts` — add `errorCode` field to all error responses (e.g. `INVALID_CREDENTIALS`, `EMAIL_EXISTS`)
+- [x] 4.2 Modify `apps/backend/src/routes/friends.ts` — add `errorCode` field to all error responses (e.g. `FRIENDS_NOT_FOUND`, `ALREADY_FRIENDS`)
 
 ## Phase 5: Frontend Hardcoded String Cleanup
 

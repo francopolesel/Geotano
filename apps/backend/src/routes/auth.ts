@@ -36,11 +36,11 @@ export async function authRoutes(app: FastifyInstance) {
     };
 
     if (!username || !email || !password) {
-      return reply.status(400).send({ message: 'username, email, and password are required' });
+      return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'username, email, and password are required' });
     }
 
     if (password.length < 8) {
-      return reply.status(400).send({ message: 'Password must be at least 8 characters' });
+      return reply.status(400).send({ errorCode: 'WEAK_PASSWORD', message: 'Password must be at least 8 characters' });
     }
 
     // Check for existing user
@@ -51,7 +51,7 @@ export async function authRoutes(app: FastifyInstance) {
       .limit(1);
 
     if (existing.length > 0) {
-      return reply.status(409).send({ message: 'Username or email already exists' });
+      return reply.status(409).send({ errorCode: 'DUPLICATE_ACCOUNT', message: 'Username or email already exists' });
     }
 
     const passwordHash = await hashPassword(password);
@@ -80,7 +80,7 @@ export async function authRoutes(app: FastifyInstance) {
     };
 
     if (!username || !password) {
-      return reply.status(400).send({ message: 'username and password are required' });
+      return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'username and password are required' });
     }
 
     const [user] = await db
@@ -90,12 +90,12 @@ export async function authRoutes(app: FastifyInstance) {
       .limit(1);
 
     if (!user) {
-      return reply.status(401).send({ message: 'Invalid username or password' });
+      return reply.status(401).send({ errorCode: 'INVALID_CREDENTIALS', message: 'Invalid username or password' });
     }
 
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
-      return reply.status(401).send({ message: 'Invalid username or password' });
+      return reply.status(401).send({ errorCode: 'INVALID_CREDENTIALS', message: 'Invalid username or password' });
     }
 
     // Update last login
@@ -119,7 +119,7 @@ export async function authRoutes(app: FastifyInstance) {
     };
 
     if (!credential) {
-      return reply.status(400).send({ message: 'Google credential is required' });
+      return reply.status(400).send({ errorCode: 'MISSING_CREDENTIAL', message: 'Google credential is required' });
     }
 
     // Verify the token with Google's tokeninfo endpoint
@@ -129,16 +129,16 @@ export async function authRoutes(app: FastifyInstance) {
         `https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`,
       );
       if (!resp.ok) {
-        return reply.status(401).send({ message: 'Invalid Google token' });
+        return reply.status(401).send({ errorCode: 'INVALID_GOOGLE_TOKEN', message: 'Invalid Google token' });
       }
       googlePayload = await resp.json();
 
       // Verify audience matches our client ID
       if (clientId && googlePayload.aud !== clientId) {
-        return reply.status(401).send({ message: 'Token audience mismatch' });
+        return reply.status(401).send({ errorCode: 'GOOGLE_AUTH_FAILED', message: 'Token audience mismatch' });
       }
     } catch {
-      return reply.status(401).send({ message: 'Failed to verify Google token' });
+      return reply.status(401).send({ errorCode: 'GOOGLE_AUTH_FAILED', message: 'Failed to verify Google token' });
     }
 
     const googleId = googlePayload.sub;
@@ -147,7 +147,7 @@ export async function authRoutes(app: FastifyInstance) {
     const picture = googlePayload.picture;
 
     if (!email) {
-      return reply.status(400).send({ message: 'Google account has no email' });
+      return reply.status(400).send({ errorCode: 'GOOGLE_AUTH_FAILED', message: 'Google account has no email' });
     }
 
     // Check if user exists by email
@@ -220,33 +220,33 @@ export async function authRoutes(app: FastifyInstance) {
       if (avatarData !== undefined) {
         // Validate base64 image data URI
         if (!/^data:image\/(png|jpe?g|webp|gif);base64,/.test(avatarData)) {
-          return reply.status(400).send({ message: 'avatarData must be a valid base64 image (PNG, JPEG, WebP, or GIF)' });
+          return reply.status(400).send({ errorCode: 'INVALID_AVATAR', message: 'avatarData must be a valid base64 image (PNG, JPEG, WebP, or GIF)' });
         }
         // ~2 MB limit (base64 is ~33% larger than binary, so ~2.8 MB base64 ≈ 2 MB binary)
         if (avatarData.length > 2_800_000) {
-          return reply.status(400).send({ message: 'Image must be smaller than 2 MB' });
+          return reply.status(400).send({ errorCode: 'INVALID_AVATAR', message: 'Image must be smaller than 2 MB' });
         }
         updates.avatarUrl = avatarData;
       }
       if (bio !== undefined) {
         if (bio.length > 500) {
-          return reply.status(400).send({ message: 'Bio must be 500 characters or less' });
+          return reply.status(400).send({ errorCode: 'VALIDATION_ERROR', message: 'Bio must be 500 characters or less' });
         }
         updates.bio = bio || null;
       }
       if (language !== undefined) {
         if (!['en', 'es'].includes(language)) {
-          return reply.status(400).send({ message: 'Language must be "en" or "es"' });
+          return reply.status(400).send({ errorCode: 'VALIDATION_ERROR', message: 'Language must be "en" or "es"' });
         }
         updates.language = language;
       }
       if (username !== undefined) {
         const trimmed = username.trim();
         if (trimmed.length < 3) {
-          return reply.status(400).send({ message: 'Username must be at least 3 characters' });
+          return reply.status(400).send({ errorCode: 'VALIDATION_ERROR', message: 'Username must be at least 3 characters' });
         }
         if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
-          return reply.status(400).send({ message: 'Username can only contain letters, numbers, and underscores' });
+          return reply.status(400).send({ errorCode: 'VALIDATION_ERROR', message: 'Username can only contain letters, numbers, and underscores' });
         }
         // Check uniqueness
         const [existing] = await db
@@ -255,13 +255,13 @@ export async function authRoutes(app: FastifyInstance) {
           .where(and(eq(users.username, trimmed), ne(users.id, userId)))
           .limit(1);
         if (existing) {
-          return reply.status(409).send({ message: 'Username already taken' });
+          return reply.status(409).send({ errorCode: 'DUPLICATE_USERNAME', message: 'Username already taken' });
         }
         updates.username = trimmed;
       }
 
       if (Object.keys(updates).length === 0) {
-        return reply.status(400).send({ message: 'No fields to update' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'No fields to update' });
       }
 
       const [updated] = await db
@@ -286,11 +286,11 @@ export async function authRoutes(app: FastifyInstance) {
       };
 
       if (!currentPassword || !newPassword) {
-        return reply.status(400).send({ message: 'currentPassword and newPassword are required' });
+        return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'currentPassword and newPassword are required' });
       }
 
       if (newPassword.length < 8) {
-        return reply.status(400).send({ message: 'New password must be at least 8 characters' });
+        return reply.status(400).send({ errorCode: 'WEAK_PASSWORD', message: 'New password must be at least 8 characters' });
       }
 
       const [user] = await db
@@ -300,12 +300,12 @@ export async function authRoutes(app: FastifyInstance) {
         .limit(1);
 
       if (!user) {
-        return reply.status(404).send({ message: 'User not found' });
+        return reply.status(404).send({ errorCode: 'USER_NOT_FOUND', message: 'User not found' });
       }
 
       const valid = await verifyPassword(currentPassword, user.passwordHash);
       if (!valid) {
-        return reply.status(400).send({ message: 'Current password is incorrect' });
+        return reply.status(400).send({ errorCode: 'WRONG_PASSWORD', message: 'Current password is incorrect' });
       }
 
       const newHash = await hashPassword(newPassword);
@@ -323,11 +323,11 @@ export async function authRoutes(app: FastifyInstance) {
     const { email } = request.body as { email?: string };
 
     if (!email) {
-      return reply.status(400).send({ message: 'Email is required' });
+      return reply.status(400).send({ errorCode: 'MISSING_FIELD', message: 'Email is required' });
     }
 
     if (!isEmailConfigured()) {
-      return reply.status(500).send({ message: 'Email service is not configured' });
+      return reply.status(500).send({ errorCode: 'EMAIL_NOT_CONFIGURED', message: 'Email service is not configured' });
     }
 
     // Find user by email
@@ -354,7 +354,7 @@ export async function authRoutes(app: FastifyInstance) {
       await sendPasswordResetEmail(email, newPassword);
     } catch (err) {
       console.error('Failed to send password reset email:', err);
-      return reply.status(500).send({ message: 'Failed to send email. Please try again later.' });
+      return reply.status(500).send({ errorCode: 'EMAIL_FAILED', message: 'Failed to send email. Please try again later.' });
     }
 
     return { message: 'If that email is registered, you will receive a new password shortly.' };
@@ -371,7 +371,7 @@ export async function authRoutes(app: FastifyInstance) {
       .limit(1);
 
     if (!user) {
-      return reply.status(404).send({ message: 'User not found' });
+      return reply.status(404).send({ errorCode: 'USER_NOT_FOUND', message: 'User not found' });
     }
 
     return mapUser(user);
