@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { ThemeToggle } from './ThemeToggle';
-import { LanguageSwitcher } from './LanguageSwitcher';
+import { LanguageToggle } from './LanguageToggle';
 import { NotificationBell } from './NotificationBell';
 import logo from '../assets/logo.png';
 
@@ -37,7 +37,7 @@ export function AppShell() {
             <button
               className="sm:hidden rounded-md p-2 min-h-[44px] min-w-[44px] hover:bg-[var(--color-muted)]"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              aria-label="Toggle navigation"
+              aria-label={t('app.toggleNav')}
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 {sidebarOpen ? (
@@ -54,6 +54,10 @@ export function AppShell() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Desktop LanguageToggle */}
+            <div className="hidden sm:block">
+              <LanguageToggle />
+            </div>
             {user && (
               <span className="hidden text-sm text-[var(--color-muted-foreground)] sm:block">
                 {user.displayName ?? user.username}
@@ -106,9 +110,6 @@ export function AppShell() {
               {t('settings.title')}
             </p>
             <ThemeToggle />
-            <div className="mt-2">
-              <LanguageSwitcher />
-            </div>
           </div>
         </aside>
 
@@ -117,6 +118,9 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      {/* Mobile FAB LanguageToggle */}
+      <LanguageToggle mobile />
     </div>
   );
 }

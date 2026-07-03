@@ -31,9 +31,9 @@ Chain strategy: size-exception
 
 ## Phase 2: Component Wiring — Global Toggle
 
-- [ ] 2.1 Modify `apps/frontend/src/components/AppShell.tsx` — replace `LanguageSwitcher` import with `LanguageToggle`; add to top-bar (desktop) + floating FAB (mobile <640px)
-- [ ] 2.2 Modify `apps/frontend/src/features/auth/LoginPage.tsx` — remove inline LanguageToggle; import shared `LanguageToggle`; translate hardcoded strings via `t()`
-- [ ] 2.3 Modify `apps/frontend/src/features/auth/RegisterPage.tsx` — same pattern as LoginPage
+- [x] 2.1 Modify `apps/frontend/src/components/AppShell.tsx` — replace `LanguageSwitcher` import with `LanguageToggle`; add to top-bar (desktop) + floating FAB (mobile <640px); translate hamburger `aria-label`
+- [x] 2.2 Modify `apps/frontend/src/features/auth/LoginPage.tsx` — remove inline LanguageToggle; import shared `LanguageToggle mobile`; translate hardcoded strings (OR, placeholders, google messages, error fallbacks)
+- [x] 2.3 Modify `apps/frontend/src/features/auth/RegisterPage.tsx` — same pattern as LoginPage
 
 ## Phase 3: Backend Quiz Localization
 

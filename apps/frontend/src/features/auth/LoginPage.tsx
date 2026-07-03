@@ -2,25 +2,11 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
+import { LanguageToggle } from '../../components/LanguageToggle';
 import { api } from '../../lib/api';
 import logo from '../../assets/logo.png';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-
-function LanguageToggle() {
-  const { i18n } = useTranslation();
-  const current = i18n.language.startsWith('es') ? 'es' : 'en';
-  const toggle = () => i18n.changeLanguage(current === 'en' ? 'es' : 'en');
-  return (
-    <button
-      onClick={toggle}
-      className="fixed right-4 top-4 z-50 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-sm font-medium text-[var(--color-foreground)] shadow-sm transition-colors hover:bg-[var(--color-muted)]"
-      aria-label="Toggle language"
-    >
-      {current === 'en' ? 'ES' : 'EN'}
-    </button>
-  );
-}
 
 declare global {
   interface Window {
@@ -100,7 +86,7 @@ export function LoginPage() {
       // Error shown below
       setValidationErrors((prev) => ({
         ...prev,
-        google: err instanceof Error ? err.message : 'Google sign-in failed',
+        google: err instanceof Error ? err.message : t('errors.common.googleFailed'),
       }));
     } finally {
       setGoogleLoading(false);
@@ -119,7 +105,7 @@ export function LoginPage() {
     } catch (err) {
       setValidationErrors((prev) => ({
         ...prev,
-        forgotPassword: err instanceof Error ? err.message : 'Failed to send reset email',
+        forgotPassword: err instanceof Error ? err.message : t('errors.common.resetEmailFailed'),
       }));
     } finally {
       setResetSending(false);
@@ -160,7 +146,7 @@ export function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
-      <LanguageToggle />
+      <LanguageToggle mobile />
       <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 shadow-sm">
         <div className="mb-6 text-center">
           <img src={logo} alt="Geotano" className="mx-auto mb-4 h-28 w-28" />
@@ -187,7 +173,7 @@ export function LoginPage() {
             )}
             <div className="mb-4 flex items-center gap-3">
               <hr className="flex-1 border-[var(--color-border)]" />
-              <span className="text-xs text-[var(--color-muted-foreground)]">OR</span>
+              <span className="text-xs text-[var(--color-muted-foreground)]">{t('auth.orDivider')}</span>
               <hr className="flex-1 border-[var(--color-border)]" />
             </div>
           </>
@@ -195,7 +181,7 @@ export function LoginPage() {
 
         {!GOOGLE_CLIENT_ID && (
           <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
-            Google sign-in not configured. Set <code className="font-mono">VITE_GOOGLE_CLIENT_ID</code> to enable it.
+            {t('auth.googleNotConfigured', { envVar: 'VITE_GOOGLE_CLIENT_ID' })}
           </div>
         )}
 
@@ -223,7 +209,7 @@ export function LoginPage() {
                   ? 'border-[var(--color-destructive)]'
                   : 'border-[var(--color-border)] focus:border-[var(--color-ring)]'
                 }`}
-              placeholder="geotano_fan"
+              placeholder={t('auth.usernamePlaceholder')}
               autoComplete="username"
             />
             {validationErrors.username && (
@@ -247,7 +233,7 @@ export function LoginPage() {
                   ? 'border-[var(--color-destructive)]'
                   : 'border-[var(--color-border)] focus:border-[var(--color-ring)]'
                 }`}
-              placeholder="••••••••"
+              placeholder={t('auth.passwordPlaceholder')}
               autoComplete="current-password"
             />
             {validationErrors.password && (
@@ -286,7 +272,7 @@ export function LoginPage() {
               type="email"
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t('auth.emailPlaceholder')}
               className="block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)]"
               autoComplete="email"
             />
