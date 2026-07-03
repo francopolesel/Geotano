@@ -28,7 +28,12 @@ async function request<T>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  // Cache-busting: append unique timestamp to prevent any proxy caching
+  const separator = endpoint.includes('?') ? '&' : '?';
+  const cacheBuster = `${separator}_t=${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const url = `${API_BASE}${endpoint}${cacheBuster}`;
+
+  const res = await fetch(url, {
     ...options,
     headers,
     cache: 'no-store',
