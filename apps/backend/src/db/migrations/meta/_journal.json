@@ -15,6 +15,13 @@
       "when": 1783042538055,
       "tag": "0001_broken_matthew_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783043413922,
+      "tag": "0002_deep_electro",
+      "breakpoints": true
     }
   ]
 }

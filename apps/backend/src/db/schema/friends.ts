@@ -21,10 +21,6 @@ export const friends = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
-    userFriendStatusIdx: uniqueIndex('friends_user_friend_status_idx').on(
-      table.userId,
-      table.status,
-    ),
     userFriendUnique: uniqueIndex('friends_user_friend_unique').on(
       table.userId,
       table.friendId,

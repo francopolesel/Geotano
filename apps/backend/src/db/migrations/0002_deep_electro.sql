@@ -1,0 +1,1 @@
+DROP INDEX "friends_user_friend_status_idx";
