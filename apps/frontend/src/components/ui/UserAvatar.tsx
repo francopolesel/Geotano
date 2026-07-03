@@ -19,14 +19,26 @@ interface UserAvatarProps {
 // ---------------------------------------------------------------------------
 
 export function UserAvatar({ avatarUrl, username, displayName, className, onClick }: UserAvatarProps) {
+  const [imgError, setImgError] = useState(false);
+  const initial = (displayName || username).charAt(0).toUpperCase();
+
   const handleClick = onClick
-    ? (e: React.MouseEvent) => {
+    ? (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
+        e.preventDefault();
         onClick();
       }
     : undefined;
-  const [imgError, setImgError] = useState(false);
-  const initial = (displayName || username).charAt(0).toUpperCase();
+
+  const extraProps = onClick
+    ? {
+        onClick: handleClick,
+        onTouchEnd: handleClick,
+        role: 'button' as const,
+        tabIndex: 0,
+        style: { cursor: 'pointer' },
+      }
+    : {};
 
   // Show <img> when we have a valid URL and it hasn't errored
   if (avatarUrl && !imgError) {
@@ -35,8 +47,8 @@ export function UserAvatar({ avatarUrl, username, displayName, className, onClic
         src={avatarUrl}
         alt={displayName || username}
         onError={() => setImgError(true)}
-        onClick={handleClick}
-        className={`shrink-0 rounded-full object-cover ${onClick ? 'cursor-pointer' : ''} ${className ?? 'h-10 w-10'}`}
+        className={`shrink-0 rounded-full object-cover ${className ?? 'h-10 w-10'}`}
+        {...extraProps}
       />
     );
   }
@@ -44,8 +56,8 @@ export function UserAvatar({ avatarUrl, username, displayName, className, onClic
   // Fallback: coloured circle with initial
   return (
     <div
-      onClick={handleClick}
-      className={`flex shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 font-bold text-[var(--color-primary)] ${onClick ? 'cursor-pointer' : ''} ${className ?? 'h-10 w-10 text-sm'}`}
+      className={`flex shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 font-bold text-[var(--color-primary)] ${className ?? 'h-10 w-10 text-sm'}`}
+      {...extraProps}
     >
       {initial}
     </div>

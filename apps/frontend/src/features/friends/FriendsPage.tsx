@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/ui/UserAvatar';
-import { AvatarLightbox } from '../../components/ui/AvatarLightbox';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, disconnectSocket } from '../../lib/socket';
@@ -13,7 +12,7 @@ export function FriendsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const token = useAuthStore((s) => s.token);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  
   const {
     friends,
     pendingIncoming,
@@ -213,9 +212,8 @@ export function FriendsPage() {
                   username={friend.username}
                   displayName={friend.displayName}
                   className="h-10 w-10 text-sm"
-                  onClick={friend.avatarUrl ? () => setLightboxUrl(friend.avatarUrl!) : undefined}
-                />
-                {onlineUsers.has(friend.friendId) && (
+                     />
+                     {onlineUsers.has(friend.friendId) && (
                   <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-card)] bg-green-500" />
                 )}
               </div>
@@ -282,7 +280,7 @@ export function FriendsPage() {
                       username={req.username}
                       displayName={req.displayName}
                       className="h-10 w-10 text-sm"
-                      onClick={req.avatarUrl ? () => setLightboxUrl(req.avatarUrl!) : undefined}
+                      
                     />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-[var(--color-foreground)]">
@@ -333,7 +331,7 @@ export function FriendsPage() {
                       username={req.username}
                       displayName={req.displayName}
                       className="h-10 w-10 text-sm"
-                      onClick={req.avatarUrl ? () => setLightboxUrl(req.avatarUrl!) : undefined}
+                      
                     />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-[var(--color-foreground)]">
@@ -408,7 +406,7 @@ export function FriendsPage() {
                       username={user.username}
                       displayName={user.displayName}
                       className="h-10 w-10 text-sm"
-                      onClick={user.avatarUrl ? () => setLightboxUrl(user.avatarUrl!) : undefined}
+                      
                     />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-[var(--color-foreground)]">
@@ -538,13 +536,6 @@ export function FriendsPage() {
         </div>
       )}
 
-      {lightboxUrl && (
-        <AvatarLightbox
-          avatarUrl={lightboxUrl}
-          displayName=""
-          onClose={() => setLightboxUrl(null)}
-        />
-      )}
     </div>
   );
 }
