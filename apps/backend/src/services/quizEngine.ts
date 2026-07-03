@@ -92,7 +92,7 @@ const questionPool = new Map<string, GeneratedQuestion[]>();
 
 // ─── Question Generation ───────────────────────────────────────────────────
 
-function getAnswerText(country: any, questionType: QuestionType, lang: string = 'en'): string {
+export function getAnswerText(country: any, questionType: QuestionType, lang: string = 'en'): string {
   const useEn = lang !== 'es';
   switch (questionType) {
     case 'flag-to-country':
@@ -107,7 +107,7 @@ function getAnswerText(country: any, questionType: QuestionType, lang: string = 
   }
 }
 
-function getQuestionText(country: any, questionType: QuestionType, lang: string = 'en'): string {
+export function getQuestionText(country: any, questionType: QuestionType, lang: string = 'en'): string {
   const useEn = lang !== 'es';
   switch (questionType) {
     case 'flag-to-country':

@@ -42,7 +42,7 @@ vi.mock('crypto', () => ({
   randomUUID: vi.fn().mockReturnValue(mockUUID),
 }));
 
-import { calculateScore } from '../services/quizEngine.js';
+import { calculateScore, getQuestionText, getAnswerText } from '../services/quizEngine.js';
 
 // ─── calculateScore (pure function, no DB needed) ───────────────────────────
 
@@ -118,5 +118,75 @@ describe('scoring edge cases', () => {
     const score = calculateScore(true, 0, 15000, 5, 0);
     // (100 + 50) * 1.5 * 0 = 0
     expect(score).toBe(0);
+  });
+});
+
+// ─── Question text and answer text with lang param ──────────────────────────
+
+describe('getQuestionText', () => {
+  const testCountry = {
+    nameEn: 'Argentina',
+    nameEs: 'Argentina',
+    capitalEn: 'Buenos Aires',
+    capitalEs: 'Buenos Aires',
+  };
+
+  it('should return English question text when lang=en', () => {
+    const text = getQuestionText(testCountry, 'flag-to-country', 'en');
+    expect(text).toBe('Which country does this flag belong to?');
+  });
+
+  it('should return Spanish question text when lang=es', () => {
+    const text = getQuestionText(testCountry, 'flag-to-country', 'es');
+    expect(text).toBe('¿A qué país pertenece esta bandera?');
+  });
+
+  it('should fall back to English when lang is invalid', () => {
+    const text = getQuestionText(testCountry, 'flag-to-country', 'invalid');
+    expect(text).toBe('Which country does this flag belong to?');
+  });
+
+  it('should use nameEs in capital-to-country question when lang=es', () => {
+    const country = { nameEn: 'France', nameEs: 'Francia', capitalEn: 'Paris', capitalEs: 'París' };
+    const text = getQuestionText(country, 'capital-to-country', 'es');
+    expect(text).toBe('París es la capital de qué país?');
+  });
+
+  it('should use nameEn in capital-to-country question when lang=en', () => {
+    const country = { nameEn: 'France', nameEs: 'Francia', capitalEn: 'Paris', capitalEs: 'París' };
+    const text = getQuestionText(country, 'capital-to-country', 'en');
+    expect(text).toBe('Paris is the capital of which country?');
+  });
+});
+
+describe('getAnswerText', () => {
+  it('should return nameEn when lang=en for flag-to-country', () => {
+    const country = { nameEn: 'Germany', nameEs: 'Alemania' };
+    const text = getAnswerText(country, 'flag-to-country', 'en');
+    expect(text).toBe('Germany');
+  });
+
+  it('should return nameEs when lang=es for flag-to-country', () => {
+    const country = { nameEn: 'Germany', nameEs: 'Alemania' };
+    const text = getAnswerText(country, 'flag-to-country', 'es');
+    expect(text).toBe('Alemania');
+  });
+
+  it('should fall back to English when lang is invalid', () => {
+    const country = { nameEn: 'Germany', nameEs: 'Alemania' };
+    const text = getAnswerText(country, 'flag-to-country', 'invalid');
+    expect(text).toBe('Germany');
+  });
+
+  it('should return nameEs for country-to-flag when lang=es', () => {
+    const country = { nameEn: 'Spain', nameEs: 'España' };
+    const text = getAnswerText(country, 'country-to-flag', 'es');
+    expect(text).toBe('España');
+  });
+
+  it('should return continent regardless of lang', () => {
+    const country = { nameEn: 'Brazil', nameEs: 'Brasil', continent: 'South America' };
+    const text = getAnswerText(country, 'continent', 'es');
+    expect(text).toBe('South America');
   });
 });

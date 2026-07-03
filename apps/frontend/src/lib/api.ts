@@ -33,7 +33,8 @@ async function request<T>(
   // Cache-busting: append unique timestamp to prevent any proxy caching
   const separator = endpoint.includes('?') ? '&' : '?';
   const cacheBuster = `${separator}_t=${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const url = `${API_BASE}${endpoint}${cacheBuster}`;
+  const lang = i18n.language?.startsWith('es') ? 'es' : 'en';
+  const url = `${API_BASE}${endpoint}${cacheBuster}&lang=${lang}`;
 
   const res = await fetch(url, {
     ...options,

@@ -60,13 +60,13 @@ Chain strategy: size-exception
 
 ## Phase 6: Testing
 
-- [ ] 6.1 Unit test `useLanguage` — `formatDate`/`formatTime` return locale-aware output for `en` and `es`
-- [ ] 6.2 Unit test `quizEngine.getQuestionText()`/`getAnswerText()` — `lang='es'` uses `nameEs`/`capitalEs`; `lang='en'` uses English; invalid lang falls back to `en`
-- [ ] 6.3 Unit test `api.ts` interceptor — assert `?lang=` appended matching `i18n.language` value
-- [ ] 6.4 Integration test — LanguageToggle switches locale; page re-renders in selected language
-- [ ] 6.5 E2E grep scan — verify zero residual hardcoded English strings in modified files
+- [x] 6.1 Unit test `useLanguage` — `formatDate`/`formatTime` return locale-aware output for `en` and `es` (16 tests, committed)
+- [x] 6.2 Unit test `quizEngine.getQuestionText()`/`getAnswerText()` — `lang='es'` uses `nameEs`/`capitalEs`; `lang='en'` uses English; invalid lang falls back to `en` (21 tests, committed)
+- [x] 6.3 Unit test `api.ts` interceptor — assert `?lang=` appended matching `i18n.language` value (3 tests, committed)
+- [x] 6.4 Integration test — LanguageToggle switches locale; page re-renders in selected language (8 tests, committed)
+- [x] 6.5 E2E grep scan — verified zero residual hardcoded English strings in modified files
 
 ## Phase 7: Cleanup
 
-- [ ] 7.1 Delete `apps/frontend/src/components/LanguageSwitcher.tsx`
-- [ ] 7.2 Scan all files for remaining imports of `LanguageSwitcher`; replace any missed references
+- [x] 7.1 Delete `apps/frontend/src/components/LanguageSwitcher.tsx`
+- [x] 7.2 Scan all files for remaining imports of `LanguageSwitcher`; replace any missed references — none found
