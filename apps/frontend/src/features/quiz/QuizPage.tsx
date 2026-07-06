@@ -77,6 +77,7 @@ export function QuizPage() {
     startSession,
     setQuestion,
     updateScore,
+    updateLives,
     loseLife,
     incrementStreak,
     resetStreak,
@@ -122,8 +123,8 @@ export function QuizPage() {
         updateScore(data.score);
       } else {
         resetStreak();
-        loseLife();
       }
+      updateLives(data.livesRemaining); // sync with backend (handles varying lives per mode)
 
       // Overwrite feedback text with backend's authoritative correctAnswer
       setFeedbackText(

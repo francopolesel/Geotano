@@ -14,6 +14,7 @@ interface GameState {
   startSession: (sessionId: string) => void;
   setQuestion: (q: QuizQuestion) => void;
   updateScore: (points: number) => void;
+  updateLives: (n: number) => void;
   loseLife: () => void;
   incrementStreak: () => void;
   resetStreak: () => void;
@@ -34,6 +35,7 @@ export const useGameStore = create<GameState>((set) => ({
   startSession: (sessionId) => set({ sessionId, isPlaying: true }),
   setQuestion: (q) => set({ currentQuestion: q }),
   updateScore: (points) => set((s) => ({ score: s.score + points })),
+  updateLives: (n) => set({ lives: n }),
   loseLife: () => set((s) => ({ lives: s.lives - 1 })),
   incrementStreak: () => set((s) => ({ streak: s.streak + 1 })),
   resetStreak: () => set({ streak: 0 }),
