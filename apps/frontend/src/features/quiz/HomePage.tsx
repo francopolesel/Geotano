@@ -1,7 +1,16 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
+import { api } from '../../lib/api';
 import type { GameModeSlug } from '@geotano/shared';
+
+interface HomeStats {
+  totalScore: number;
+  totalGames: number;
+  bestScore: number;
+  friends: number;
+}
 
 interface ModeCard {
   slug: GameModeSlug;
@@ -53,6 +62,20 @@ export function HomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const [stats, setStats] = useState<HomeStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setStatsLoading(true);
+    api
+      .get<{ stats: HomeStats }>(`/users/${user.id}/profile`)
+      .then((data) => setStats(data.stats))
+      .catch(() => {
+        /* silently fail — non-critical */
+      })
+      .finally(() => setStatsLoading(false));
+  }, [user?.id]);
 
   const handleStart = (mode: GameModeSlug) => {
     navigate(`/quiz?mode=${mode}`);
@@ -107,12 +130,35 @@ export function HomePage() {
 
       {/* Quick stats */}
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
-        <h3 className="text-sm font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wide">
+        <h3 className="mb-3 text-sm font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wide">
           {t('home.stats')}
         </h3>
-        <p className="mt-2 text-[var(--color-card-foreground)]">
-          {t('home.noGamesYet')}
-        </p>
+        {statsLoading ? (
+          <p className="text-sm text-[var(--color-muted-foreground)]">{t('common.loading')}</p>
+        ) : stats && stats.totalGames > 0 ? (
+          <div className="grid grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-lg font-bold text-[var(--color-foreground)]">{stats.totalScore}</p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">{t('profile.totalScore')}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-[var(--color-foreground)]">{stats.totalGames}</p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">{t('profile.totalGames')}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-[var(--color-foreground)]">{stats.bestScore}</p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">{t('profile.bestScore')}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-[var(--color-foreground)]">{stats.friends}</p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">{t('profile.friends')}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--color-card-foreground)]">
+            {t('home.noGamesYet')}
+          </p>
+        )}
       </div>
     </div>
   );
