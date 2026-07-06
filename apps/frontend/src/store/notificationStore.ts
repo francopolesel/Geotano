@@ -62,10 +62,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   markAllAsRead: async () => {
     try {
       await api.post('/notifications/read-all', {});
-      set((state) => ({
-        notifications: state.notifications.map((n) => ({ ...n, read: true })),
-        unreadCount: 0,
-      }));
+      set({ notifications: [], unreadCount: 0 });
     } catch {
       // Silently fail
     }
@@ -81,10 +78,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }));
 
     try {
-      // Mark as read on backend
+      // POST to read/:id deletes the notification on the backend
       await api.post(`/notifications/read/${id}`, {});
-      // Then delete it so it doesn't come back on refresh
-      await api.delete(`/notifications/${id}`);
     } catch {
       // Restore on failure
       if (removed) {

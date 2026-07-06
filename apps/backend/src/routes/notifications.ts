@@ -3,41 +3,7 @@ import { db } from '../db/index.js';
 import { notifications } from '../db/schema/index.js';
 import { users } from '../db/schema/index.js';
 import { authGuard } from '../auth/index.js';
-import { eq, and, desc, inArray, lt, sql } from 'drizzle-orm';
-
-const MAX_NOTIFICATIONS = 50;
-
-async function cleanupOldNotifications(userId: string): Promise<void> {
-  // Get total count for this user
-  const countResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(notifications)
-    .where(eq(notifications.userId, userId));
-
-  const total = Number(countResult[0]?.count ?? 0);
-  if (total <= MAX_NOTIFICATIONS) return;
-
-  // Find the cutoff — keep latest MAX_NOTIFICATIONS
-  const toKeep = await db
-    .select({ id: notifications.id })
-    .from(notifications)
-    .where(eq(notifications.userId, userId))
-    .orderBy(desc(notifications.createdAt))
-    .limit(MAX_NOTIFICATIONS);
-
-  const keepIds = new Set(toKeep.map((n) => n.id));
-
-  // Delete everything outside the keep list
-  const allIds = await db
-    .select({ id: notifications.id })
-    .from(notifications)
-    .where(eq(notifications.userId, userId));
-
-  const deleteIds = allIds.map((n) => n.id).filter((id) => !keepIds.has(id));
-  if (deleteIds.length > 0) {
-    await db.delete(notifications).where(inArray(notifications.id, deleteIds));
-  }
-}
+import { eq, and, desc, inArray } from 'drizzle-orm';
 
 export async function notificationsRoutes(app: FastifyInstance) {
   // GET /api/notifications — list recent notifications
@@ -52,7 +18,7 @@ export async function notificationsRoutes(app: FastifyInstance) {
         .from(notifications)
         .where(eq(notifications.userId, userId))
         .orderBy(desc(notifications.createdAt))
-        .limit(MAX_NOTIFICATIONS);
+        .limit(50);
 
       // Enrich with sender info
       const fromUserIds = [...new Set(rows.map((n) => n.fromUserId))];
@@ -95,7 +61,7 @@ export async function notificationsRoutes(app: FastifyInstance) {
     },
   );
 
-  // POST /api/notifications/read/:id — mark one as read and clean up
+  // POST /api/notifications/read/:id — delete notification (read = acknowledged = gone)
   app.post(
     '/api/notifications/read/:id',
     { preHandler: authGuard },
@@ -103,28 +69,22 @@ export async function notificationsRoutes(app: FastifyInstance) {
       const { userId } = (request as any).user;
       const { id } = request.params as { id: string };
 
-      const [updated] = await db
-        .update(notifications)
-        .set({ read: true })
+      const [deleted] = await db
+        .delete(notifications)
         .where(
           and(eq(notifications.id, id), eq(notifications.userId, userId)),
         )
         .returning();
 
-      if (!updated) {
+      if (!deleted) {
         return reply.status(404).send({ message: 'Notification not found' });
       }
-
-      // Clean up old notifications after reading one
-      cleanupOldNotifications(userId).catch((err) =>
-        console.error('[notifications] cleanup failed:', err),
-      );
 
       return { success: true };
     },
   );
 
-  // POST /api/notifications/read-all — mark all as read and clean up
+  // POST /api/notifications/read-all — delete all notifications for this user
   app.post(
     '/api/notifications/read-all',
     { preHandler: authGuard },
@@ -132,16 +92,8 @@ export async function notificationsRoutes(app: FastifyInstance) {
       const { userId } = (request as any).user;
 
       await db
-        .update(notifications)
-        .set({ read: true })
-        .where(
-          and(eq(notifications.userId, userId), eq(notifications.read, false)),
-        );
-
-      // Clean up old notifications
-      cleanupOldNotifications(userId).catch((err) =>
-        console.error('[notifications] cleanup failed:', err),
-      );
+        .delete(notifications)
+        .where(eq(notifications.userId, userId));
 
       return { success: true };
     },

@@ -170,7 +170,7 @@ describe('GET /api/notifications', () => {
   });
 });
 
-describe('POST /api/notifications/read/:id', () => {
+describe('POST /api/notifications/read/:id (deletes notification)', () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
 
   beforeEach(async () => {
@@ -183,8 +183,8 @@ describe('POST /api/notifications/read/:id', () => {
     await app.close();
   });
 
-  it('should mark notification as read and return success', async () => {
-    // db.update(n).set({read:true}).where(and(...)).returning()
+  it('should delete notification and return success', async () => {
+    // db.delete(n).where(and(...)).returning()
     waitData.push([makeNotification({ id: 'notif-1' })]);
 
     const res = await app.inject({
@@ -213,7 +213,7 @@ describe('POST /api/notifications/read/:id', () => {
   });
 });
 
-describe('POST /api/notifications/read-all', () => {
+describe('POST /api/notifications/read-all (deletes all)', () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
 
   beforeEach(async () => {
@@ -226,8 +226,8 @@ describe('POST /api/notifications/read-all', () => {
     await app.close();
   });
 
-  it('should mark all as read and return success', async () => {
-    // db.update(n).set({read:true}).where(and(userId, read=false))
+  it('should delete all notifications and return success', async () => {
+    // db.delete(n).where(uid)
     waitData.push({ rowCount: 3 });
 
     const res = await app.inject({
