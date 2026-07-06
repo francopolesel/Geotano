@@ -1,0 +1,312 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// ─── Thenable mockDb pattern ─────────────────────────────────────────────────
+const waitData: any[] = [];
+
+const mockDb = vi.hoisted(() => ({
+  select: vi.fn(),
+  from: vi.fn(),
+  where: vi.fn(),
+  orderBy: vi.fn(),
+  limit: vi.fn(),
+  innerJoin: vi.fn(),
+  groupBy: vi.fn(),
+  insert: vi.fn(),
+  values: vi.fn(),
+  returning: vi.fn(),
+  update: vi.fn(),
+  set: vi.fn(),
+  delete: vi.fn(),
+  then(resolve: (value: any) => void) {
+    const data = waitData.shift();
+    resolve(data !== undefined ? data : []);
+  },
+  catch() {},
+}));
+
+vi.mock('../db/index.js', () => ({ db: mockDb }));
+
+// Mock gameModes
+const mockModeConfigs: Record<string, any> = {
+  'flag-guess': {
+    slug: 'flag-guess',
+    questionTypes: ['flag-to-country'],
+    timerSeconds: 15,
+    lives: 3,
+    multiplier: 1.0,
+    description: 'See the flag, guess the country',
+  },
+};
+vi.mock('../services/gameModes.js', () => ({
+  getModeConfig: vi.fn((slug: string) => mockModeConfigs[slug] ?? mockModeConfigs['flag-guess']),
+  isValidModeSlug: vi.fn(() => true),
+}));
+
+// Fixed crypto for deterministic tests
+vi.mock('crypto', () => ({
+  default: { randomUUID: vi.fn(() => 'mock-uuid'), randomBytes: vi.fn() },
+  randomUUID: vi.fn(() => 'mock-uuid'),
+}));
+
+import { startSession, submitAnswer } from '../services/quizEngine.js';
+
+function setupMockDb() {
+  waitData.length = 0;
+  mockDb.select.mockReturnThis();
+  mockDb.from.mockReturnThis();
+  mockDb.where.mockReturnThis();
+  mockDb.orderBy.mockReturnThis();
+  mockDb.innerJoin.mockReturnThis();
+  mockDb.groupBy.mockReturnThis();
+  mockDb.limit.mockReturnThis();
+  mockDb.insert.mockReturnThis();
+  mockDb.values.mockReturnThis();
+  mockDb.returning.mockReturnThis();
+  mockDb.update.mockReturnThis();
+  mockDb.set.mockReturnThis();
+  mockDb.delete.mockReturnThis();
+}
+
+const MOCK_COUNTRIES = [
+  { id: 'c1', nameEn: 'Argentina', nameEs: 'Argentina', capitalEn: 'Buenos Aires', capitalEs: 'Buenos Aires', continent: 'South America', flagSvgUrl: 'https://example.com/ar.svg' },
+  { id: 'c2', nameEn: 'Brazil', nameEs: 'Brasil', capitalEn: 'Brasília', capitalEs: 'Brasília', continent: 'South America', flagSvgUrl: 'https://example.com/br.svg' },
+  { id: 'c3', nameEn: 'Chile', nameEs: 'Chile', capitalEn: 'Santiago', capitalEs: 'Santiago', continent: 'South America', flagSvgUrl: 'https://example.com/cl.svg' },
+  { id: 'c4', nameEn: 'Uruguay', nameEs: 'Uruguay', capitalEn: 'Montevideo', capitalEs: 'Montevideo', continent: 'South America', flagSvgUrl: 'https://example.com/uy.svg' },
+  { id: 'c5', nameEn: 'Colombia', nameEs: 'Colombia', capitalEn: 'Bogotá', capitalEs: 'Bogotá', continent: 'South America', flagSvgUrl: 'https://example.com/co.svg' },
+  { id: 'c6', nameEn: 'Peru', nameEs: 'Perú', capitalEn: 'Lima', capitalEs: 'Lima', continent: 'South America', flagSvgUrl: 'https://example.com/pe.svg' },
+  { id: 'c7', nameEn: 'Ecuador', nameEs: 'Ecuador', capitalEn: 'Quito', capitalEs: 'Quito', continent: 'South America', flagSvgUrl: 'https://example.com/ec.svg' },
+  { id: 'c8', nameEn: 'Venezuela', nameEs: 'Venezuela', capitalEn: 'Caracas', capitalEs: 'Caracas', continent: 'South America', flagSvgUrl: 'https://example.com/ve.svg' },
+];
+
+describe('startSession + submitAnswer integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockDb();
+  });
+
+  it('should start a session and submit a correct answer with pooled next question', async () => {
+    // ── startSession DB calls ────────────────────────────────────────────
+    // 1. gameModes select → limit(1)
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    // 2. insert gameSessions → no limit
+    waitData.push(undefined);
+    // 3. gameSessions select → limit(1)
+    waitData.push([{ id: 'session-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+
+    // For 5 questions in batch:
+    // Q1: pickRandomCountries(1, [])
+    waitData.push([MOCK_COUNTRIES[0]]); // Argentina
+    // Q1: pickRandomCountries(3, [c1])
+    waitData.push(MOCK_COUNTRIES.slice(1, 4)); // Brazil, Chile, Uruguay
+
+    // Q2: pickRandomCountries(1, [c1])
+    waitData.push([MOCK_COUNTRIES[1]]); // Brazil
+    // Q2: pickRandomCountries(3, [c1, c2])
+    waitData.push(MOCK_COUNTRIES.slice(2, 5)); // Chile, Uruguay, Colombia
+
+    // Q3: pickRandomCountries(1, [c1, c2])
+    waitData.push([MOCK_COUNTRIES[2]]); // Chile
+    // Q3: pickRandomCountries(3, [c1, c2, c3])
+    waitData.push(MOCK_COUNTRIES.slice(3, 6)); // Uruguay, Colombia, Peru
+
+    // Q4: pickRandomCountries(1, [c1, c2, c3])
+    waitData.push([MOCK_COUNTRIES[3]]); // Uruguay
+    // Q4: pickRandomCountries(3, [c1, c2, c3, c4])
+    waitData.push(MOCK_COUNTRIES.slice(4, 7)); // Colombia, Peru, Ecuador
+
+    // Q5: pickRandomCountries(1, [c1, c2, c3, c4])
+    waitData.push([MOCK_COUNTRIES[4]]); // Colombia
+    // Q5: pickRandomCountries(3, [c1, c2, c3, c4, c5])
+    waitData.push(MOCK_COUNTRIES.slice(5, 8)); // Peru, Ecuador, Venezuela
+
+    const result = await startSession('user-1', 'flag-guess', 'en');
+
+    expect(result.sessionId).toBeDefined();
+    expect(result.question).toBeDefined();
+    expect(result.question).not.toHaveProperty('correctAnswer');
+    expect(result.question.questionNumber).toBe(1);
+
+    // ── submitAnswer DB calls (non-game-over) ────────────────────────────
+    // 4. gameSessions select → limit(1)
+    waitData.push([{ id: 'session-1', gameModeId: 'mode-1', userId: 'user-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0, isActive: true }]);
+    // 5. gameModes select → limit(1)
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    // 6. update gameSessions → returning()
+    waitData.push([{ id: 'session-1', score: 150, correctCount: 1, totalQuestions: 1, streakMax: 1, livesRemaining: 3, isActive: true, completedAt: null }]);
+    // 7. insert gameAnswers → no limit
+    waitData.push(undefined);
+    // 8. refillPool: gameAnswers select
+    waitData.push([]);
+    // 9. refillPool: 5 more questions in batch
+    // Qr1: pickRandomCountries(1, ...)
+    waitData.push([MOCK_COUNTRIES[5]]); // Peru
+    // Qr1: pickRandomCountries(3, ...)
+    waitData.push(MOCK_COUNTRIES.slice(6, 8).concat([MOCK_COUNTRIES[0]])); // Ecuador, Venezuela, Argentina (reused)
+    // Qr2-r5: 4 more questions × 2 each = 8 more
+    for (let i = 0; i < 4; i++) {
+      waitData.push([MOCK_COUNTRIES[(i + 6) % MOCK_COUNTRIES.length]]);
+      waitData.push(MOCK_COUNTRIES.slice(0, 3));
+    }
+
+    const answer = await submitAnswer('session-1', 'user-1', 'Argentina', 5000, 'en');
+
+    // Should NOT be game over (lives remaining 3)
+    expect(answer.result).toBeUndefined();
+    // Score should be > 0 (correct answer + time bonus)
+    expect(answer.score).toBeGreaterThan(0);
+    // Should have next question from pool
+    expect(answer.nextQuestion).toBeDefined();
+    expect(answer.nextQuestion!.questionNumber).toBe(2);
+    expect(answer.nextQuestion!).not.toHaveProperty('correctAnswer');
+  });
+
+  it('should return result when game is over (wrong answer at 1 life)', async () => {
+    // ── startSession ──────────────────────────────────────────────────────
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 1, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+
+    // 5 questions
+    waitData.push([MOCK_COUNTRIES[0]]);
+    waitData.push(MOCK_COUNTRIES.slice(1, 4));
+    waitData.push([MOCK_COUNTRIES[1]]);
+    waitData.push(MOCK_COUNTRIES.slice(2, 5));
+    waitData.push([MOCK_COUNTRIES[2]]);
+    waitData.push(MOCK_COUNTRIES.slice(3, 6));
+    waitData.push([MOCK_COUNTRIES[3]]);
+    waitData.push(MOCK_COUNTRIES.slice(4, 7));
+    waitData.push([MOCK_COUNTRIES[4]]);
+    waitData.push(MOCK_COUNTRIES.slice(5, 8));
+
+    await startSession('user-1', 'flag-guess', 'en');
+
+    // ── submitAnswer — wrong answer, game over (1 life → 0) ──────────────
+    waitData.push([{ id: 'session-1', gameModeId: 'mode-1', userId: 'user-1', livesRemaining: 1, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0, isActive: true }]);
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    // update: isActive=false, completedAt=now
+    waitData.push([{ id: 'session-1', score: 0, correctCount: 0, totalQuestions: 1, streakMax: 0, livesRemaining: 0, isActive: false, completedAt: new Date() }]);
+    // insert gameAnswers
+    waitData.push(undefined);
+
+    const answer = await submitAnswer('session-1', 'user-1', 'WrongAnswer', 5000, 'en');
+
+    expect(answer.correct).toBe(false);
+    expect(answer.score).toBe(0);
+    expect(answer.livesRemaining).toBe(0);
+    expect(answer.result).toBeDefined();
+    expect(answer.result!.totalQuestions).toBe(1);
+    expect(answer.result!.totalScore).toBe(0);
+    expect(answer).not.toHaveProperty('nextQuestion');
+  });
+
+  it('should throw when session is not found', async () => {
+    // questionCache is empty — no session started
+    await expect(
+      submitAnswer('nonexistent', 'user-1', 'Argentina', 5000),
+    ).rejects.toThrow(/not found/i);
+  });
+
+  it('should throw when session is completed from start', async () => {
+    // Populate cache by starting a session
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+    waitData.push([MOCK_COUNTRIES[0]]);
+    waitData.push(MOCK_COUNTRIES.slice(1, 4));
+    waitData.push([MOCK_COUNTRIES[1]]);
+    waitData.push(MOCK_COUNTRIES.slice(2, 5));
+    waitData.push([MOCK_COUNTRIES[2]]);
+    waitData.push(MOCK_COUNTRIES.slice(3, 6));
+    waitData.push([MOCK_COUNTRIES[3]]);
+    waitData.push(MOCK_COUNTRIES.slice(4, 7));
+    waitData.push([MOCK_COUNTRIES[4]]);
+    waitData.push(MOCK_COUNTRIES.slice(5, 8));
+
+    await startSession('user-1', 'flag-guess', 'en');
+
+    // Now the DB returns no active session (isActive=false)
+    waitData.push([]); // session select returns empty
+    await expect(
+      submitAnswer('session-1', 'user-1', 'Argentina', 5000),
+    ).rejects.toThrow(/not found/i);
+  });
+
+  it('should throw for invalid session', async () => {
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+    waitData.push([MOCK_COUNTRIES[0]]);
+    waitData.push(MOCK_COUNTRIES.slice(1, 4));
+    waitData.push([MOCK_COUNTRIES[1]]);
+    waitData.push(MOCK_COUNTRIES.slice(2, 5));
+    waitData.push([MOCK_COUNTRIES[2]]);
+    waitData.push(MOCK_COUNTRIES.slice(3, 6));
+    waitData.push([MOCK_COUNTRIES[3]]);
+    waitData.push(MOCK_COUNTRIES.slice(4, 7));
+    waitData.push([MOCK_COUNTRIES[4]]);
+    waitData.push(MOCK_COUNTRIES.slice(5, 8));
+
+    await startSession('user-1', 'flag-guess', 'en');
+
+    // [session lookup returns empty, cache is deleted, error thrown]
+    waitData.push([]);
+    await expect(
+      submitAnswer('session-1', 'user-1', 'Argentina', 5000),
+    ).rejects.toThrow(/not found|completed/i);
+  });
+
+  it('should handle time-exceeded answer', async () => {
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+    waitData.push([MOCK_COUNTRIES[0]]);
+    waitData.push(MOCK_COUNTRIES.slice(1, 4));
+    waitData.push([MOCK_COUNTRIES[1]]);
+    waitData.push(MOCK_COUNTRIES.slice(2, 5));
+    waitData.push([MOCK_COUNTRIES[2]]);
+    waitData.push(MOCK_COUNTRIES.slice(3, 6));
+    waitData.push([MOCK_COUNTRIES[3]]);
+    waitData.push(MOCK_COUNTRIES.slice(4, 7));
+    waitData.push([MOCK_COUNTRIES[4]]);
+    waitData.push(MOCK_COUNTRIES.slice(5, 8));
+
+    await startSession('user-1', 'flag-guess', 'en');
+
+    // timeLimitMs is 15000, GRACE_MS is 2000, so time > 17000 is exceeded
+    waitData.push([{ id: 'session-1', gameModeId: 'mode-1', userId: 'user-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0, isActive: true }]);
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push([{ id: 'session-1', score: 0, correctCount: 0, totalQuestions: 1, streakMax: 0, livesRemaining: 2, isActive: true, completedAt: null }]);
+    waitData.push(undefined);
+    // Pool refill triggered (pool had 4 remaining after Q1 consumed, now at 3 after Q2 popped)
+    waitData.push([]);
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i % 8]]);
+      waitData.push(MOCK_COUNTRIES.slice((i + 1) % 8, (i + 4) % 8));
+    }
+
+    const answer = await submitAnswer('session-1', 'user-1', 'Argentina', 999999, 'en');
+
+    // Time exceeded, so should be incorrect even though text matches
+    expect(answer.correct).toBe(false);
+    expect(answer.score).toBe(0);
+  });
+});
+
+describe('startSession error handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockDb();
+  });
+
+  it('should throw when no countries available', async () => {
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+    // generate question returns empty
+    waitData.push([]); // limit(1) returns empty → no countries
+
+    await expect(
+      startSession('user-1', 'flag-guess', 'en'),
+    ).rejects.toThrow(/no countries available/i);
+  });
+});
