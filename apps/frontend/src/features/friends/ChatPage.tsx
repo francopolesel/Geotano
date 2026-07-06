@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/ui/UserAvatar';
-import { AvatarLightbox } from '../../components/ui/AvatarLightbox';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, sendChatMessage, setChatMessageHandler } from '../../lib/socket';
@@ -13,7 +12,6 @@ export function ChatPage() {
   const { userId } = useParams<{ userId: string }>();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const token = useAuthStore((s) => s.token);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const { friends, onlineUsers, fetchFriends } = useFriendsStore();
@@ -147,20 +145,23 @@ export function ChatPage() {
             username={activeFriend.username}
             displayName={activeFriend.displayName}
             className="h-10 w-10 text-sm"
-            onClick={activeFriend.avatarUrl ? () => setLightboxUrl(activeFriend.avatarUrl!) : undefined}
+            onClick={() => navigate(`/profile/${activeFriend.friendId}`)}
           />
           {isOnline && (
             <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-background)] bg-green-500" />
           )}
         </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-[var(--color-foreground)]">
+        <button
+          onClick={() => navigate(`/profile/${activeFriend.friendId}`)}
+          className="min-w-0 text-left"
+        >
+          <p className="truncate text-sm font-medium text-[var(--color-foreground)] hover:underline">
             {activeFriend.displayName ?? activeFriend.username}
           </p>
           <p className="text-xs text-[var(--color-muted-foreground)]">
             {isOnline ? t('chat.online') : t('chat.offline')}
           </p>
-        </div>
+        </button>
       </div>
 
       {/* Divider */}
@@ -239,13 +240,6 @@ export function ChatPage() {
         </button>
       </div>
 
-      {lightboxUrl && (
-        <AvatarLightbox
-          avatarUrl={lightboxUrl}
-          displayName={activeFriend.displayName ?? activeFriend.username}
-          onClose={() => setLightboxUrl(null)}
-        />
-      )}
     </div>
   );
 }
