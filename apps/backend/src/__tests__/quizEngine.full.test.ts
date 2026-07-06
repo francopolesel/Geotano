@@ -48,7 +48,7 @@ vi.mock('crypto', () => ({
   randomUUID: vi.fn(() => 'mock-uuid'),
 }));
 
-import { startSession, submitAnswer } from '../services/quizEngine.js';
+import { startSession, submitAnswer, questionPool } from '../services/quizEngine.js';
 
 function setupMockDb() {
   waitData.length = 0;
@@ -289,6 +289,59 @@ describe('startSession + submitAnswer integration', () => {
     // Time exceeded, so should be incorrect even though text matches
     expect(answer.correct).toBe(false);
     expect(answer.score).toBe(0);
+  });
+
+  it('should generate fallback question when pool is empty', async () => {
+    // ── startSession ──────────────────────────────────────────────────────
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+
+    // 5 pool questions
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i]]);
+      waitData.push(MOCK_COUNTRIES.slice(i + 1, i + 4));
+    }
+
+    const session = await startSession('user-1', 'flag-guess', 'en');
+
+    // ── Clear the pool to force fallback path ─────────────────────────────
+    questionPool.set(session.sessionId, []);
+
+    // ── submitAnswer DB calls ─────────────────────────────────────────────
+    // Session select
+    waitData.push([{
+      id: session.sessionId, gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0,
+      streakMax: 0, isActive: true,
+    }]);
+    // Mode select
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    // Update session
+    waitData.push([{
+      id: session.sessionId, score: 150, correctCount: 1, totalQuestions: 1,
+      streakMax: 1, livesRemaining: 3, isActive: true, completedAt: null,
+    }]);
+    // Insert answer
+    waitData.push(undefined);
+    // Fallback: prevAnswers
+    waitData.push([]);
+    // Fallback: pickRandomCountries(1, [...]) — correct country
+    waitData.push([MOCK_COUNTRIES[6]]); // Ecuador
+    // Fallback: pickRandomCountries(3, [...]) — distractors
+    waitData.push(MOCK_COUNTRIES.slice(0, 3)); // Argentina, Brazil, Chile
+
+    const answer = await submitAnswer(session.sessionId, 'user-1', 'Argentina', 5000, 'en');
+
+    expect(answer.correct).toBe(true);
+    expect(answer.score).toBeGreaterThan(0);
+    expect(answer.result).toBeUndefined(); // not game over
+    expect(answer.nextQuestion).toBeDefined();
+    expect(answer.nextQuestion!.questionNumber).toBe(2);
+    expect(answer.nextQuestion!).not.toHaveProperty('correctAnswer');
+
+    // Pool should be empty (refill failed silently — no waitData left)
+    expect(questionPool.get(session.sessionId)).toEqual([]);
   });
 });
 

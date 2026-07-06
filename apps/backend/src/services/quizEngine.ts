@@ -99,7 +99,8 @@ const questionCache = new Map<string, CachedQuestion>();
  * background as the user answers, so the next question is always ready
  * without a blocking DB query.
  */
-const questionPool = new Map<string, GeneratedQuestion[]>();
+/** @internal — exported for testing */
+export const questionPool = new Map<string, GeneratedQuestion[]>();
 
 // ─── Question Generation ───────────────────────────────────────────────────
 
