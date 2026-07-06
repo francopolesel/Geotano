@@ -46,7 +46,7 @@ export async function quizRoutes(app: FastifyInstance) {
         lang?: string;
       };
 
-      if (!sessionId || !answer || timeMs == null) {
+      if (!sessionId || answer === undefined || timeMs == null) {
         return reply.status(400).send({
           message: 'sessionId, answer, and timeMs are required',
         });

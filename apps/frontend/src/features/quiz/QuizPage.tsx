@@ -89,6 +89,7 @@ export function QuizPage() {
   const [answerState, setAnswerState] = useState<'idle' | 'correct' | 'wrong'>('idle');
   const [feedbackText, setFeedbackText] = useState('');
   const [gameResult, setGameResult] = useState<QuizSessionResult | null>(null);
+  const isTimeoutRef = useRef(false);
 
   // ── Start session mutation ────────────────────────────────────────────────
   const sessionMutation = useMutation({
@@ -148,8 +149,16 @@ export function QuizPage() {
       }
     },
     onError: () => {
-      // If the submission failed (server cold-start, network blip),
-      // reset state so the user can retry on the current question.
+      if (isTimeoutRef.current) {
+        // Timeout submission failed — don't reset to idle, that causes
+        // an infinite retry loop (timer expires -> retry -> fail -> reset).
+        // Keep the "wrong" state and show error so user knows what happened.
+        isTimeoutRef.current = false;
+        setFeedbackText(`${t('quiz.wrong')} — ${t('quiz.submitError')}`);
+        return;
+      }
+      // User-click submission failed — reset state so the user can
+      // retry on the current question.
       setAnswerState('idle');
       setSelectedIndex(null);
       setCorrectIndex(null);
@@ -170,7 +179,11 @@ export function QuizPage() {
     setAnswerState('wrong');
     setFeedbackText(t('quiz.wrong'));
 
-    // Submit empty answer to backend for scoring/validation
+    // Submit empty answer to backend for scoring/validation.
+    // If the mutation fails (server cold-start, network blip), onError will
+    // NOT reset to idle — we keep the "wrong" state to avoid an infinite
+    // retry loop. The user sees the wrong answer and can start a new game.
+    isTimeoutRef.current = true;
     answerMutation.mutate({ answer: '', timeMs: currentQuestion.timeLimitMs });
   }, [answerState, answerMutation, currentQuestion, t]);
 
@@ -204,6 +217,7 @@ export function QuizPage() {
 
   const handleAnswer = (index: number) => {
     if (answerState !== 'idle' || !currentQuestion) return;
+    isTimeoutRef.current = false;
     timerPause(); // Stop the timer bar — answer was selected
     setSelectedIndex(index);
     setCorrectIndex(currentQuestion.correctIndex);

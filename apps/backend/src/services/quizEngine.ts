@@ -202,23 +202,34 @@ async function generateQuestion(
 
   // Generate option strings and track country IDs
   const correctText = getAnswerText(correctCountry, questionType, lang);
-  const wrongTexts = distractorPool.map((d: any) =>
-    getAnswerText(d, questionType, lang),
-  );
-  const wrongCountryIds = distractorPool.map((d: any) => d.id);
+  const seenTexts = new Set<string>([correctText]);
+  const wrongTexts: string[] = [];
+  const wrongCountryIds: string[] = [];
 
-  // If we don't have enough distractors, get more without exclusion
+  for (const d of distractorPool) {
+    const text = getAnswerText(d, questionType, lang);
+    if (!seenTexts.has(text) && wrongTexts.length < OPTIONS_COUNT - 1) {
+      seenTexts.add(text);
+      wrongTexts.push(text);
+      wrongCountryIds.push(d.id);
+    }
+  }
+
+  // Keep fetching more distractors until we have enough unique wrong answers
   while (wrongTexts.length < OPTIONS_COUNT - 1) {
-    const extra = await pickRandomCountries(1, [
+    const extra = await pickRandomCountries(OPTIONS_COUNT - 1 - wrongTexts.length, [
       correctCountry.id,
       ...wrongCountryIds,
     ]);
-    if (extra.length > 0) {
-      wrongTexts.push(getAnswerText(extra[0], questionType, lang));
-      wrongCountryIds.push(extra[0].id);
-    } else {
-      break; // fallback — shouldn't happen with 200+ countries
+    for (const e of extra) {
+      const text = getAnswerText(e, questionType, lang);
+      if (!seenTexts.has(text) && wrongTexts.length < OPTIONS_COUNT - 1) {
+        seenTexts.add(text);
+        wrongTexts.push(text);
+        wrongCountryIds.push(e.id);
+      }
     }
+    if (extra.length === 0) break; // fallback — shouldn't happen with 200+ countries
   }
 
   // Shuffle options + country IDs in parallel via index shuffling
