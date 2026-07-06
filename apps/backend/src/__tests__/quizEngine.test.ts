@@ -184,9 +184,15 @@ describe('getAnswerText', () => {
     expect(text).toBe('España');
   });
 
-  it('should return continent regardless of lang', () => {
+  it('should translate continent name when lang=es', () => {
     const country = { nameEn: 'Brazil', nameEs: 'Brasil', continent: 'South America' };
     const text = getAnswerText(country, 'continent', 'es');
+    expect(text).toBe('Sudamérica');
+  });
+
+  it('should return English continent name when lang=en', () => {
+    const country = { nameEn: 'Brazil', nameEs: 'Brasil', continent: 'South America' };
+    const text = getAnswerText(country, 'continent', 'en');
     expect(text).toBe('South America');
   });
 });

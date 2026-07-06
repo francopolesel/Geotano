@@ -17,6 +17,17 @@ const STREAK_THRESHOLD = 3;
 const STREAK_MULTIPLIER = 1.5;
 const OPTIONS_COUNT = 4;
 
+/** Continent name translations (DB stores only English). */
+const CONTINENT_TRANSLATIONS: Record<string, string> = {
+  Africa: 'África',
+  Antarctica: 'Antártida',
+  Asia: 'Asia',
+  Europe: 'Europa',
+  'North America': 'Norteamérica',
+  Oceania: 'Oceanía',
+  'South America': 'Sudamérica',
+};
+
 /** How many questions to pre-generate at session start. */
 const POOL_INITIAL_SIZE = 5;
 /** When remaining pool drops below this, trigger background refill. */
@@ -100,8 +111,10 @@ export function getAnswerText(country: any, questionType: QuestionType, lang: st
       return useEn ? country.nameEn : country.nameEs;
     case 'country-to-flag':
       return useEn ? country.nameEn : country.nameEs;
-    case 'continent':
-      return country.continent;
+    case 'continent': {
+      const raw = country.continent;
+      return useEn ? raw : (CONTINENT_TRANSLATIONS[raw] ?? raw);
+    }
     default:
       return useEn ? country.nameEn : country.nameEs;
   }
