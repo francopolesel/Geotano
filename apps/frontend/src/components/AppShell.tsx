@@ -118,9 +118,6 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
-
-      {/* Mobile FAB LanguageToggle */}
-      <LanguageToggle mobile />
     </div>
   );
 }

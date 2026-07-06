@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
-import { LanguageToggle } from '../../components/LanguageToggle';
 import { api } from '../../lib/api';
 import logo from '../../assets/logo.png';
 
@@ -109,7 +108,7 @@ export function RegisterPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
-      <LanguageToggle mobile />
+
       <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 shadow-sm">
         <div className="mb-6 text-center">
           <img src={logo} alt="Geotano" className="mx-auto mb-4 h-28 w-28" />
