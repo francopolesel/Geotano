@@ -285,35 +285,57 @@ describe('API Integration Tests', () => {
 
   // ── Quiz flow ────────────────────────────────────────────────────────────
 
+  /** Reusable mock country to feed the 5-question batch (POOL_INITIAL_SIZE). */
+  function mockCountries() {
+    const countries = [
+      { id: 'c1', nameEn: 'France', continent: 'Europe', capitalEn: 'Paris', flagSvgUrl: 'https://flag.com/fr.svg' },
+      { id: 'c2', nameEn: 'Germany', continent: 'Europe', capitalEn: 'Berlin', flagSvgUrl: 'https://flag.com/de.svg' },
+      { id: 'c3', nameEn: 'Italy', continent: 'Europe', capitalEn: 'Rome', flagSvgUrl: 'https://flag.com/it.svg' },
+      { id: 'c4', nameEn: 'Spain', continent: 'Europe', capitalEn: 'Madrid', flagSvgUrl: 'https://flag.com/es.svg' },
+      { id: 'c5', nameEn: 'UK', continent: 'Europe', capitalEn: 'London', flagSvgUrl: 'https://flag.com/uk.svg' },
+      { id: 'c6', nameEn: 'Portugal', continent: 'Europe', capitalEn: 'Lisbon', flagSvgUrl: 'https://flag.com/pt.svg' },
+      { id: 'c7', nameEn: 'Netherlands', continent: 'Europe', capitalEn: 'Amsterdam', flagSvgUrl: 'https://flag.com/nl.svg' },
+      { id: 'c8', nameEn: 'Belgium', continent: 'Europe', capitalEn: 'Brussels', flagSvgUrl: 'https://flag.com/be.svg' },
+      { id: 'c9', nameEn: 'Sweden', continent: 'Europe', capitalEn: 'Stockholm', flagSvgUrl: 'https://flag.com/se.svg' },
+      { id: 'c10', nameEn: 'Norway', continent: 'Europe', capitalEn: 'Oslo', flagSvgUrl: 'https://flag.com/no.svg' },
+      { id: 'c11', nameEn: 'Denmark', continent: 'Europe', capitalEn: 'Copenhagen', flagSvgUrl: 'https://flag.com/dk.svg' },
+      { id: 'c12', nameEn: 'Finland', continent: 'Europe', capitalEn: 'Helsinki', flagSvgUrl: 'https://flag.com/fi.svg' },
+      { id: 'c13', nameEn: 'Poland', continent: 'Europe', capitalEn: 'Warsaw', flagSvgUrl: 'https://flag.com/pl.svg' },
+      { id: 'c14', nameEn: 'Austria', continent: 'Europe', capitalEn: 'Vienna', flagSvgUrl: 'https://flag.com/at.svg' },
+      { id: 'c15', nameEn: 'Switzerland', continent: 'Europe', capitalEn: 'Bern', flagSvgUrl: 'https://flag.com/ch.svg' },
+    ];
+    return countries;
+  }
+
   describe('Quiz session flow', () => {
     it('should start a quiz session', async () => {
       const now = new Date();
+      const all = mockCountries();
+
+      // POOL_INITIAL_SIZE=5 → startSession needs 12 limit mocks:
+      // mode(1) + session(1) + 5 questions × (1 correct + 1 distractor)
       mockDb.limit
-        .mockResolvedValueOnce([{ id: 'mode-1', slug: 'flag-guess' }]) // mode lookup
-        .mockResolvedValueOnce([{
-          id: 'session-1',
-          userId: 'user-1',
-          gameModeId: 'mode-1',
-          score: 0,
-          correctCount: 0,
-          totalQuestions: 0,
-          streakMax: 0,
-          livesRemaining: 3,
-          isActive: true,
-          startedAt: now,
-        }]) // active session lookup
-        .mockResolvedValueOnce([{
-          id: 'country-1',
-          nameEn: 'France',
-          continent: 'Europe',
-          capitalEn: 'Paris',
-          flagSvgUrl: 'https://flag.com/fr.svg',
-        }]) // correct country
-        .mockResolvedValueOnce([
-          { id: 'country-2', nameEn: 'Germany', continent: 'Europe', capitalEn: 'Berlin', flagSvgUrl: 'https://flag.com/de.svg' },
-          { id: 'country-3', nameEn: 'Italy', continent: 'Europe', capitalEn: 'Rome', flagSvgUrl: 'https://flag.com/it.svg' },
-          { id: 'country-4', nameEn: 'Spain', continent: 'Europe', capitalEn: 'Madrid', flagSvgUrl: 'https://flag.com/es.svg' },
-        ]); // distractors
+        .mockResolvedValueOnce([{ id: 'mode-1', slug: 'flag-guess' }])            // 1: mode lookup
+        .mockResolvedValueOnce([{                                                   // 2: session lookup
+          id: 'session-1', userId: 'user-1', gameModeId: 'mode-1',
+          score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0,
+          livesRemaining: 3, isActive: true, startedAt: now,
+        }])
+        // Q1
+        .mockResolvedValueOnce([all[0]]) // 3: correct
+        .mockResolvedValueOnce([all[1], all[2], all[3]])                           // 4: distractors
+        // Q2
+        .mockResolvedValueOnce([all[4]])                                            // 5: correct
+        .mockResolvedValueOnce([all[5], all[6], all[7]])                           // 6: distractors
+        // Q3
+        .mockResolvedValueOnce([all[8]])                                            // 7: correct
+        .mockResolvedValueOnce([all[9], all[10], all[11]])                         // 8: distractors
+        // Q4
+        .mockResolvedValueOnce([all[12]])                                           // 9: correct
+        .mockResolvedValueOnce([all[13], all[14], all[0]])                         // 10: distractors (wrap around)
+        // Q5
+        .mockResolvedValueOnce([all[1]])                                            // 11: correct
+        .mockResolvedValueOnce([all[2], all[3], all[4]]);                          // 12: distractors
 
       const authModule = await import('../../auth/index.js');
       vi.mocked(authModule.authGuard).mockImplementationOnce((req: any, _reply: any, done: any) => {
