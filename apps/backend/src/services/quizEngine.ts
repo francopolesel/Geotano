@@ -120,12 +120,12 @@ export function getQuestionText(country: any, questionType: QuestionType, lang: 
         ? `${capital} is the capital of which country?`
         : `${capital} es la capital de qué país?`;
     }
-    case 'country-to-flag': {
-      const name = useEn ? country.nameEn : country.nameEs;
+    case 'country-to-flag':
+      // Same as flag-to-country: show one flag, options are country names.
+      // The flagUrl is already set in the question response for rendering.
       return useEn
-        ? `Which flag belongs to ${name}?`
-        : `¿Qué bandera pertenece a ${name}?`;
-    }
+        ? 'Which country does this flag belong to?'
+        : '¿A qué país pertenece esta bandera?';
     case 'continent': {
       const name = useEn ? country.nameEn : country.nameEs;
       return useEn
@@ -178,20 +178,36 @@ async function generateQuestion(
   const questionType: QuestionType =
     config.questionTypes[Math.floor(Math.random() * config.questionTypes.length)];
 
-  // Pick the correct country (avoid repeats)
+  // Helper: check if a country has the required data for this question type
+  const isValidCountry = (c: any): boolean => {
+    if (questionType === 'capital-to-country') {
+      const capital = lang !== 'es' ? c.capitalEn : c.capitalEs;
+      return !!capital;
+    }
+    return true;
+  };
+
+  // Pick the correct country (avoid repeats + validate for question type)
   let correctCountry: any;
-  if (excludeCountryIds.length > 0) {
-    const available = await pickRandomCountries(1, excludeCountryIds);
-    if (available.length > 0) {
-      correctCountry = available[0];
+  let pickAttempts = 0;
+  while (!correctCountry && pickAttempts < 30) {
+    pickAttempts++;
+    let available: any[];
+    if (excludeCountryIds.length > 0) {
+      available = await pickRandomCountries(1, excludeCountryIds);
+    } else {
+      available = await pickRandomCountries(1);
+    }
+    if (available.length === 0) break;
+    const candidate = available[0];
+    if (isValidCountry(candidate)) {
+      correctCountry = candidate;
+    } else {
+      excludeCountryIds.push(candidate.id); // skip for next attempt
     }
   }
   if (!correctCountry) {
-    const fallback = await pickRandomCountries(1);
-    if (fallback.length === 0) {
-      throw new Error('No countries available. Seed countries before starting a quiz.');
-    }
-    correctCountry = fallback[0];
+    throw new Error('No countries available. Seed countries before starting a quiz.');
   }
 
   // Pick distractor countries (distinct from correct)
@@ -207,6 +223,7 @@ async function generateQuestion(
   const wrongCountryIds: string[] = [];
 
   for (const d of distractorPool) {
+    if (!isValidCountry(d)) continue;
     const text = getAnswerText(d, questionType, lang);
     if (!seenTexts.has(text) && wrongTexts.length < OPTIONS_COUNT - 1) {
       seenTexts.add(text);
@@ -222,6 +239,7 @@ async function generateQuestion(
       ...wrongCountryIds,
     ]);
     for (const e of extra) {
+      if (!isValidCountry(e)) continue;
       const text = getAnswerText(e, questionType, lang);
       if (!seenTexts.has(text) && wrongTexts.length < OPTIONS_COUNT - 1) {
         seenTexts.add(text);
