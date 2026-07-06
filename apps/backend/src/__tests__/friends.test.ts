@@ -158,6 +158,26 @@ describe('friend request creation', () => {
     expect(body.message).toMatch(/already friends/i);
   });
 
+  it('should return FRIENDSHIP_ERROR for blocked existing relationship', async () => {
+    mockDb.select.mockReturnThis();
+    mockDb.from.mockReturnThis();
+    mockDb.where.mockReturnThis();
+    mockDb.limit
+      .mockResolvedValueOnce([{ id: 'user-2', username: 'blocked_user' }])
+      .mockResolvedValueOnce([{ id: 'req-1', status: 'blocked', userId: 'user-1', friendId: 'user-2' }]);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/request',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { username: 'blocked_user' },
+    });
+
+    expect(res.statusCode).toBe(409);
+    const body = JSON.parse(res.body);
+    expect(body.errorCode).toBe('FRIENDSHIP_ERROR');
+  });
+
   it('should successfully create a friend request', async () => {
     const now = new Date();
     mockDb.select.mockReturnThis();
@@ -247,6 +267,24 @@ describe('accept / decline friend request', () => {
     expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.body);
     expect(body.message).toMatch(/not found/i);
+  });
+
+  it('should return 404 when decline request not found', async () => {
+    mockDb.select.mockReturnThis();
+    mockDb.from.mockReturnThis();
+    mockDb.where.mockReturnThis();
+    mockDb.limit.mockResolvedValue([]);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/decline',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { requestId: 'nonexistent' },
+    });
+
+    expect(res.statusCode).toBe(404);
+    const body = JSON.parse(res.body);
+    expect(body.errorCode).toBe('REQUEST_NOT_FOUND');
   });
 
   it('should decline a valid friend request', async () => {
