@@ -55,7 +55,7 @@ const MODE_CONFIGS: Record<GameModeSlug, GameModeConfig> = {
       'continent',
     ],
     timerSeconds: 15,
-    lives: 5,
+    lives: 3,
     multiplier: 1.5,
     description: 'Mixed questions from all categories',
   },
