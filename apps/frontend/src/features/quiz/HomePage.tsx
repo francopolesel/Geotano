@@ -148,15 +148,28 @@ export function HomePage() {
                 </p>
               </div>
 
-              {/* Variant pills */}
-              <div className="mt-3 flex flex-wrap gap-1.5">
+              {/* Mode buttons — clickable to play */}
+              <div className="mt-4 flex flex-col gap-2">
                 {group.variants.map((variant) => (
                   <button
                     key={variant.slug}
                     onClick={() => handleStart(variant.slug)}
-                    className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-medium text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
+                    className="min-h-[48px] w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-left text-sm font-medium text-[var(--color-foreground)] transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-md hover:bg-[var(--color-primary)]/5 active:translate-y-0 active:shadow-sm"
                   >
-                    {t(variant.labelKey)}
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs text-[var(--color-primary)] font-semibold uppercase tracking-wider">
+                        {t(variant.labelKey)}
+                      </span>
+                      <svg
+                        className="ml-auto h-4 w-4 text-[var(--color-muted-foreground)] shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </span>
                   </button>
                 ))}
               </div>
