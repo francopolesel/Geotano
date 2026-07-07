@@ -99,6 +99,17 @@ describe('authStore', () => {
     expect(state.error).toBe('Invalid credentials');
   });
 
+  it('should handle login failure with non-Error rejection', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce('string error');
+
+    await expect(
+      useAuthStore.getState().login('testuser', 'password123'),
+    ).rejects.toBe('string error');
+
+    const state = useAuthStore.getState();
+    expect(state.error).toBe('errors.common.loginFailed');
+  });
+
   it('should register and persist token + user', async () => {
     const mockResponse = {
       token: 'jwt-xyz-789',
@@ -185,6 +196,28 @@ describe('authStore', () => {
     useAuthStore.getState().clearError();
     expect(useAuthStore.getState().error).toBeNull();
   });
+
+  it('should handle registration failure with generic Error', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('Generic error'));
+
+    await expect(
+      useAuthStore.getState().register('user', 'e@mail.com', 'password123'),
+    ).rejects.toThrow('Generic error');
+
+    const state = useAuthStore.getState();
+    expect(state.error).toBe('Generic error');
+  });
+
+  it('should handle registration failure with non-Error rejection', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce('string error');
+
+    await expect(
+      useAuthStore.getState().register('user', 'e@mail.com', 'password123'),
+    ).rejects.toBe('string error');
+
+    const state = useAuthStore.getState();
+    expect(state.error).toBe('errors.common.registrationFailed');
+  });
 });
 
 // ─── Game Store ──────────────────────────────────────────────────────────────
@@ -242,6 +275,14 @@ describe('gameStore', () => {
     expect(useGameStore.getState().lives).toBe(2);
 
     useGameStore.getState().loseLife();
+    expect(useGameStore.getState().lives).toBe(1);
+  });
+
+  it('should update lives to a specific value', () => {
+    useGameStore.getState().updateLives(5);
+    expect(useGameStore.getState().lives).toBe(5);
+
+    useGameStore.getState().updateLives(1);
     expect(useGameStore.getState().lives).toBe(1);
   });
 
@@ -357,6 +398,66 @@ describe('themeStore', () => {
 
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
+
+  it('setTheme dark stores and applies theme', () => {
+    useThemeStore.getState().setTheme('dark');
+
+    expect(useThemeStore.getState().theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('theme', 'dark');
+  });
+
+  it('setTheme light stores and applies theme', () => {
+    useThemeStore.setState({ theme: 'dark' });
+    document.documentElement.classList.add('dark');
+
+    useThemeStore.getState().setTheme('light');
+
+    expect(useThemeStore.getState().theme).toBe('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('theme', 'light');
+  });
+
+  it('getSystemTheme returns dark when system prefers dark', () => {
+    const originalMatchMedia = window.matchMedia;
+    (window as any).matchMedia = (query: string) => ({
+      matches: query === '(prefers-color-scheme: dark)',
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    });
+
+    useThemeStore.getState().hydrate();
+
+    expect(useThemeStore.getState().theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+    (window as any).matchMedia = originalMatchMedia;
+  });
+
+  it('should return light when window is undefined (SSR guard)', () => {
+    // Temporarily remove window to test the SSR branch in getSystemTheme
+    localStorageMock.clear();
+
+    const desc = Object.getOwnPropertyDescriptor(globalThis, 'window')!;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      useThemeStore.getState().hydrate();
+
+      expect(useThemeStore.getState().theme).toBe('light');
+      expect(document.documentElement.classList.contains('dark')).toBe(false);
+    } finally {
+      Object.defineProperty(globalThis, 'window', desc);
+    }
+  });
 });
 
 // ─── Friends Store ───────────────────────────────────────────────────────────
@@ -421,6 +522,14 @@ describe('friendsStore', () => {
       expect(state.friends).toHaveLength(0);
       expect(state.isLoading).toBe(false);
       expect(state.error).toBe('Network error');
+    });
+
+    it('should use i18n fallback on fetch failure with non-Error rejection', async () => {
+      vi.mocked(api.get).mockRejectedValueOnce('string error');
+
+      await useFriendsStore.getState().fetchFriends();
+
+      expect(useFriendsStore.getState().error).toBe('errors.friends.loadFailed');
     });
   });
 
@@ -534,6 +643,38 @@ describe('friendsStore', () => {
       expect(api.post).toHaveBeenCalledWith('/friends/decline', { requestId: 'req-1' });
       expect(api.get).toHaveBeenCalledWith('/friends');
     });
+
+    it('should set error on decline failure', async () => {
+      vi.mocked(api.post).mockRejectedValueOnce(new Error('Already responded'));
+
+      await useFriendsStore.getState().declineRequest('req-1');
+
+      expect(useFriendsStore.getState().error).toBe('Already responded');
+    });
+  });
+
+  describe('cancelRequest', () => {
+    it('should cancel a pending outgoing request and refresh friends', async () => {
+      vi.mocked(api.post).mockResolvedValueOnce({ success: true });
+      vi.mocked(api.get).mockResolvedValueOnce({
+        friends: [],
+        pendingIncoming: [],
+        pendingOutgoing: [],
+      });
+
+      await useFriendsStore.getState().cancelRequest('req-1');
+
+      expect(api.post).toHaveBeenCalledWith('/friends/cancel', { requestId: 'req-1' });
+      expect(api.get).toHaveBeenCalledWith('/friends');
+    });
+
+    it('should set error on cancel failure', async () => {
+      vi.mocked(api.post).mockRejectedValueOnce(new Error('Request not found'));
+
+      await useFriendsStore.getState().cancelRequest('invalid-id');
+
+      expect(useFriendsStore.getState().error).toBe('Request not found');
+    });
   });
 
   describe('inviteLink', () => {
@@ -639,6 +780,93 @@ describe('friendsStore', () => {
       useFriendsStore.setState({ error: 'Some error' });
       useFriendsStore.getState().clearError();
       expect(useFriendsStore.getState().error).toBeNull();
+    });
+  });
+
+  describe('unblockUser', () => {
+    it('should unblock user and refresh both lists', async () => {
+      vi.mocked(api.post).mockResolvedValueOnce({ success: true });
+      vi.mocked(api.get)
+        .mockResolvedValueOnce([]) // fetchBlocked
+        .mockResolvedValueOnce({ friends: [], pendingIncoming: [], pendingOutgoing: [] }); // fetchFriends
+
+      await useFriendsStore.getState().unblockUser('user-1');
+
+      expect(api.post).toHaveBeenCalledWith('/friends/unblock', { friendId: 'user-1' });
+      expect(api.get).toHaveBeenCalledWith('/friends/blocked');
+      expect(api.get).toHaveBeenCalledWith('/friends');
+    });
+
+    it('should set error on unblock failure', async () => {
+      vi.mocked(api.post).mockRejectedValueOnce(new Error('Cannot unblock'));
+
+      await useFriendsStore.getState().unblockUser('user-1');
+
+      expect(useFriendsStore.getState().error).toBe('Cannot unblock');
+    });
+  });
+
+  describe('removeFriend', () => {
+    it('should remove friend and refresh list', async () => {
+      vi.mocked(api.post).mockResolvedValueOnce({ success: true });
+      vi.mocked(api.get).mockResolvedValueOnce({ friends: [], pendingIncoming: [], pendingOutgoing: [] });
+
+      await useFriendsStore.getState().removeFriend('friend-1');
+
+      expect(api.post).toHaveBeenCalledWith('/friends/remove', { friendId: 'friend-1' });
+      expect(api.get).toHaveBeenCalledWith('/friends');
+    });
+
+    it('should set error on remove failure', async () => {
+      vi.mocked(api.post).mockRejectedValueOnce(new Error('Not friends'));
+
+      await useFriendsStore.getState().removeFriend('friend-1');
+
+      expect(useFriendsStore.getState().error).toBe('Not friends');
+    });
+  });
+
+  describe('fetchBlocked', () => {
+    it('should fetch and set blocked users on success', async () => {
+      vi.mocked(api.get).mockResolvedValueOnce([
+        { id: 'b-1', userId: 'u-5', username: 'blocked_user', blockedAt: '2025-01-01T00:00:00Z' },
+      ]);
+
+      await useFriendsStore.getState().fetchBlocked();
+
+      expect(useFriendsStore.getState().blockedUsers).toHaveLength(1);
+      expect(useFriendsStore.getState().blockedUsers[0].username).toBe('blocked_user');
+    });
+
+    it('should set error on fetch failure', async () => {
+      vi.mocked(api.get).mockRejectedValueOnce(new Error('Not authorized'));
+
+      await useFriendsStore.getState().fetchBlocked();
+
+      expect(useFriendsStore.getState().error).toBe('Not authorized');
+    });
+  });
+
+  describe('blockUser', () => {
+    it('should block user and refresh friends + blocked lists', async () => {
+      vi.mocked(api.post).mockResolvedValueOnce({ success: true });
+      vi.mocked(api.get)
+        .mockResolvedValueOnce({ friends: [], pendingIncoming: [], pendingOutgoing: [] }) // fetchFriends
+        .mockResolvedValueOnce([]); // fetchBlocked
+
+      await useFriendsStore.getState().blockUser('friend-1');
+
+      expect(api.post).toHaveBeenCalledWith('/friends/block', { friendId: 'friend-1' });
+      expect(api.get).toHaveBeenCalledWith('/friends');
+      expect(api.get).toHaveBeenCalledWith('/friends/blocked');
+    });
+
+    it('should set error on block failure', async () => {
+      vi.mocked(api.post).mockRejectedValueOnce(new Error('Already blocked'));
+
+      await useFriendsStore.getState().blockUser('friend-1');
+
+      expect(useFriendsStore.getState().error).toBe('Already blocked');
     });
   });
 });

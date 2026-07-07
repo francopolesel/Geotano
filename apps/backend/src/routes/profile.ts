@@ -12,6 +12,7 @@ export async function profileRoutes(app: FastifyInstance) {
     { preHandler: authGuard },
     async (request, reply) => {
       const { id } = request.params as { id: string };
+      const currentUserId = (request as any).user.userId;
 
       // Basic user info
       const [user] = await db
@@ -85,6 +86,50 @@ export async function profileRoutes(app: FastifyInstance) {
 
       const achievements = await getUserAchievements(id);
 
+      // ── Friendship status (relative to current user) ────────────────
+      let friendshipStatus: 'self' | 'accepted' | 'outgoing' | 'incoming' | 'blocked' | 'none' = 'none';
+
+      if (currentUserId === id) {
+        friendshipStatus = 'self';
+      } else {
+        const [relation] = await db
+          .select()
+          .from(friends)
+          .where(
+            sql`((${friends.userId} = ${currentUserId} AND ${friends.friendId} = ${id})
+              OR (${friends.userId} = ${id} AND ${friends.friendId} = ${currentUserId}))`,
+          )
+          .limit(1);
+
+        if (relation) {
+          if (relation.status === 'accepted') {
+            friendshipStatus = 'accepted';
+          } else if (relation.status === 'pending') {
+            friendshipStatus =
+              relation.userId === currentUserId ? 'outgoing' : 'incoming';
+          } else if (relation.status === 'blocked') {
+            friendshipStatus = 'blocked';
+          }
+        }
+      }
+
+      // Pass the friend request ID when there's an incoming request (so the
+      // frontend can accept/decline directly without an extra API call).
+      const friendRequestId =
+        friendshipStatus === 'incoming'
+          ? (await db
+              .select({ id: friends.id })
+              .from(friends)
+              .where(
+                and(
+                  eq(friends.friendId, currentUserId),
+                  eq(friends.userId, id),
+                  eq(friends.status, 'pending'),
+                ),
+              )
+              .limit(1))[0]?.id ?? null
+          : null;
+
       return {
         user: {
           id: user.id,
@@ -110,6 +155,8 @@ export async function profileRoutes(app: FastifyInstance) {
           completedAt: g.completedAt?.toISOString(),
         })),
         achievements,
+        friendshipStatus,
+        friendRequestId,
       };
     },
   );

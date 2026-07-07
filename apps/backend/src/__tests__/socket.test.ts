@@ -57,7 +57,7 @@ vi.mock('../services/notifications.js', () => ({
   createNotification: vi.fn(() => ({ catch: vi.fn() })),
 }));
 
-import { initSocket, getIO } from '../socket/index.js';
+import { initSocket, getIO, __resetForTesting } from '../socket/index.js';
 
 function setupMockDb() {
   waitData.length = 0;
@@ -88,6 +88,7 @@ describe('socket/index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupMockDb();
+    __resetForTesting();
     authMiddleware = null;
     connectionHandler = null;
   });
@@ -319,6 +320,105 @@ describe('socket/index', () => {
 
         await chatSendHandler({ receiverId: '', content: 'hello' });
         expect(socket.emit).not.toHaveBeenCalled();
+      });
+
+      it('should deliver message to receiver sockets on chat:send', async () => {
+        mockVerifyToken.mockReturnValueOnce({ userId: 'user-1' });
+        initSocket({ server: {} } as any);
+
+        // getFriendIds for user-1 → has friend user-2
+        waitData.push([
+          { userId: 'user-1', friendId: 'user-2', status: 'accepted' },
+        ]);
+
+        let chatSendHandler: Function = () => {};
+        const senderSocket = createMockSocket({ id: 'sender-socket' });
+        senderSocket.on.mockImplementation((event: string, handler: any) => {
+          if (event === 'chat:send') chatSendHandler = handler;
+        });
+
+        authMiddleware(senderSocket, vi.fn());
+        await connectionHandler(senderSocket);
+
+        // Connect user-2 so they have an active socket in the userSockets map
+        mockVerifyToken.mockReturnValueOnce({ userId: 'user-2' });
+        const receiverSocket = createMockSocket({ id: 'receiver-socket' });
+        receiverSocket.on.mockImplementation(() => {});
+        // getFriendIds for user-2 → empty (no friends, user-1 is friend but will be returned)
+        waitData.push([
+          { userId: 'user-2', friendId: 'user-1', status: 'accepted' },
+        ]);
+
+        authMiddleware(receiverSocket, vi.fn());
+        await connectionHandler(receiverSocket);
+
+        // Now user-2 has a socket registered — send message from user-1 to user-2
+        // checkFriendship → true
+        waitData.push([{ userId: 'user-1', friendId: 'user-2', status: 'accepted' }]);
+        // Insert message returning
+        const msgDate = new Date('2026-07-06T12:00:00.000Z');
+        waitData.push([{
+          id: 'msg-1', senderId: 'user-1', receiverId: 'user-2',
+          content: 'Hello!', read: false, createdAt: msgDate,
+        }]);
+        // Refill pool check triggers gameAnswers select → empty
+        waitData.push([]);
+        // Refill batch questions (5 × 2 = 10 waitData entries)
+        for (let i = 0; i < 5; i++) {
+          waitData.push([{ id: `c${i}` }]);
+          waitData.push([{ id: `d${i}a` }, { id: `d${i}b` }, { id: `d${i}c` }]);
+        }
+
+        await chatSendHandler({ receiverId: 'user-2', content: 'Hello!' });
+
+        // Receiver socket should have received the message via io.to
+        expect(mockIoInstance.to).toHaveBeenCalledWith('receiver-socket');
+      });
+
+      it('should broadcast offline to friend sockets when last socket disconnects', async () => {
+        mockVerifyToken.mockReturnValueOnce({ userId: 'user-1' });
+        initSocket({ server: {} } as any);
+
+        let disconnectHandler: Function = () => {};
+        const socket = createMockSocket({ id: 'user-1-socket' });
+        socket.on.mockImplementation((event: string, handler: any) => {
+          if (event === 'disconnect') disconnectHandler = handler;
+        });
+
+        // Connect user-1: getFriendIds returns friend user-2
+        waitData.push([
+          { userId: 'user-1', friendId: 'user-2', status: 'accepted' },
+        ]);
+        authMiddleware(socket, vi.fn());
+        await connectionHandler(socket);
+
+        // Connect user-2: getFriendIds returns friend user-1
+        mockVerifyToken.mockReturnValueOnce({ userId: 'user-2' });
+        const friendSocket = createMockSocket({ id: 'friend-socket' });
+        friendSocket.on.mockImplementation(() => {});
+        waitData.push([
+          { userId: 'user-2', friendId: 'user-1', status: 'accepted' },
+        ]);
+        authMiddleware(friendSocket, vi.fn());
+        await connectionHandler(friendSocket);
+
+        // Disconnect user-1 — last socket → should call getFriendIds and broadcast offline
+        waitData.push([
+          { userId: 'user-1', friendId: 'user-2', status: 'accepted' },
+        ]);
+
+        disconnectHandler();
+
+        // Let microtasks drain (getFriendIds → .then → broadcast)
+        await new Promise((r) => setTimeout(r, 50));
+
+        // user-2's friend socket should have received user:offline
+        // io.to for user-2's broadcast online happens first, then disconnect broadcast
+        // We just need to verify the disconnect triggered a broadcast
+        // Check that to was called with friend-socket at some point
+        const toCalls = mockIoInstance.to.mock.calls
+          .filter(call => call[0] === 'friend-socket');
+        expect(toCalls.length).toBeGreaterThanOrEqual(1);
       });
     });
   });

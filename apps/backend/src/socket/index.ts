@@ -149,6 +149,12 @@ export function initSocket(app: FastifyInstance) {
 
 export { ioInstance };
 
+/** @internal — reset in-memory state for testing only */
+export function __resetForTesting() {
+  userSockets.clear();
+  ioInstance = null;
+}
+
 async function getFriendIds(userId: string): Promise<string[]> {
   const rows = await db
     .select()

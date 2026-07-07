@@ -129,7 +129,9 @@ export function getQuestionText(country: any, questionType: QuestionType, lang: 
         ? 'Which country does this flag belong to?'
         : '¿A qué país pertenece esta bandera?';
     case 'capital-to-country': {
-      const capital = useEn ? (country.capitalEn ?? 'Unknown') : (country.capitalEs ?? 'Desconocida');
+      const capital = useEn
+        ? (country.capitalEn ?? 'Unknown')
+        : (country.capitalEs ?? country.capitalEn ?? 'Desconocida');
       return useEn
         ? `${capital} is the capital of which country?`
         : `${capital} es la capital de qué país?`;
@@ -195,7 +197,10 @@ async function generateQuestion(
   // Helper: check if a country has the required data for this question type
   const isValidCountry = (c: any): boolean => {
     if (questionType === 'capital-to-country') {
-      const capital = lang !== 'es' ? c.capitalEn : c.capitalEs;
+      // Accept if either language has capital data — prevents crashes
+      // when capitalEs is null (seed issue) while still preferring
+      // localized capitals when available.
+      const capital = c.capitalEn ?? c.capitalEs;
       return !!capital;
     }
     return true;
@@ -342,7 +347,21 @@ async function refillPool(sessionId: string, modeSlug: GameModeSlug, lang: strin
     const poolCountryIds = pool
       .map((q) => q.countryId)
       .filter(Boolean);
-    const allExcludeIds = [...new Set([...usedCountryIds, ...poolCountryIds])];
+
+    // CRITICAL: also exclude the currently-active question's country.
+    // The active question was shifted from the pool but hasn't been
+    // answered yet — it's NOT in gameAnswers and NOT in the pool.
+    // Without this, the refill can regenerate the same country.
+    const cached = questionCache.get(sessionId);
+    const activeCountryId = cached?.correctCountryId;
+
+    const allExcludeIds = [
+      ...new Set([
+        ...usedCountryIds,
+        ...poolCountryIds,
+        ...(activeCountryId ? [activeCountryId] : []),
+      ]),
+    ];
 
     const refill = await generateQuestionBatch(
       modeSlug,

@@ -2,6 +2,9 @@ import i18n from '../i18n/i18n';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) || '/api';
 
+/** Monotonic counter for cache-busting — avoids clock-resolution issues on old browsers. */
+let _requestSeq = 0;
+
 export class ApiError extends Error {
   status: number;
 
@@ -30,9 +33,11 @@ async function request<T>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  // Cache-busting: append unique timestamp to prevent any proxy caching
+  // Cache-busting: monotonic counter + random suffix prevents any proxy/CDN caching.
+  // Using a counter (not Date.now()) avoids clock-resolution issues on old browsers
+  // where multiple requests within the same millisecond can collide.
   const separator = endpoint.includes('?') ? '&' : '?';
-  const cacheBuster = `${separator}_t=${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const cacheBuster = `${separator}_t=${++_requestSeq}_${Math.random().toString(36).slice(2, 8)}`;
   const lang = i18n.language?.startsWith('es') ? 'es' : 'en';
   const url = `${API_BASE}${endpoint}${cacheBuster}&lang=${lang}`;
 

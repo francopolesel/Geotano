@@ -420,6 +420,35 @@ describe('POST /api/auth/google', () => {
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).user.username).toBe('collide1');
   });
+
+  it('should use email prefix as name when name and given_name are missing', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        sub: 'google-999',
+        email: 'emailonly@example.com',
+        // no name, no given_name
+        picture: null,
+        aud: 'my-client-id',
+      }),
+    });
+
+    // No existing user by email
+    waitData.push([]);
+    // No existing user by username
+    waitData.push([]);
+    mockHashPassword.mockResolvedValueOnce('hashed-random');
+    waitData.push([{ ...USER_ROW, username: 'emailonly', displayName: 'emailonly' }]);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/google',
+      payload: { credential: 'valid-token', clientId: 'my-client-id' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).user.displayName).toBe('emailonly');
+  });
 });
 
 describe('PATCH /api/auth/profile', () => {

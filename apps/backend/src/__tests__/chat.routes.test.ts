@@ -182,4 +182,20 @@ describe('GET /api/chat/:friendId', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().messages).toHaveLength(50);
   });
+
+  it('should default to 50 when limit is NaN (non-numeric string)', async () => {
+    waitData.push([{ userId: 'user-1', friendId: 'friend-1', status: 'accepted' }]);
+    const messages = Array.from({ length: 50 }, (_, i) =>
+      makeMessage(`m${i}`, i % 2 === 0 ? 'user-1' : 'friend-1', `msg${i}`, i + 1),
+    );
+    waitData.push(messages);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/chat/friend-1?limit=abc',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().messages).toHaveLength(50);
+  });
 });

@@ -19,7 +19,7 @@ const MODE_SLUGS: { slug: GameModeSlug; key: string }[] = [
   { slug: 'free', key: 'modes.free' },
 ];
 
-async function fetchRankings(
+export async function fetchRankings(
   scope: Scope,
   period: Period,
   mode: GameModeSlug | undefined,

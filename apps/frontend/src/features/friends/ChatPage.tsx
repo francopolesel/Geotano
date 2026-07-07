@@ -155,7 +155,7 @@ export function ChatPage() {
           onClick={() => navigate(`/profile/${activeFriend.friendId}`)}
           className="min-w-0 text-left"
         >
-          <p className="truncate text-sm font-medium text-[var(--color-foreground)] hover:underline">
+          <p data-testid="friend-name" className="truncate text-sm font-medium text-[var(--color-foreground)] hover:underline">
             {activeFriend.displayName ?? activeFriend.username}
           </p>
           <p className="text-xs text-[var(--color-muted-foreground)]">

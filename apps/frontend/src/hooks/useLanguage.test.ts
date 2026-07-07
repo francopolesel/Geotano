@@ -118,6 +118,13 @@ describe('useLanguage', () => {
       const formatted = result.current.formatDate('not-a-date');
       expect(formatted).toBe('Invalid Date');
     });
+
+    it('should catch Date constructor throw for formatDate', () => {
+      const { result } = renderHook(() => useLanguage());
+      // Symbol() throws TypeError inside new Date() — hits the catch branch
+      const formatted = result.current.formatDate(Symbol() as any);
+      expect(formatted).toBe('Invalid Date');
+    });
   });
 
   describe('formatTime', () => {
@@ -168,6 +175,12 @@ describe('useLanguage', () => {
     it('should handle invalid date gracefully', () => {
       const { result } = renderHook(() => useLanguage());
       const formatted = result.current.formatTime('bad-date');
+      expect(formatted).toBe('Invalid Date');
+    });
+
+    it('should catch Date constructor throw for formatTime', () => {
+      const { result } = renderHook(() => useLanguage());
+      const formatted = result.current.formatTime(Symbol() as any);
       expect(formatted).toBe('Invalid Date');
     });
   });

@@ -39,7 +39,7 @@ const mockStorage = vi.hoisted(() => {
 });
 vi.stubGlobal('localStorage', mockStorage);
 
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 
 describe('api ?lang= interceptor', () => {
   beforeEach(() => {
@@ -88,5 +88,151 @@ describe('api ?lang= interceptor', () => {
 
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('&lang=en');
+  });
+});
+
+// ─── Error Handling ─────────────────────────────────────────────────────────
+
+describe('api error handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLanguage.value = 'en';
+    mockStorage.clear();
+  });
+
+  it('should not send Authorization header when no token', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ data: 'ok' }),
+      status: 200,
+    });
+
+    await api.get('/test');
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options.headers.Authorization).toBeUndefined();
+  });
+
+  it('should send Authorization header when token exists', async () => {
+    mockStorage.setItem('auth_token', 'test-token');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ data: 'ok' }),
+      status: 200,
+    });
+
+    await api.get('/test');
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options.headers.Authorization).toBe('Bearer test-token');
+  });
+
+  it('401 response clears auth and redirects to login', async () => {
+    mockStorage.setItem('auth_token', 'some-token');
+    mockStorage.setItem('auth_user', '{"id":"1"}');
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: () => Promise.resolve({ message: 'Session expired' }),
+    });
+
+    await expect(api.get('/test')).rejects.toThrow(ApiError);
+
+    expect(mockStorage.removeItem).toHaveBeenCalledWith('auth_token');
+    expect(mockStorage.removeItem).toHaveBeenCalledWith('auth_user');
+  });
+
+  it('non-ok response throws ApiError with parsed message', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      json: () => Promise.resolve({ message: 'Server error occurred' }),
+    });
+
+    await expect(api.get('/test')).rejects.toMatchObject({
+      status: 500,
+      message: 'Server error occurred',
+    });
+  });
+
+  it('non-ok with unparseable body falls back to statusText', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      json: () => Promise.reject(new Error('Invalid JSON')),
+    });
+
+    await expect(api.get('/test')).rejects.toMatchObject({
+      message: 'Internal Server Error',
+    });
+  });
+
+  it('non-ok response without message field falls back to HTTP status string', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      statusText: 'Forbidden',
+      json: () => Promise.resolve({}),
+    });
+
+    await expect(api.get('/test')).rejects.toMatchObject({
+      status: 403,
+      message: 'HTTP 403',
+    });
+  });
+});
+
+// ─── API Methods ────────────────────────────────────────────────────────────
+
+describe('api methods', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLanguage.value = 'en';
+    mockStorage.clear();
+  });
+
+  it('post sends JSON body with POST method', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: 1 }),
+      status: 200,
+    });
+
+    await api.post('/test', { name: 'test' });
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options.method).toBe('POST');
+    expect(options.body).toBe(JSON.stringify({ name: 'test' }));
+  });
+
+  it('delete sends DELETE method', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({}),
+      status: 200,
+    });
+
+    await api.delete('/test/1');
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options.method).toBe('DELETE');
+  });
+
+  it('patch sends JSON body with PATCH method', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: 1 }),
+      status: 200,
+    });
+
+    await api.patch('/test/1', { name: 'updated' });
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options.method).toBe('PATCH');
+    expect(options.body).toBe(JSON.stringify({ name: 'updated' }));
   });
 });

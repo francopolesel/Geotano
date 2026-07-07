@@ -343,6 +343,52 @@ describe('startSession + submitAnswer integration', () => {
     // Pool should be empty (refill failed silently — no waitData left)
     expect(questionPool.get(session.sessionId)).toEqual([]);
   });
+
+  it('should correct question number when pool question is desynced', async () => {
+    // ── startSession ──────────────────────────────────────────────────────
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+
+    // 5 pool questions
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i]]);
+      waitData.push(MOCK_COUNTRIES.slice(i + 1, i + 4));
+    }
+
+    const session = await startSession('user-1', 'flag-guess', 'en');
+
+    // ── Manipulate pool to desync question numbers ────────────────────────
+    const pool = questionPool.get(session.sessionId)!;
+    // Set the first pooled question to have wrong questionNumber (e.g., 99 instead of 2)
+    pool[0] = { ...pool[0], questionNumber: 99 };
+    questionPool.set(session.sessionId, pool);
+
+    // ── submitAnswer ──────────────────────────────────────────────────────
+    waitData.push([{
+      id: session.sessionId, gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0,
+      streakMax: 0, isActive: true,
+    }]);
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push([{
+      id: session.sessionId, score: 150, correctCount: 1, totalQuestions: 1,
+      streakMax: 1, livesRemaining: 3, isActive: true, completedAt: null,
+    }]);
+    waitData.push(undefined);
+    // Pool refill triggered (pool had 4 after Q1, now at 3 after shifting)
+    waitData.push([]);
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i % 8]]);
+      waitData.push(MOCK_COUNTRIES.slice((i + 1) % 8, (i + 4) % 8));
+    }
+
+    const answer = await submitAnswer(session.sessionId, 'user-1', 'Argentina', 5000, 'en');
+
+    // Question number should be corrected to actualQuestionNumber (totalQuestions + 1 = 2)
+    expect(answer.nextQuestion).toBeDefined();
+    expect(answer.nextQuestion!.questionNumber).toBe(2);
+  });
 });
 
 describe('startSession error handling', () => {

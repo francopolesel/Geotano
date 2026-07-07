@@ -18,6 +18,7 @@ function mapUser(user: any) {
     email: user.email,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
+    bio: user.bio,
     language: user.language,
     joinCode: user.joinCode,
     createdAt: user.createdAt.toISOString(),

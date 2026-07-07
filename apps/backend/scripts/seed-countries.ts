@@ -89,7 +89,9 @@ async function seed() {
       nameEn: c.name.common,
       nameEs: translateEs(c),
       capitalEn: c.capital?.[0] ?? null,
-      capitalEs: null,
+      // Fallback: use English capital name for Spanish until proper
+      // Spanish capital translations are sourced from a dedicated dataset.
+      capitalEs: c.capital?.[0] ?? null,
       alpha2: c.cca2,
       alpha3: c.cca3,
       region: getRegion(c.region),
