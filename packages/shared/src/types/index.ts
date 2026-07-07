@@ -70,11 +70,11 @@ export interface Country {
 // ---------------------------------------------------------------------------
 
 export type GameModeSlug =
-  | 'flag-guess'
-  | 'capital-guess'
-  | 'country-by-flag'
-  | 'continent'
-  | 'free';
+  | 'flag-guess' | 'flag-guess-express' | 'flag-guess-unlimited'
+  | 'capital-guess' | 'capital-guess-express' | 'capital-guess-unlimited'
+  | 'country-by-flag' | 'country-by-flag-express' | 'country-by-flag-unlimited'
+  | 'continent' | 'continent-express' | 'continent-unlimited'
+  | 'free' | 'free-express' | 'free-unlimited';
 
 export interface GameMode {
   id: EntityId;
@@ -86,6 +86,7 @@ export interface GameMode {
   timerSeconds: number;
   lives: number;
   multiplier: number;
+  totalQuestions?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -133,10 +134,14 @@ export interface QuizAnswerResponse {
   totalScore: number;
   livesRemaining: number;
   streak: number;
+  /** True when the mode was completed successfully (express limit or exhaustion). */
+  win?: boolean;
   /** Present when the session has ended. */
   result?: QuizSessionResult;
   /** Next question — absent when session is over. */
   nextQuestion?: QuizQuestion;
+  /** Total questions configured for this mode (30 for express, undefined for unlimited/lives). */
+  totalQuestions?: number;
 }
 
 export interface QuizSessionResult {

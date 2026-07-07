@@ -7,7 +7,7 @@ async function seedModes() {
   const queryClient = postgres(process.env.DATABASE_URL!);
   const db = drizzle(queryClient);
 
-  const modes = [
+  const baseModes = [
     {
       slug: 'flag-guess',
       nameEn: 'Flag Guess',
@@ -60,9 +60,38 @@ async function seedModes() {
     },
   ];
 
+  // Build variant rows: express (totalQuestions=30) + unlimited (null) for each base
+  const modes: (typeof baseModes[number] & { totalQuestions?: number | null })[] = [
+    ...baseModes,
+    ...baseModes.flatMap((base) => [
+      {
+        slug: `${base.slug}-express` as const,
+        nameEn: `${base.nameEn} (Express)`,
+        nameEs: `${base.nameEs} (Express)`,
+        descriptionEn: `${base.descriptionEn} — 30 questions limit`,
+        descriptionEs: `${base.descriptionEs} — límite de 30 preguntas`,
+        timerSeconds: base.timerSeconds,
+        lives: base.lives,
+        multiplier: base.multiplier,
+        totalQuestions: 30,
+      },
+      {
+        slug: `${base.slug}-unlimited` as const,
+        nameEn: `${base.nameEn} (Unlimited)`,
+        nameEs: `${base.nameEs} (Ilimitado)`,
+        descriptionEn: `${base.descriptionEn} — all countries, no limit`,
+        descriptionEs: `${base.descriptionEs} — todos los países, sin límite`,
+        timerSeconds: base.timerSeconds,
+        lives: base.lives,
+        multiplier: base.multiplier,
+        totalQuestions: null,
+      },
+    ]),
+  ];
+
   for (const m of modes) {
     await db.insert(gameModes).values(m).onConflictDoNothing({ target: gameModes.slug });
-    console.log(`  ✓ ${m.slug}`);
+    console.log(`  ✓ ${m.slug}${m.totalQuestions !== undefined ? ` (totalQuestions=${m.totalQuestions})` : ''}`);
   }
 
   console.log(`Done: ${modes.length} game modes inserted`);

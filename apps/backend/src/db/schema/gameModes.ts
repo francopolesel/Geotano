@@ -10,4 +10,5 @@ export const gameModes = pgTable('game_modes', {
   timerSeconds: integer('timer_seconds').default(15).notNull(),
   lives: integer('lives').default(3).notNull(),
   multiplier: doublePrecision('multiplier').default(1.0).notNull(),
+  totalQuestions: integer('total_questions'),
 });
