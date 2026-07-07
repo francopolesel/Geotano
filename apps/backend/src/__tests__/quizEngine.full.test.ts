@@ -36,6 +36,23 @@ const mockModeConfigs: Record<string, any> = {
     multiplier: 1.0,
     description: 'See the flag, guess the country',
   },
+  'flag-guess-express': {
+    slug: 'flag-guess-express',
+    questionTypes: ['flag-to-country'],
+    timerSeconds: 15,
+    lives: 3,
+    multiplier: 1.0,
+    description: 'See the flag, guess the country (Express)',
+    totalQuestions: 30,
+  },
+  'flag-guess-unlimited': {
+    slug: 'flag-guess-unlimited',
+    questionTypes: ['flag-to-country'],
+    timerSeconds: 15,
+    lives: 3,
+    multiplier: 1.0,
+    description: 'See the flag, guess the country (Unlimited)',
+  },
 };
 vi.mock('../services/gameModes.js', () => ({
   getModeConfig: vi.fn((slug: string) => mockModeConfigs[slug] ?? mockModeConfigs['flag-guess']),
@@ -388,6 +405,175 @@ describe('startSession + submitAnswer integration', () => {
     // Question number should be corrected to actualQuestionNumber (totalQuestions + 1 = 2)
     expect(answer.nextQuestion).toBeDefined();
     expect(answer.nextQuestion!.questionNumber).toBe(2);
+  });
+});
+
+// ─── Win detection tests ──────────────────────────────────────────────────────
+
+describe('express mode win detection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockDb();
+  });
+
+  it('should return win:true when express mode reaches 30 total questions', async () => {
+    // ── startSession with express mode ────────────────────────────────────
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-express' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+
+    // 5 pool questions
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i]]);
+      waitData.push(MOCK_COUNTRIES.slice(i + 1, i + 4));
+    }
+
+    const session = await startSession('user-1', 'flag-guess-express', 'en');
+
+    // Clear pool (won't be needed — win check runs before pool pop)
+    questionPool.set(session.sessionId, []);
+
+    // ── submitAnswer — session at totalQuestions=29, correct answer → 30 ──
+    waitData.push([{
+      id: session.sessionId, gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 2900, correctCount: 29, totalQuestions: 29,
+      streakMax: 5, isActive: true,
+    }]);
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-express' }]);
+    waitData.push([{
+      id: session.sessionId, score: 3050, correctCount: 30, totalQuestions: 30,
+      streakMax: 6, livesRemaining: 3, isActive: true, completedAt: null,
+    }]);
+    waitData.push(undefined); // insert gameAnswers
+
+    const answer = await submitAnswer(session.sessionId, 'user-1', 'Argentina', 5000, 'en');
+
+    expect(answer.win).toBe(true);
+    expect(answer.result).toBeDefined();
+    expect(answer.result!.totalQuestions).toBe(30);
+    expect(answer.result!.correctCount).toBe(30);
+    expect(answer.nextQuestion).toBeUndefined();
+    // Score should be > 0 for a correct answer
+    expect(answer.score).toBeGreaterThan(0);
+  });
+
+  it('should return gameOver (not win) when express mode player loses before 30', async () => {
+    // ── startSession with express mode ────────────────────────────────────
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-express' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 1, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i]]);
+      waitData.push(MOCK_COUNTRIES.slice(i + 1, i + 4));
+    }
+
+    const session = await startSession('user-1', 'flag-guess-express', 'en');
+
+    // ── submitAnswer — wrong answer at 1 life → game over ─────────────────
+    waitData.push([{
+      id: session.sessionId, gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 1, score: 0, correctCount: 0, totalQuestions: 5,
+      streakMax: 0, isActive: true,
+    }]);
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-express' }]);
+    waitData.push([{
+      id: session.sessionId, score: 0, correctCount: 0, totalQuestions: 6,
+      streakMax: 0, livesRemaining: 0, isActive: false, completedAt: new Date(),
+    }]);
+    waitData.push(undefined); // insert gameAnswers
+
+    const answer = await submitAnswer(session.sessionId, 'user-1', 'WrongAnswer', 5000, 'en');
+
+    expect(answer.win).toBeUndefined();
+    expect(answer.livesRemaining).toBe(0);
+    expect(answer.result).toBeDefined();
+    expect(answer.result!.totalQuestions).toBe(6);
+    expect(answer.nextQuestion).toBeUndefined();
+  });
+});
+
+describe('unlimited mode win detection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockDb();
+  });
+
+  it('should return win:true when unlimited mode exhausts all countries', async () => {
+    // ── startSession with unlimited mode ──────────────────────────────────
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-unlimited' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i]]);
+      waitData.push(MOCK_COUNTRIES.slice(i + 1, i + 4));
+    }
+
+    const session = await startSession('user-1', 'flag-guess-unlimited', 'en');
+
+    // Clear pool to force fallback path
+    questionPool.set(session.sessionId, []);
+
+    // ── submitAnswer — pool empty, fallback fails → exhaustion win ────────
+    waitData.push([{
+      id: session.sessionId, gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 500, correctCount: 5, totalQuestions: 5,
+      streakMax: 3, isActive: true,
+    }]);
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-unlimited' }]);
+    waitData.push([{
+      id: session.sessionId, score: 650, correctCount: 6, totalQuestions: 6,
+      streakMax: 4, livesRemaining: 3, isActive: true, completedAt: null,
+    }]);
+    waitData.push(undefined); // insert gameAnswers
+    // Fallback: prevAnswers returns empty
+    waitData.push([]);
+    // Fallback generateQuestion: NO MORE waitData → all picks return []
+    // After 30 attempts, throws "No countries available"
+
+    const answer = await submitAnswer(session.sessionId, 'user-1', 'Argentina', 5000, 'en');
+
+    expect(answer.win).toBe(true);
+    expect(answer.result).toBeDefined();
+    expect(answer.result!.totalQuestions).toBe(6);
+    expect(answer.result!.correctCount).toBe(6);
+    expect(answer.nextQuestion).toBeUndefined();
+  });
+
+  it('should return gameOver (not win) when unlimited mode player loses before exhaustion', async () => {
+    // ── startSession with unlimited mode ──────────────────────────────────
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-unlimited' }]);
+    waitData.push(undefined);
+    waitData.push([{ id: 'session-1', livesRemaining: 1, score: 0, correctCount: 0, totalQuestions: 0, streakMax: 0 }]);
+
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i]]);
+      waitData.push(MOCK_COUNTRIES.slice(i + 1, i + 4));
+    }
+
+    const session = await startSession('user-1', 'flag-guess-unlimited', 'en');
+
+    // ── submitAnswer — wrong answer at 1 life → game over ─────────────────
+    waitData.push([{
+      id: session.sessionId, gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 1, score: 0, correctCount: 0, totalQuestions: 3,
+      streakMax: 0, isActive: true,
+    }]);
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-unlimited' }]);
+    waitData.push([{
+      id: session.sessionId, score: 0, correctCount: 0, totalQuestions: 4,
+      streakMax: 0, livesRemaining: 0, isActive: false, completedAt: new Date(),
+    }]);
+    waitData.push(undefined); // insert gameAnswers
+
+    const answer = await submitAnswer(session.sessionId, 'user-1', 'WrongAnswer', 5000, 'en');
+
+    expect(answer.win).toBeUndefined();
+    expect(answer.livesRemaining).toBe(0);
+    expect(answer.result).toBeDefined();
+    expect(answer.result!.totalQuestions).toBe(4);
+    expect(answer.nextQuestion).toBeUndefined();
   });
 });
 

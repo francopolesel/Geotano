@@ -56,6 +56,7 @@ export interface AnswerResult {
   totalScore: number;
   livesRemaining: number;
   streak: number;
+  win?: boolean;
   result?: SessionResult;
   nextQuestion?: ClientQuestion;
 }
@@ -619,6 +620,23 @@ export async function submitAnswer(
     return result;
   }
 
+  // ── Express win check (totalQuestions ≥ mode limit) ────────────────────
+  if (config.totalQuestions && updatedSession.totalQuestions >= config.totalQuestions) {
+    questionCache.delete(sessionId);
+    questionPool.delete(sessionId);
+
+    result.win = true;
+    result.result = {
+      totalScore: updatedSession.score,
+      correctCount: updatedSession.correctCount,
+      totalQuestions: updatedSession.totalQuestions,
+      streakMax: updatedSession.streakMax,
+      gameModeSlug: modeRecord.slug as GameModeSlug,
+      completedAt: new Date().toISOString(),
+    };
+    return result;
+  }
+
   // ── Pop next question from pre-generated pool ──────────────────────────
   const pool = questionPool.get(sessionId);
   let nextQuestion: GeneratedQuestion | null = null;
@@ -644,12 +662,32 @@ export async function submitAnswer(
       .filter((a) => a.countryId)
       .map((a) => a.countryId);
 
-    nextQuestion = await generateQuestion(
-      modeRecord.slug as GameModeSlug,
-      updatedSession.totalQuestions + 1,
-      usedCountryIds,
-      lang,
-    );
+    try {
+      nextQuestion = await generateQuestion(
+        modeRecord.slug as GameModeSlug,
+        updatedSession.totalQuestions + 1,
+        usedCountryIds,
+        lang,
+      );
+    } catch (err) {
+      // Country exhaustion → win for unlimited mode
+      if (err instanceof Error && err.message.includes('No countries available')) {
+        questionCache.delete(sessionId);
+        questionPool.delete(sessionId);
+
+        result.win = true;
+        result.result = {
+          totalScore: updatedSession.score,
+          correctCount: updatedSession.correctCount,
+          totalQuestions: updatedSession.totalQuestions,
+          streakMax: updatedSession.streakMax,
+          gameModeSlug: modeRecord.slug as GameModeSlug,
+          completedAt: new Date().toISOString(),
+        };
+        return result;
+      }
+      throw err;
+    }
   }
 
   // ── Cache the next question for authoritatve validation ────────────────
