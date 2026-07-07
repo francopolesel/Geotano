@@ -275,22 +275,26 @@ export function FriendsPage() {
                     key={req.id}
                     className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
                   >
-                    <UserAvatar
-                      avatarUrl={req.avatarUrl}
-                      username={req.username}
-                      displayName={req.displayName}
-                      className="h-10 w-10 text-sm"
-                      
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-[var(--color-foreground)]">
-                        {req.displayName ?? req.username}
-                      </p>
-                      <p className="text-xs text-[var(--color-muted-foreground)]">
-                        @{req.username}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/profile/${req.senderId}`)}
+                      className="flex items-center gap-3 min-w-0 flex-1 min-h-[44px] text-left"
+                    >
+                      <UserAvatar
+                        avatarUrl={req.avatarUrl}
+                        username={req.username}
+                        displayName={req.displayName}
+                        className="h-10 w-10 text-sm shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
+                          {req.displayName ?? req.username}
+                        </p>
+                        <p className="text-xs text-[var(--color-muted-foreground)] truncate">
+                          @{req.username}
+                        </p>
+                      </div>
+                    </button>
+                    <div className="flex shrink-0 gap-2">
                       <button
                         onClick={() => {
                           acceptRequest(req.id);
@@ -326,22 +330,26 @@ export function FriendsPage() {
                     key={req.id}
                     className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
                   >
-                    <UserAvatar
-                      avatarUrl={req.avatarUrl}
-                      username={req.username}
-                      displayName={req.displayName}
-                      className="h-10 w-10 text-sm"
-                      
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-[var(--color-foreground)]">
-                        {req.displayName ?? req.username}
-                      </p>
-                      <p className="text-xs text-[var(--color-muted-foreground)]">
-                        @{req.username}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(`/profile/${req.receiverId}`)}
+                      className="flex items-center gap-3 min-w-0 flex-1 min-h-[44px] text-left"
+                    >
+                      <UserAvatar
+                        avatarUrl={req.avatarUrl}
+                        username={req.username}
+                        displayName={req.displayName}
+                        className="h-10 w-10 text-sm shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
+                          {req.displayName ?? req.username}
+                        </p>
+                        <p className="text-xs text-[var(--color-muted-foreground)] truncate">
+                          @{req.username}
+                        </p>
+                      </div>
+                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
                       <span className="rounded-md bg-[var(--color-muted)] px-2.5 py-1 text-xs text-[var(--color-muted-foreground)]">
                         {t('friends.pending')}
                       </span>
@@ -401,25 +409,29 @@ export function FriendsPage() {
                     key={user.id}
                     className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
                   >
-                    <UserAvatar
-                      avatarUrl={user.avatarUrl}
-                      username={user.username}
-                      displayName={user.displayName}
-                      className="h-10 w-10 text-sm"
-                      
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-[var(--color-foreground)]">
-                        {user.displayName ?? user.username}
-                      </p>
-                      <p className="text-xs text-[var(--color-muted-foreground)]">
-                        @{user.username}
-                      </p>
-                    </div>
+                    <button
+                      onClick={() => navigate(`/profile/${user.id}`)}
+                      className="flex items-center gap-3 min-w-0 flex-1 min-h-[44px] text-left"
+                    >
+                      <UserAvatar
+                        avatarUrl={user.avatarUrl}
+                        username={user.username}
+                        displayName={user.displayName}
+                        className="h-10 w-10 text-sm shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
+                          {user.displayName ?? user.username}
+                        </p>
+                        <p className="text-xs text-[var(--color-muted-foreground)] truncate">
+                          @{user.username}
+                        </p>
+                      </div>
+                    </button>
                     <button
                       onClick={() => handleSendRequest(user.username)}
                       disabled={actionLoading === user.username}
-                      className="rounded-md min-h-[44px] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
+                      className="rounded-md min-h-[44px] shrink-0 bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
                     >
                       {actionLoading === user.username
                         ? t('common.loading')
@@ -511,22 +523,27 @@ export function FriendsPage() {
                 key={blocked.id}
                 className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
               >
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-destructive)]/10 text-sm font-bold text-[var(--color-destructive)]">
-                  {(blocked.displayName ?? blocked.username).charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[var(--color-foreground)]">
-                    {blocked.displayName ?? blocked.username}
-                  </p>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">
-                    @{blocked.username}
-                  </p>
-                </div>
+                <button
+                  onClick={() => navigate(`/profile/${blocked.userId}`)}
+                  className="flex items-center gap-3 min-w-0 flex-1 min-h-[44px] text-left"
+                >
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-destructive)]/10 text-sm font-bold text-[var(--color-destructive)]">
+                    {(blocked.displayName ?? blocked.username).charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
+                      {blocked.displayName ?? blocked.username}
+                    </p>
+                    <p className="text-xs text-[var(--color-muted-foreground)] truncate">
+                      @{blocked.username}
+                    </p>
+                  </div>
+                </button>
                 <button
                   onClick={async () => {
                     await unblockUser(blocked.userId);
                   }}
-                  className="rounded-md min-h-[44px] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
+                  className="rounded-md min-h-[44px] shrink-0 bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
                 >
                   {t('friends.unblock')}
                 </button>

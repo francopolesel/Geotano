@@ -85,7 +85,7 @@ export function ProfilePage() {
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
   const currentUser = useAuthStore((s) => s.user);
-  const { sendRequest, acceptRequest, declineRequest } = useFriendsStore();
+  const { sendRequest, acceptRequest, declineRequest, unblockUser } = useFriendsStore();
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery<ProfileResponse>({
@@ -235,9 +235,29 @@ export function ProfilePage() {
             )}
 
             {friendshipStatus === 'blocked' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                {t('friends.blocked')}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                  {t('friends.blocked')}
+                </span>
+                <button
+                  onClick={async () => {
+                    setActionLoading(true);
+                    try {
+                      await unblockUser(user.id);
+                      queryClient.setQueryData(['profile', userId], {
+                        ...data,
+                        friendshipStatus: 'none' as FriendshipStatus,
+                      });
+                    } finally {
+                      setActionLoading(false);
+                    }
+                  }}
+                  disabled={actionLoading}
+                  className="min-h-[44px] rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] disabled:opacity-50"
+                >
+                  {actionLoading ? t('common.loading') : t('profile.unblock')}
+                </button>
+              </div>
             )}
           </div>
         )}

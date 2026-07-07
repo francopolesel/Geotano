@@ -135,6 +135,7 @@
   "profile.acceptRequest": "Aceptar",
   "profile.rejectRequest": "Rechazar",
   "profile.requestSent": "¡Solicitud enviada!",
+  "profile.unblock": "Desbloquear usuario",
   "profile.userIdMissing": "Falta el ID de usuario",
 
   "rankings.title": "Rankings",

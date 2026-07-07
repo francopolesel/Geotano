@@ -135,6 +135,7 @@
   "profile.acceptRequest": "Accept",
   "profile.rejectRequest": "Reject",
   "profile.requestSent": "Friend request sent!",
+  "profile.unblock": "Unblock user",
   "profile.userIdMissing": "User ID is missing",
 
   "rankings.title": "Rankings",
