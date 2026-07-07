@@ -1,6 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { getModeConfig, getAllModeConfigs, isValidModeSlug } from '../services/gameModes.js';
 
+// ─── Helper: all 15 slugs ─────────────────────────────────────────────────┬─
+const ALL_SLUGS = [
+  'flag-guess', 'flag-guess-express', 'flag-guess-unlimited',
+  'capital-guess', 'capital-guess-express', 'capital-guess-unlimited',
+  'country-by-flag', 'country-by-flag-express', 'country-by-flag-unlimited',
+  'continent', 'continent-express', 'continent-unlimited',
+  'free', 'free-express', 'free-unlimited',
+] as const;
+
+const EXPRESS_SLUGS = ALL_SLUGS.filter((s) => s.endsWith('-express'));
+const UNLIMITED_SLUGS = ALL_SLUGS.filter((s) => s.endsWith('-unlimited'));
+const BASE_SLUGS = ALL_SLUGS.filter((s) => !s.endsWith('-express') && !s.endsWith('-unlimited'));
+
 describe('getModeConfig', () => {
   it('should return config for a valid game mode slug', () => {
     const config = getModeConfig('flag-guess');
@@ -47,19 +60,63 @@ describe('getModeConfig', () => {
   });
 });
 
+// ─── Variant-specific tests ─────────────────────────────────────────────────
+
+describe('express variant configs', () => {
+  for (const slug of EXPRESS_SLUGS) {
+    it(`${slug} should have totalQuestions = 30`, () => {
+      const config = getModeConfig(slug);
+      expect(config.totalQuestions).toBe(30);
+    });
+  }
+});
+
+describe('unlimited variant configs', () => {
+  for (const slug of UNLIMITED_SLUGS) {
+    it(`${slug} should have no totalQuestions limit`, () => {
+      const config = getModeConfig(slug);
+      expect(config.totalQuestions).toBeUndefined();
+    });
+  }
+});
+
+describe('base mode configs', () => {
+  for (const slug of BASE_SLUGS) {
+    it(`${slug} should have no totalQuestions`, () => {
+      const config = getModeConfig(slug);
+      expect(config.totalQuestions).toBeUndefined();
+    });
+  }
+});
+
+describe('variant inheritance', () => {
+  it('express variant should inherit questionTypes from base mode', () => {
+    const base = getModeConfig('flag-guess');
+    const expr = getModeConfig('flag-guess-express');
+    expect(expr.questionTypes).toEqual(base.questionTypes);
+    expect(expr.timerSeconds).toBe(base.timerSeconds);
+    expect(expr.multiplier).toBe(base.multiplier);
+  });
+
+  it('unlimited variant should inherit questionTypes from base mode', () => {
+    const base = getModeConfig('continent');
+    const unlimited = getModeConfig('continent-unlimited');
+    expect(unlimited.questionTypes).toEqual(base.questionTypes);
+    expect(unlimited.lives).toBe(base.lives);
+  });
+});
+
 describe('getAllModeConfigs', () => {
-  it('should return all 5 game mode configs', () => {
+  it('should return all 15 game mode configs', () => {
     const configs = getAllModeConfigs();
-    expect(configs).toHaveLength(5);
+    expect(configs).toHaveLength(15);
   });
 
   it('should include all expected mode slugs', () => {
     const slugs = getAllModeConfigs().map((c) => c.slug);
-    expect(slugs).toContain('flag-guess');
-    expect(slugs).toContain('capital-guess');
-    expect(slugs).toContain('country-by-flag');
-    expect(slugs).toContain('continent');
-    expect(slugs).toContain('free');
+    for (const slug of ALL_SLUGS) {
+      expect(slugs).toContain(slug);
+    }
   });
 
   it('each config should have required fields', () => {
@@ -72,15 +129,23 @@ describe('getAllModeConfigs', () => {
       expect(config.description).toBeTruthy();
     }
   });
+
+  it('should include totalQuestions only for express variants', () => {
+    for (const config of getAllModeConfigs()) {
+      if (config.slug.endsWith('-express')) {
+        expect(config.totalQuestions).toBe(30);
+      } else {
+        expect(config.totalQuestions).toBeUndefined();
+      }
+    }
+  });
 });
 
 describe('isValidModeSlug', () => {
-  it('should return true for valid mode slugs', () => {
-    expect(isValidModeSlug('flag-guess')).toBe(true);
-    expect(isValidModeSlug('capital-guess')).toBe(true);
-    expect(isValidModeSlug('country-by-flag')).toBe(true);
-    expect(isValidModeSlug('continent')).toBe(true);
-    expect(isValidModeSlug('free')).toBe(true);
+  it('should return true for all 15 mode slugs', () => {
+    for (const slug of ALL_SLUGS) {
+      expect(isValidModeSlug(slug)).toBe(true);
+    }
   });
 
   it('should return false for invalid mode slugs', () => {
@@ -91,11 +156,10 @@ describe('isValidModeSlug', () => {
   });
 
   it('should act as a type guard (narrowing to GameModeSlug)', () => {
-    const slug: string = 'flag-guess';
+    const slug: string = 'flag-guess-express';
     if (isValidModeSlug(slug)) {
-      // After narrowing, slug should be GameModeSlug
       const config = getModeConfig(slug);
-      expect(config.slug).toBe('flag-guess');
+      expect(config.totalQuestions).toBe(30);
     }
   });
 });
