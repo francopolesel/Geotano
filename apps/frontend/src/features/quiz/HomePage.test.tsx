@@ -19,6 +19,9 @@ const T = (key: string, params?: Record<string, any>) => {
     'modes.continentDesc': 'Find the continent',
     'modes.free': 'Free Mode',
     'modes.freeDesc': 'Play freely',
+    'modes.variantStandard': 'Standard',
+    'modes.variantExpress': 'Express',
+    'modes.variantUnlimited': 'Unlimited',
     'profile.totalScore': 'Total Score',
     'profile.totalGames': 'Games',
     'profile.bestScore': 'Best Score',
@@ -98,16 +101,56 @@ describe('HomePage', () => {
     expect(screen.getByText('Free Mode')).toBeInTheDocument();
   });
 
-  it('should navigate to quiz when a mode card is clicked', () => {
+  it('should navigate to standard mode when default pill is clicked', () => {
     render(<HomePage />);
-    fireEvent.click(screen.getByText('Flag Guess'));
+    const standardPills = screen.getAllByText('Standard');
+    fireEvent.click(standardPills[0]);
     expect(mockNavigate).toHaveBeenCalledWith('/quiz?mode=flag-guess');
   });
 
-  it('should navigate to capital-guess mode', () => {
+  it('should navigate to capital-guess standard', () => {
     render(<HomePage />);
-    fireEvent.click(screen.getByText('Capital Guess'));
+    const standardPills = screen.getAllByText('Standard');
+    fireEvent.click(standardPills[1]);
     expect(mockNavigate).toHaveBeenCalledWith('/quiz?mode=capital-guess');
+  });
+
+  // ── Mode variant pills ────────────────────────────────────────────────
+
+  it('should show Standard pill on each mode card', () => {
+    render(<HomePage />);
+    expect(screen.getAllByText('Standard')).toHaveLength(5);
+  });
+
+  it('should show Express pill on each mode card', () => {
+    render(<HomePage />);
+    expect(screen.getAllByText('Express')).toHaveLength(5);
+  });
+
+  it('should show Unlimited pill on each mode card', () => {
+    render(<HomePage />);
+    expect(screen.getAllByText('Unlimited')).toHaveLength(5);
+  });
+
+  it('should navigate to express mode when express pill is clicked', () => {
+    render(<HomePage />);
+    const expressPills = screen.getAllByText('Express');
+    fireEvent.click(expressPills[0]);
+    expect(mockNavigate).toHaveBeenCalledWith('/quiz?mode=flag-guess-express');
+  });
+
+  it('should navigate to unlimited mode when unlimited pill is clicked', () => {
+    render(<HomePage />);
+    const unlimitedPills = screen.getAllByText('Unlimited');
+    fireEvent.click(unlimitedPills[1]);
+    expect(mockNavigate).toHaveBeenCalledWith('/quiz?mode=capital-guess-unlimited');
+  });
+
+  it('should navigate to standard mode when standard pill is clicked', () => {
+    render(<HomePage />);
+    const standardPills = screen.getAllByText('Standard');
+    fireEvent.click(standardPills[3]);
+    expect(mockNavigate).toHaveBeenCalledWith('/quiz?mode=continent');
   });
 
   // ── Stats section ────────────────────────────────────────────────────────

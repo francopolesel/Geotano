@@ -17,6 +17,13 @@ interface SessionResponse {
   question: QuizQuestion;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function slugToModeKey(slug: string): string {
+  // Convert 'flag-guess-express' → 'flagGuessExpress'
+  return slug.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+}
+
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
 const btnBase =
@@ -90,6 +97,7 @@ export function QuizPage() {
   const [answerState, setAnswerState] = useState<'idle' | 'correct' | 'wrong'>('idle');
   const [feedbackText, setFeedbackText] = useState('');
   const [gameResult, setGameResult] = useState<QuizSessionResult | null>(null);
+  const [gameWon, setGameWon] = useState(false);
   const isTimeoutRef = useRef(false);
 
   // ── Start session mutation ────────────────────────────────────────────────
@@ -132,6 +140,10 @@ export function QuizPage() {
           ? t('quiz.correct')
           : `${t('quiz.wrong')} — ${data.correctAnswer}`,
       );
+
+      if (data.win) {
+        setGameWon(true);
+      }
 
       if (data.result) {
         setGameResult(data.result);
@@ -237,6 +249,7 @@ export function QuizPage() {
 
   const handlePlayAgain = () => {
     setGameResult(null);
+    setGameWon(false);
     setSelectedIndex(null);
     setCorrectIndex(null);
     setAnswerState('idle');
@@ -246,6 +259,7 @@ export function QuizPage() {
   };
 
   const handleGoHome = () => {
+    setGameWon(false);
     reset();
     navigate('/');
   };
@@ -288,16 +302,29 @@ export function QuizPage() {
         ? 'bg-amber-500'
         : 'bg-red-500';
 
-  // ── Game over screen ──────────────────────────────────────────────────────
+  // ── Game result screen ────────────────────────────────────────────────────
   // Check BEFORE loading spinner so endGame() doesn't re-trigger the spinner
   if (gameResult) {
+    const isWin = gameWon;
+
     return (
       <>
         <div className="mx-auto max-w-md py-12">
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
-            <h2 className="text-3xl font-bold text-[var(--color-foreground)]">
-              {t('quiz.gameOver')}
-            </h2>
+            {isWin ? (
+              <>
+                <h2 className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {t('quiz.winTitle')}
+                </h2>
+                <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+                  {t('quiz.winMessage', { mode: t(`modes.${slugToModeKey(mode)}`) })}
+                </p>
+              </>
+            ) : (
+              <h2 className="text-3xl font-bold text-[var(--color-foreground)]">
+                {t('quiz.gameOverTitle')}
+              </h2>
+            )}
 
             <div className="my-8 space-y-3">
               <p className="text-5xl font-bold text-[var(--color-primary)]">
@@ -312,13 +339,13 @@ export function QuizPage() {
                   <p className="text-lg font-bold text-[var(--color-foreground)]">
                     {gameResult.correctCount}/{gameResult.totalQuestions}
                   </p>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.correct')}</p>
+                  <p className="text-xs text-[var(--color-muted-foreground)]">{t(isWin ? 'quiz.correctCount' : 'quiz.correct', { count: gameResult.correctCount })}</p>
                 </div>
                 <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
                   <p className="text-lg font-bold text-[var(--color-foreground)]">
                     {gameResult.streakMax}
                   </p>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.streak')}</p>
+                  <p className="text-xs text-[var(--color-muted-foreground)]">{t(isWin ? 'quiz.longestStreak' : 'quiz.streak', { count: gameResult.streakMax })}</p>
                 </div>
                 <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
                   <p className="text-lg font-bold text-[var(--color-foreground)]">

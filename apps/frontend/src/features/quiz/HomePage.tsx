@@ -12,49 +12,80 @@ interface HomeStats {
   friends: number;
 }
 
-interface ModeCard {
+interface ModeVariant {
   slug: GameModeSlug;
+  labelKey: string;
+}
+
+interface ModeGroup {
+  baseSlug: GameModeSlug;
   icon: string;
   titleKey: string;
   descKey: string;
   color: string;
+  variants: ModeVariant[];
 }
 
-const MODES: ModeCard[] = [
+const MODE_GROUPS: ModeGroup[] = [
   {
-    slug: 'flag-guess',
+    baseSlug: 'flag-guess',
     icon: '🏁',
     titleKey: 'modes.flagGuess',
     descKey: 'modes.flagGuessDesc',
     color: 'from-blue-500 to-blue-600',
+    variants: [
+      { slug: 'flag-guess', labelKey: 'modes.variantStandard' },
+      { slug: 'flag-guess-express', labelKey: 'modes.variantExpress' },
+      { slug: 'flag-guess-unlimited', labelKey: 'modes.variantUnlimited' },
+    ],
   },
   {
-    slug: 'capital-guess',
+    baseSlug: 'capital-guess',
     icon: '🏛️',
     titleKey: 'modes.capitalGuess',
     descKey: 'modes.capitalGuessDesc',
     color: 'from-emerald-500 to-emerald-600',
+    variants: [
+      { slug: 'capital-guess', labelKey: 'modes.variantStandard' },
+      { slug: 'capital-guess-express', labelKey: 'modes.variantExpress' },
+      { slug: 'capital-guess-unlimited', labelKey: 'modes.variantUnlimited' },
+    ],
   },
   {
-    slug: 'country-by-flag',
+    baseSlug: 'country-by-flag',
     icon: '🇺🇳',
     titleKey: 'modes.countryByFlag',
     descKey: 'modes.countryByFlagDesc',
     color: 'from-violet-500 to-violet-600',
+    variants: [
+      { slug: 'country-by-flag', labelKey: 'modes.variantStandard' },
+      { slug: 'country-by-flag-express', labelKey: 'modes.variantExpress' },
+      { slug: 'country-by-flag-unlimited', labelKey: 'modes.variantUnlimited' },
+    ],
   },
   {
-    slug: 'continent',
+    baseSlug: 'continent',
     icon: '🌍',
     titleKey: 'modes.continent',
     descKey: 'modes.continentDesc',
     color: 'from-amber-500 to-amber-600',
+    variants: [
+      { slug: 'continent', labelKey: 'modes.variantStandard' },
+      { slug: 'continent-express', labelKey: 'modes.variantExpress' },
+      { slug: 'continent-unlimited', labelKey: 'modes.variantUnlimited' },
+    ],
   },
   {
-    slug: 'free',
+    baseSlug: 'free',
     icon: '🎲',
     titleKey: 'modes.free',
     descKey: 'modes.freeDesc',
     color: 'from-rose-500 to-rose-600',
+    variants: [
+      { slug: 'free', labelKey: 'modes.variantStandard' },
+      { slug: 'free-express', labelKey: 'modes.variantExpress' },
+      { slug: 'free-unlimited', labelKey: 'modes.variantUnlimited' },
+    ],
   },
 ];
 
@@ -97,33 +128,39 @@ export function HomePage() {
           {t('home.title')}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {MODES.map((mode) => (
-            <button
-              key={mode.slug}
-              onClick={() => handleStart(mode.slug)}
-              className="group relative overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 text-left shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
+          {MODE_GROUPS.map((group) => (
+            <div
+              key={group.baseSlug}
+              className="relative overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 text-left shadow-sm transition-all hover:shadow-md"
             >
               {/* Color accent bar */}
               <div
-                className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${mode.color}`}
+                className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${group.color}`}
               />
 
               <div className="flex flex-col gap-2">
-                <span className="text-3xl">{mode.icon}</span>
+                <span className="text-3xl">{group.icon}</span>
                 <h3 className="font-semibold text-[var(--color-card-foreground)]">
-                  {t(mode.titleKey)}
+                  {t(group.titleKey)}
                 </h3>
                 <p className="text-sm text-[var(--color-muted-foreground)]">
-                  {t(mode.descKey)}
+                  {t(group.descKey)}
                 </p>
               </div>
 
-              {/* Start CTA */}
-              <div className="mt-3 flex items-center gap-1 text-sm font-medium text-[var(--color-primary)] opacity-0 transition-opacity group-hover:opacity-100">
-                {t('home.start')}
-                <span className="text-lg leading-none">→</span>
+              {/* Variant pills */}
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {group.variants.map((variant) => (
+                  <button
+                    key={variant.slug}
+                    onClick={() => handleStart(variant.slug)}
+                    className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-medium text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
+                  >
+                    {t(variant.labelKey)}
+                  </button>
+                ))}
               </div>
-            </button>
+            </div>
           ))}
         </div>
       </div>

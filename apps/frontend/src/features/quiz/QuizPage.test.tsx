@@ -14,9 +14,14 @@ const T = (key: string, params?: Record<string, any>) => {
     'quiz.streakWithCount': '🔥 {count} streak',
     'quiz.streak': 'Best Streak',
     'quiz.gameOver': 'Game Over!',
+    'quiz.gameOverTitle': 'Game Over!',
     'quiz.result': 'You scored {score} points',
+    'quiz.winTitle': 'Congratulations!',
+    'quiz.winMessage': 'You completed the {mode} mode!',
     'quiz.playAgain': 'Play Again',
     'quiz.backToHome': 'Back to Home',
+    'quiz.correctCount': 'Correct: {count}',
+    'quiz.longestStreak': 'Best streak: {count}',
     'quiz.leaveTitle': 'Leave game?',
     'quiz.leaveWarning': 'Your progress will be lost.',
     'quiz.leaveScore': 'Score: {score}',
@@ -333,6 +338,194 @@ describe('QuizPage', () => {
 
     // Should call reset and API again
     expect(mockApiGet).toHaveBeenCalled();
+  });
+
+  // ── Win screen ─────────────────────────────────────────────────────────
+
+  it('should show win screen with congratulations when win: true', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 5000,
+      livesRemaining: 2,
+      win: true,
+      result: { ...sampleGameResult, totalScore: 5000 },
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Congratulations!')).toBeInTheDocument();
+      expect(screen.queryByText('Game Over!')).not.toBeInTheDocument();
+    });
+  });
+
+  it('should show final score on win screen', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 5000,
+      livesRemaining: 2,
+      win: true,
+      result: { ...sampleGameResult, totalScore: 5000 },
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      expect(screen.getByText('5000')).toBeInTheDocument();
+    });
+  });
+
+  it('should show stats on win screen', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 5000,
+      livesRemaining: 2,
+      win: true,
+      result: { ...sampleGameResult, totalScore: 5000, correctCount: 8, streakMax: 5 },
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Correct: 8')).toBeInTheDocument();
+      expect(screen.getByText('Best streak: 5')).toBeInTheDocument();
+    });
+  });
+
+  it('should show Play Again and Back to Home on win screen', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 5000,
+      livesRemaining: 2,
+      win: true,
+      result: { ...sampleGameResult, totalScore: 5000 },
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Play Again')).toBeInTheDocument();
+      expect(screen.getByText('Back to Home')).toBeInTheDocument();
+    });
+  });
+
+  it('should not show win screen when win is false', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 5000,
+      livesRemaining: 2,
+      win: false,
+      result: sampleGameResult,
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Game Over!')).toBeInTheDocument();
+      expect(screen.queryByText('Congratulations!')).not.toBeInTheDocument();
+    });
+  });
+
+  it('should not show win screen when win is undefined', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 5000,
+      livesRemaining: 2,
+      result: sampleGameResult,
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Game Over!')).toBeInTheDocument();
+      expect(screen.queryByText('Congratulations!')).not.toBeInTheDocument();
+    });
+  });
+
+  it('should play again from win screen', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 5000,
+      livesRemaining: 2,
+      win: true,
+      result: { ...sampleGameResult, totalScore: 5000 },
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Play Again')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Play Again'));
+
+    // Should call reset and API again
+    expect(mockApiGet).toHaveBeenCalled();
+  });
+
+  it('should go home from win screen', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 5000,
+      livesRemaining: 2,
+      win: true,
+      result: { ...sampleGameResult, totalScore: 5000 },
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Back to Home')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Back to Home'));
+    expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
   it('should go home after game over', async () => {
