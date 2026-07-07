@@ -129,9 +129,14 @@ export function RegisterPage() {
               </div>
             )}
             {googleLoading && (
-              <p className="mb-4 text-center text-sm text-[var(--color-muted-foreground)]">
-                {t('common.loading')}
-              </p>
+              <div className="mb-4 flex justify-center">
+                <svg data-testid="auth-spinner" className="h-5 w-5 text-[var(--color-muted-foreground)]" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.25" />
+                  <path d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" fill="currentColor" opacity="0.75">
+                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
+                  </path>
+                </svg>
+              </div>
             )}
             <div className="mb-4 flex items-center gap-3">
               <hr className="flex-1 border-[var(--color-border)]" />
@@ -233,7 +238,14 @@ export function RegisterPage() {
             disabled={isLoading}
             className="w-full min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {isLoading ? t('common.loading') : t('auth.register')}
+            {isLoading ? (
+              <svg data-testid="auth-spinner" className="inline-block h-5 w-5" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.25" />
+                <path d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" fill="currentColor" opacity="0.75">
+                  <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
+                </path>
+              </svg>
+            ) : t('auth.register')}
           </button>
         </form>
 

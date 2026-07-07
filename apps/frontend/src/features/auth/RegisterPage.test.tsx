@@ -142,6 +142,17 @@ describe('RegisterPage', () => {
     expect(mockGoogleRender).toHaveBeenCalled();
   });
 
+  it('should show spinner during Google auth', async () => {
+    mockPost.mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<RegisterPage />);
+    googleCredentialCallback!({ credential: 'google-token' });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-spinner')).toBeInTheDocument();
+    });
+  });
+
   it('should handle Google credential on success', async () => {
     mockPost.mockResolvedValueOnce({
       token: 'jwt-token',
@@ -183,10 +194,10 @@ describe('RegisterPage', () => {
     expect(screen.getByText('Username taken')).toBeInTheDocument();
   });
 
-  it('should show loading state from store', () => {
+  it('should show spinner during form submit', () => {
     storeState.isLoading = true;
     render(<RegisterPage />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-spinner')).toBeInTheDocument();
   });
 
   // ── Form validation ──────────────────────────────────────────────────────

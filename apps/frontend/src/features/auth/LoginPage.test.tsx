@@ -177,7 +177,7 @@ describe('LoginPage', () => {
     expect(mockGoogleRender).toHaveBeenCalled();
   });
 
-  it('should show loading indicator during Google auth', async () => {
+  it('should show spinner during Google auth', async () => {
     // Don't resolve the post so loading stays true
     mockPost.mockImplementationOnce(() => new Promise(() => {}));
 
@@ -188,7 +188,7 @@ describe('LoginPage', () => {
     googleCredentialCallback!({ credential: 'google-token' });
 
     await waitFor(() => {
-      expect(screen.getByText('Loading...')).toBeInTheDocument();
+      expect(screen.getByTestId('auth-spinner')).toBeInTheDocument();
     });
   });
 
@@ -233,10 +233,10 @@ describe('LoginPage', () => {
     expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
   });
 
-  it('should show loading state from store', () => {
+  it('should show spinner during form submit', () => {
     storeState.isLoading = true;
     renderPage();
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-spinner')).toBeInTheDocument();
   });
 
   // ── Form validation ──────────────────────────────────────────────────────
@@ -350,6 +350,21 @@ describe('LoginPage', () => {
     // Even if we enable and click, the handler checks resetEmail.trim()
     // Let's just verify it doesn't call the API
     expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('should show spinner during forgot password submission', async () => {
+    mockPost.mockImplementationOnce(() => new Promise(() => {}));
+    renderPage();
+
+    fireEvent.click(getForgotPasswordBtn());
+    const emailInput = screen.getByPlaceholderText('your@email.com');
+    fireEvent.change(emailInput, { target: { value: 'user@test.com' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send Reset Email' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-spinner')).toBeInTheDocument();
+    });
   });
 
   it('should call reset API and show success', async () => {
