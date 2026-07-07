@@ -21,7 +21,7 @@ const mockDb = vi.hoisted(() => ({
   catch() {},
 }));
 
-vi.mock('../db/index.js', () => ({ db: mockDb }));
+vi.mock('../db/index.js', () => ({ db: mockDb, runMigrations: vi.fn() }));
 
 // ─── Mock auth ───────────────────────────────────────────────────────────────
 vi.mock('../auth/index.js', () => ({
@@ -85,7 +85,7 @@ describe('buildApp', () => {
       method: 'GET',
       url: '/api/health',
     });
-    expect(res.headers['cache-control']).toBe('no-store, no-cache, must-revalidate, proxy-revalidate');
+    expect(res.headers['cache-control']).toBe('no-store, no-cache, must-revalidate, proxy-revalidate, no-transform');
     expect(res.headers['pragma']).toBe('no-cache');
     expect(res.headers['expires']).toBe('0');
     await app.close();
