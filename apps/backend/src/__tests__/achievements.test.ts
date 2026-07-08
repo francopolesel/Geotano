@@ -98,6 +98,9 @@ const ALL_ACHIEVEMENTS = [
   { id: 'ach-13', slug: 'score_50k', nameEn: '50K Score', nameEs: '50K Puntos' },
   { id: 'ach-14', slug: 'score_100k', nameEn: '100K Score', nameEs: '100K Puntos' },
   { id: 'ach-15', slug: 'all_modes', nameEn: 'All Modes', nameEs: 'Todos los Modos' },
+  { id: 'ach-16', slug: 'hardcore_winner', nameEn: 'Hardcore Victory', nameEs: 'Victoria Hardcore' },
+  { id: 'ach-17', slug: 'hardcore_veteran', nameEn: 'Hardcore Veteran', nameEs: 'Veterano Hardcore' },
+  { id: 'ach-18', slug: 'hardcore_perfect', nameEn: 'Hardcore Perfect', nameEs: 'Hardcore Perfecto' },
 ];
 
 describe('checkAchievements', () => {
@@ -114,6 +117,7 @@ describe('checkAchievements', () => {
       [{ count: 0 }],          // Query 4: friends
       [{ count: 0 }],          // Query 5: perfect games
       [{ slug: 'flag-guess' }], // Query 6: groupBy() — modes
+      [],                      // Query 7: hardcore sessions (empty)
     );
 
     await checkAchievements('user-1');
@@ -132,6 +136,7 @@ describe('checkAchievements', () => {
       [{ count: 0 }],
       [{ count: 0 }],
       [],
+      [],
     );
 
     await checkAchievements('user-1');
@@ -147,6 +152,7 @@ describe('checkAchievements', () => {
       [{ count: 0 }],
       [{ count: 0 }],
       [],
+      [],
     );
 
     await checkAchievements('user-1');
@@ -161,6 +167,7 @@ describe('checkAchievements', () => {
       [{ totalGames: 10, totalScore: 2000, maxStreak: 7 }],
       [{ count: 0 }],
       [{ count: 0 }],
+      [],
       [],
     );
 
@@ -182,6 +189,7 @@ describe('checkAchievements', () => {
       [{ count: 0 }],
       [{ count: 0 }],
       [],
+      [],
     );
 
     await checkAchievements('user-1');
@@ -201,6 +209,7 @@ describe('checkAchievements', () => {
       [{ count: 0 }],
       [{ count: 0 }],
       [{ slug: 'flag-guess' }, { slug: 'capital-guess' }],
+      [],
     );
 
     await checkAchievements('user-1');
@@ -221,6 +230,7 @@ describe('checkAchievements', () => {
       [{ count: 7 }],
       [{ count: 0 }],
       [],
+      [],
     );
 
     await checkAchievements('user-1');
@@ -232,7 +242,31 @@ describe('checkAchievements', () => {
     expect(slugs).not.toContain('ach-11'); // friends_20
   });
 
-  it('should award all_modes when user played all 5 modes', async () => {
+  it('should award all_modes when user played all 5 mode families (with suffixes)', async () => {
+    resultQueue.push(
+      ALL_ACHIEVEMENTS,
+      [],
+      [{ totalGames: 5, totalScore: 500, maxStreak: 2 }],
+      [{ count: 0 }],
+      [{ count: 0 }],
+      [
+        { slug: 'flag-guess-standard' },
+        { slug: 'capital-guess-unlimited' },
+        { slug: 'country-by-flag-express' },
+        { slug: 'continent-hardcore' },
+        { slug: 'free-express' },
+      ],
+      [],
+    );
+
+    await checkAchievements('user-1');
+
+    const awarded = mockDb.values.mock.calls[0]?.[0];
+    const slugs = awarded.map((a: any) => a.achievementId);
+    expect(slugs).toContain('ach-15'); // all_modes
+  });
+
+  it('should award all_modes with bare slugs (no suffix)', async () => {
     resultQueue.push(
       ALL_ACHIEVEMENTS,
       [],
@@ -246,6 +280,7 @@ describe('checkAchievements', () => {
         { slug: 'continent' },
         { slug: 'free' },
       ],
+      [],
     );
 
     await checkAchievements('user-1');
@@ -253,6 +288,30 @@ describe('checkAchievements', () => {
     const awarded = mockDb.values.mock.calls[0]?.[0];
     const slugs = awarded.map((a: any) => a.achievementId);
     expect(slugs).toContain('ach-15'); // all_modes
+  });
+
+  it('should NOT award all_modes with only 4 families', async () => {
+    resultQueue.push(
+      ALL_ACHIEVEMENTS,
+      [],
+      [{ totalGames: 4, totalScore: 400, maxStreak: 1 }],
+      [{ count: 0 }],
+      [{ count: 0 }],
+      [
+        { slug: 'flag-guess-hardcore' },
+        { slug: 'capital-guess-express' },
+        { slug: 'continent-unlimited' },
+        { slug: 'free' },
+      ],
+      [],
+    );
+
+    await checkAchievements('user-1');
+
+    const awarded = mockDb.values.mock.calls[0]?.[0];
+    const slugs = awarded.map((a: any) => a.achievementId);
+    expect(slugs).toContain('ach-1');   // first_game IS awarded
+    expect(slugs).not.toContain('ach-15'); // all_modes NOT awarded
   });
 
   it('should insert multiple achievements in one batch', async () => {
@@ -269,6 +328,7 @@ describe('checkAchievements', () => {
         { slug: 'continent' },
         { slug: 'free' },
       ],
+      [],
     );
 
     await checkAchievements('user-1');
@@ -286,6 +346,7 @@ describe('checkAchievements', () => {
       [{ count: 0 }],
       [{ count: 0 }],
       [],
+      [],
     );
 
     await checkAchievements('user-1');
@@ -299,6 +360,7 @@ describe('checkAchievements', () => {
       [{ totalGames: 1, totalScore: 100, maxStreak: 1 }],
       [{ count: 0 }],
       [{ count: 0 }],
+      [],
       [],
     );
 
@@ -314,6 +376,7 @@ describe('checkAchievements', () => {
       [{ totalGames: 10, totalScore: 5000, maxStreak: 3 }],
       [{ count: 0 }],
       [{ count: 1 }],
+      [],
       [],
     );
 
@@ -332,6 +395,7 @@ describe('checkAchievements', () => {
       [{ count: 0 }],
       [{ count: 0 }],  // 0 perfect games
       [],
+      [],
     );
 
     await checkAchievements('user-1');
@@ -340,6 +404,122 @@ describe('checkAchievements', () => {
     const slugs = awarded.map((a: any) => a.achievementId);
     expect(slugs).not.toContain('ach-8'); // perfect_game NOT awarded
     expect(slugs).toContain('ach-1');     // first_game IS awarded
+  });
+
+  // ── Hardcore achievements ──────────────────────────────────────
+
+  it('should award hardcore_winner when user has at least 1 hardcore win', async () => {
+    resultQueue.push(
+      ALL_ACHIEVEMENTS,
+      [],
+      [{ totalGames: 1, totalScore: 500, maxStreak: 1 }],
+      [{ count: 0 }],
+      [{ count: 0 }],
+      [],
+      [{ livesRemaining: 1, maxLives: 1 }],
+    );
+
+    await checkAchievements('user-1');
+
+    const awarded = mockDb.values.mock.calls[0]?.[0];
+    const slugs = awarded.map((a: any) => a.achievementId);
+    expect(slugs).toContain('ach-16'); // hardcore_winner
+    expect(slugs).not.toContain('ach-17'); // hardcore_veteran
+    expect(slugs).toContain('ach-18'); // hardcore_perfect (win with full lives)
+  });
+
+  it('should award hardcore_veteran when user has 5+ hardcore wins', async () => {
+    resultQueue.push(
+      ALL_ACHIEVEMENTS,
+      [],
+      [{ totalGames: 10, totalScore: 5000, maxStreak: 3 }],
+      [{ count: 0 }],
+      [{ count: 0 }],
+      [],
+      [
+        { livesRemaining: 1, maxLives: 1 },
+        { livesRemaining: 1, maxLives: 1 },
+        { livesRemaining: 1, maxLives: 1 },
+        { livesRemaining: 1, maxLives: 1 },
+        { livesRemaining: 1, maxLives: 1 },
+      ],
+    );
+
+    await checkAchievements('user-1');
+
+    const awarded = mockDb.values.mock.calls[0]?.[0];
+    const slugs = awarded.map((a: any) => a.achievementId);
+    expect(slugs).toContain('ach-16'); // hardcore_winner
+    expect(slugs).toContain('ach-17'); // hardcore_veteran
+    expect(slugs).toContain('ach-18'); // hardcore_perfect
+  });
+
+  it('should NOT award hardcore_veteran when user has fewer than 5 hardcore wins', async () => {
+    resultQueue.push(
+      ALL_ACHIEVEMENTS,
+      [],
+      [{ totalGames: 3, totalScore: 1500, maxStreak: 3 }],
+      [{ count: 0 }],
+      [{ count: 0 }],
+      [],
+      [
+        { livesRemaining: 1, maxLives: 1 },
+        { livesRemaining: 0, maxLives: 1 },
+        { livesRemaining: 1, maxLives: 1 },
+      ],
+    );
+
+    await checkAchievements('user-1');
+
+    const awarded = mockDb.values.mock.calls[0]?.[0];
+    const slugs = awarded.map((a: any) => a.achievementId);
+    expect(slugs).toContain('ach-16'); // hardcore_winner (2 wins >= 1)
+    expect(slugs).not.toContain('ach-17'); // hardcore_veteran (2 < 5)
+    expect(slugs).toContain('ach-18'); // hardcore_perfect (at least one full-lives win)
+  });
+
+  it('should NOT award hardcore achievements when user has no hardcore sessions', async () => {
+    resultQueue.push(
+      ALL_ACHIEVEMENTS,
+      [],
+      [{ totalGames: 10, totalScore: 5000, maxStreak: 5 }],
+      [{ count: 0 }],
+      [{ count: 0 }],
+      [],
+      [],
+    );
+
+    await checkAchievements('user-1');
+
+    const awarded = mockDb.values.mock.calls[0]?.[0];
+    const slugs = awarded.map((a: any) => a.achievementId);
+    expect(slugs).not.toContain('ach-16');
+    expect(slugs).not.toContain('ach-17');
+    expect(slugs).not.toContain('ach-18');
+  });
+
+  it('should NOT award hardcore_perfect when no session has livesRemaining === maxLives', async () => {
+    resultQueue.push(
+      ALL_ACHIEVEMENTS,
+      [],
+      [{ totalGames: 3, totalScore: 1500, maxStreak: 2 }],
+      [{ count: 0 }],
+      [{ count: 0 }],
+      [],
+      [
+        { livesRemaining: 1, maxLives: 3 },
+        { livesRemaining: 0, maxLives: 1 },
+        { livesRemaining: 0, maxLives: 3 },
+      ],
+    );
+
+    await checkAchievements('user-1');
+
+    const awarded = mockDb.values.mock.calls[0]?.[0];
+    const slugs = awarded.map((a: any) => a.achievementId);
+    // livesRemaining(1) < maxLives(3), so it's not a full-lives win — hardcore_perfect not earned
+    expect(slugs).toContain('ach-16'); // hardcore_winner (1 hardcore session with livesRemaining > 0)
+    expect(slugs).not.toContain('ach-18'); // hardcore_perfect NOT awarded
   });
 });
 

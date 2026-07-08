@@ -33,6 +33,7 @@ vi.mock('react-i18next', () => ({
         'home.start': 'Start',
         'rankings.title': 'Rankings',
         'friends.title': 'Friends',
+        'settings.myProfile': 'My Profile',
         'settings.title': 'Settings',
       };
       return keys[key] ?? key;

@@ -176,6 +176,40 @@ async function seedAchievements() {
       tier: null,
       sortOrder: 15,
     },
+    // ── Hardcore ──────────────────────────────────────────────────
+    {
+      slug: 'hardcore_winner',
+      nameEn: 'Hardcore Victory',
+      nameEs: 'Victoria Hardcore',
+      descriptionEn: 'Win a hardcore game',
+      descriptionEs: 'Ganá una partida hardcore',
+      icon: '💀',
+      category: 'gameplay',
+      tier: null,
+      sortOrder: 16,
+    },
+    {
+      slug: 'hardcore_veteran',
+      nameEn: 'Hardcore Veteran',
+      nameEs: 'Veterano Hardcore',
+      descriptionEn: 'Win 5 hardcore games',
+      descriptionEs: 'Ganá 5 partidas hardcore',
+      icon: '☠️',
+      category: 'gameplay',
+      tier: null,
+      sortOrder: 17,
+    },
+    {
+      slug: 'hardcore_perfect',
+      nameEn: 'Hardcore Perfect',
+      nameEs: 'Hardcore Perfecto',
+      descriptionEn: 'Win a hardcore game without losing a life',
+      descriptionEs: 'Ganá una partida hardcore sin perder una vida',
+      icon: '👑',
+      category: 'gameplay',
+      tier: null,
+      sortOrder: 18,
+    },
   ];
 
   for (const ach of allAchievements) {

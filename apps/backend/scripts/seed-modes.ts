@@ -17,6 +17,7 @@ async function seedModes() {
       timerSeconds: 15,
       lives: 3,
       multiplier: 1.0,
+      totalQuestions: 50,
     },
     {
       slug: 'capital-guess',
@@ -27,6 +28,7 @@ async function seedModes() {
       timerSeconds: 20,
       lives: 3,
       multiplier: 1.2,
+      totalQuestions: 50,
     },
     {
       slug: 'country-by-flag',
@@ -37,6 +39,7 @@ async function seedModes() {
       timerSeconds: 15,
       lives: 3,
       multiplier: 1.0,
+      totalQuestions: 50,
     },
     {
       slug: 'continent',
@@ -47,6 +50,7 @@ async function seedModes() {
       timerSeconds: 10,
       lives: 3,
       multiplier: 0.8,
+      totalQuestions: 50,
     },
     {
       slug: 'free',
@@ -55,26 +59,16 @@ async function seedModes() {
       descriptionEn: 'Mixed questions from all categories',
       descriptionEs: 'Preguntas mezcladas de todas las categorías',
       timerSeconds: 15,
-      lives: 5,
+      lives: 3,
       multiplier: 1.0,
+      totalQuestions: 50,
     },
   ];
 
-  // Build variant rows: express (totalQuestions=30) + unlimited (null) for each base
+  // Build variant rows: unlimited (null) + hardcore (null, lives=1) for each base
   const modes: (typeof baseModes[number] & { totalQuestions?: number | null })[] = [
     ...baseModes,
     ...baseModes.flatMap((base) => [
-      {
-        slug: `${base.slug}-express` as const,
-        nameEn: `${base.nameEn} (Express)`,
-        nameEs: `${base.nameEs} (Express)`,
-        descriptionEn: `${base.descriptionEn} — 30 questions limit`,
-        descriptionEs: `${base.descriptionEs} — límite de 30 preguntas`,
-        timerSeconds: base.timerSeconds,
-        lives: base.lives,
-        multiplier: base.multiplier,
-        totalQuestions: 30,
-      },
       {
         slug: `${base.slug}-unlimited` as const,
         nameEn: `${base.nameEn} (Unlimited)`,
@@ -83,6 +77,17 @@ async function seedModes() {
         descriptionEs: `${base.descriptionEs} — todos los países, sin límite`,
         timerSeconds: base.timerSeconds,
         lives: base.lives,
+        multiplier: base.multiplier,
+        totalQuestions: null,
+      },
+      {
+        slug: `${base.slug}-hardcore` as const,
+        nameEn: `${base.nameEn} (Hardcore)`,
+        nameEs: `${base.nameEs} (Hardcore)`,
+        descriptionEn: `${base.descriptionEn} — only one life, infinite questions`,
+        descriptionEs: `${base.descriptionEs} — una sola vida, preguntas infinitas`,
+        timerSeconds: base.timerSeconds,
+        lives: 1,
         multiplier: base.multiplier,
         totalQuestions: null,
       },

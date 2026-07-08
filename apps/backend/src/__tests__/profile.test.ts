@@ -127,11 +127,13 @@ describe('GET /api/users/:id/profile', () => {
   });
 
   it('should return full profile with stats and recent games', async () => {
-    // 4 DB queries + 1 external service call
+    // 6 DB queries + 1 external service call
     waitData.push([PROFILE_USER]);         // Q1: user lookup → .limit(1)
     waitData.push([SCORE_STATS]);           // Q2: score stats → .where()
     waitData.push([FRIEND_COUNT]);           // Q3: friend count → .where()
-    waitData.push(RECENT_GAMES);             // Q4: recent games → .limit(10)
+    waitData.push([{ count: 5 }]);           // Q4: perfect games → .where()
+    waitData.push([{ maxStreak: 12 }]);      // Q5: best streak → .where()
+    waitData.push(RECENT_GAMES);             // Q6: recent games → .limit(10)
     mockGetUserAchievements.mockResolvedValueOnce(ACHIEVEMENTS);
 
     const res = await app.inject({
@@ -153,6 +155,8 @@ describe('GET /api/users/:id/profile', () => {
       totalGames: 42,
       bestScore: 2500,
       friends: 7,
+      perfectGames: 5,
+      bestStreak: 12,
     });
     expect(body.recentGames).toHaveLength(2);
     expect(body.recentGames[0]).toMatchObject({
@@ -178,9 +182,11 @@ describe('GET /api/users/:id/profile', () => {
 
   it('should handle null score stats gracefully', async () => {
     waitData.push([PROFILE_USER]);
-    waitData.push([]); // empty stats → defaults to 0
+    waitData.push([]); // Q2: empty stats → defaults to 0
     waitData.push([FRIEND_COUNT]);
-    waitData.push(RECENT_GAMES);
+    waitData.push([{ count: 0 }]);    // Q4: perfect games
+    waitData.push([{ maxStreak: 0 }]); // Q5: best streak
+    waitData.push(RECENT_GAMES);        // Q6: recent games
     mockGetUserAchievements.mockResolvedValueOnce([]);
 
     const res = await app.inject({
@@ -195,14 +201,18 @@ describe('GET /api/users/:id/profile', () => {
       totalScore: 0,
       totalGames: 0,
       bestScore: 0,
+      perfectGames: 0,
+      bestStreak: 0,
     });
   });
 
   it('should handle zero friends', async () => {
     waitData.push([PROFILE_USER]);
     waitData.push([SCORE_STATS]);
-    waitData.push([{ count: 0 }]);
-    waitData.push(RECENT_GAMES);
+    waitData.push([{ count: 0 }]);    // Q3: friend count
+    waitData.push([{ count: 0 }]);    // Q4: perfect games
+    waitData.push([{ maxStreak: 0 }]); // Q5: best streak
+    waitData.push(RECENT_GAMES);        // Q6: recent games
     mockGetUserAchievements.mockResolvedValueOnce([]);
 
     const res = await app.inject({
@@ -219,7 +229,9 @@ describe('GET /api/users/:id/profile', () => {
     waitData.push([PROFILE_USER]);
     waitData.push([SCORE_STATS]);
     waitData.push([FRIEND_COUNT]);
-    waitData.push([]); // no recent games
+    waitData.push([{ count: 0 }]);    // Q4: perfect games
+    waitData.push([{ maxStreak: 0 }]); // Q5: best streak
+    waitData.push([]);                 // Q6: no recent games
     mockGetUserAchievements.mockResolvedValueOnce([]);
 
     const res = await app.inject({

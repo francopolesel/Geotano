@@ -1,18 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { getModeConfig, getAllModeConfigs, isValidModeSlug } from '../services/gameModes.js';
 
-// ─── Helper: all 15 slugs ─────────────────────────────────────────────────┬─
+// ─── Helper: all 20 slugs ─────────────────────────────────────────────────┬─
 const ALL_SLUGS = [
-  'flag-guess', 'flag-guess-express', 'flag-guess-unlimited',
-  'capital-guess', 'capital-guess-express', 'capital-guess-unlimited',
-  'country-by-flag', 'country-by-flag-express', 'country-by-flag-unlimited',
-  'continent', 'continent-express', 'continent-unlimited',
-  'free', 'free-express', 'free-unlimited',
+  'flag-guess', 'flag-guess-express', 'flag-guess-unlimited', 'flag-guess-hardcore',
+  'capital-guess', 'capital-guess-express', 'capital-guess-unlimited', 'capital-guess-hardcore',
+  'country-by-flag', 'country-by-flag-express', 'country-by-flag-unlimited', 'country-by-flag-hardcore',
+  'continent', 'continent-express', 'continent-unlimited', 'continent-hardcore',
+  'free', 'free-express', 'free-unlimited', 'free-hardcore',
 ] as const;
 
 const EXPRESS_SLUGS = ALL_SLUGS.filter((s) => s.endsWith('-express'));
 const UNLIMITED_SLUGS = ALL_SLUGS.filter((s) => s.endsWith('-unlimited'));
-const BASE_SLUGS = ALL_SLUGS.filter((s) => !s.endsWith('-express') && !s.endsWith('-unlimited'));
+const HARDCORE_SLUGS = ALL_SLUGS.filter((s) => s.endsWith('-hardcore'));
+const BASE_SLUGS = ALL_SLUGS.filter((s) => !s.endsWith('-express') && !s.endsWith('-unlimited') && !s.endsWith('-hardcore'));
 
 describe('getModeConfig', () => {
   it('should return config for a valid game mode slug', () => {
@@ -80,11 +81,25 @@ describe('unlimited variant configs', () => {
   }
 });
 
+describe('hardcore variant configs', () => {
+  for (const slug of HARDCORE_SLUGS) {
+    it(`${slug} should have lives = 1`, () => {
+      const config = getModeConfig(slug);
+      expect(config.lives).toBe(1);
+    });
+
+    it(`${slug} should have no totalQuestions limit`, () => {
+      const config = getModeConfig(slug);
+      expect(config.totalQuestions).toBeUndefined();
+    });
+  }
+});
+
 describe('base mode configs', () => {
   for (const slug of BASE_SLUGS) {
-    it(`${slug} should have totalQuestions = 60`, () => {
+    it(`${slug} should have totalQuestions = 50`, () => {
       const config = getModeConfig(slug);
-      expect(config.totalQuestions).toBe(60);
+      expect(config.totalQuestions).toBe(50);
     });
   }
 });
@@ -107,9 +122,9 @@ describe('variant inheritance', () => {
 });
 
 describe('getAllModeConfigs', () => {
-  it('should return all 15 game mode configs', () => {
+  it('should return all 20 game mode configs', () => {
     const configs = getAllModeConfigs();
-    expect(configs).toHaveLength(15);
+    expect(configs).toHaveLength(20);
   });
 
   it('should include all expected mode slugs', () => {
@@ -134,17 +149,17 @@ describe('getAllModeConfigs', () => {
     for (const config of getAllModeConfigs()) {
       if (config.slug.endsWith('-express')) {
         expect(config.totalQuestions).toBe(30);
-      } else if (config.slug.endsWith('-unlimited')) {
+      } else if (config.slug.endsWith('-unlimited') || config.slug.endsWith('-hardcore')) {
         expect(config.totalQuestions).toBeUndefined();
       } else {
-        expect(config.totalQuestions).toBe(60);
+        expect(config.totalQuestions).toBe(50);
       }
     }
   });
 });
 
 describe('isValidModeSlug', () => {
-  it('should return true for all 15 mode slugs', () => {
+  it('should return true for all 20 mode slugs', () => {
     for (const slug of ALL_SLUGS) {
       expect(isValidModeSlug(slug)).toBe(true);
     }

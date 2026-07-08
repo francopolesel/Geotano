@@ -1,10 +1,18 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { api, ApiError } from '../../lib/api';
 import { resizeImage } from '../../lib/image';
-import type { UserProfile } from '@geotano/shared';
+import { AchievementBadge } from '../../components/ui/AchievementBadge';
+import type { UserProfile, Achievement } from '@geotano/shared';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+type SettingsTab = 'profile' | 'preferences' | 'password' | 'my-profile';
+
+const TABS: SettingsTab[] = ['profile', 'preferences', 'password', 'my-profile'];
 
 // ─── Sections ───────────────────────────────────────────────────────────────
 
@@ -333,10 +341,138 @@ function PreferencesSection() {
   );
 }
 
+// ─── My Profile Tab ─────────────────────────────────────────────────────────
+
+interface MyProfileStats {
+  bestScore: number;
+  totalGames: number;
+  perfectGames: number;
+  bestStreak: number;
+}
+
+interface MyProfileResponse {
+  stats: MyProfileStats;
+  achievements: Achievement[];
+}
+
+function StatCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-lg border px-4 py-3 text-center ${
+      highlight
+        ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
+        : 'border-[var(--color-border)] bg-[var(--color-card)]'
+    }`}>
+      <p className={`font-bold ${
+        highlight ? 'text-2xl text-[var(--color-primary)]' : 'text-lg text-[var(--color-foreground)]'
+      }`}>
+        {value}
+      </p>
+      <p className="text-xs text-[var(--color-muted-foreground)]">{label}</p>
+    </div>
+  );
+}
+
+function MyProfileTab({ userId }: { userId: string }) {
+  const { t } = useTranslation();
+  const [data, setData] = useState<MyProfileResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+    api.get<MyProfileResponse>(`/users/${userId}/profile`)
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : t('common.error'));
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [userId, t]);
+
+  if (isLoading) {
+    return (
+      <div className="py-8 text-center text-sm text-[var(--color-muted-foreground)]">
+        {t('common.loading')}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center">
+        <p className="text-sm text-[var(--color-destructive)]">{error}</p>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { stats, achievements } = data;
+  const earnedCount = achievements.filter((a) => a.earnedAt).length;
+
+  return (
+    <div className="space-y-6">
+      {/* Stats grid */}
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-[var(--color-foreground)]">
+          {t('profile.stats')}
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard label={t('profile.bestScore')} value={stats.bestScore.toLocaleString()} highlight />
+          <StatCard label={t('profile.totalGames')} value={stats.totalGames.toLocaleString()} />
+          <StatCard label={t('profile.stats.perfectGames')} value={stats.perfectGames.toLocaleString()} />
+          <StatCard label={t('profile.stats.streak')} value={stats.bestStreak.toLocaleString()} />
+        </div>
+      </section>
+
+      {/* Achievements */}
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-[var(--color-foreground)]">
+          {t('profile.achievements')}
+        </h2>
+        {achievements.length === 0 ? (
+          <p className="py-4 text-center text-sm text-[var(--color-muted-foreground)]">
+            {t('profile.noAchievements')}
+          </p>
+        ) : (
+          <>
+            <p className="mb-3 text-xs text-[var(--color-muted-foreground)]">
+              {earnedCount} / {achievements.length} {t('profile.achievementsEarned')}
+            </p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {achievements.map((ach) => (
+                <AchievementBadge key={ach.slug} achievement={ach} />
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ─── Tabs ───────────────────────────────────────────────────────────────────
+
+function tabLabel(tab: SettingsTab, t: (key: string) => string): string {
+  switch (tab) {
+    case 'profile': return t('settings.profile');
+    case 'preferences': return t('settings.preferences');
+    case 'password': return t('settings.password');
+    case 'my-profile': return t('settings.tabs.myProfile');
+  }
+}
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const setAuth = useAuthStore((s) => s.setAuth);
   const token = useAuthStore((s) => s.token);
@@ -348,6 +484,23 @@ export function SettingsPage() {
     }
   };
 
+  const initialTab = (() => {
+    const tab = searchParams.get('tab');
+    if (tab && TABS.includes(tab as SettingsTab)) return tab as SettingsTab;
+    return 'profile';
+  })();
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+
+  const handleTabClick = (tab: SettingsTab) => {
+    setActiveTab(tab);
+    if (tab === 'profile') {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab }, { replace: true });
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -356,9 +509,30 @@ export function SettingsPage() {
         {t('settings.title')}
       </h1>
 
-      <ProfileSection user={user} onUpdated={handleUserUpdated} />
-      <PreferencesSection />
-      <PasswordSection />
+      {/* Tabs — FriendsPage segmented-control pattern */}
+      <div className="flex gap-1 rounded-lg border border-[var(--color-border)] p-1">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => handleTabClick(tab)}
+            className={`flex-1 rounded-md px-3 py-2 min-h-[44px] text-sm font-medium transition-colors ${
+              activeTab === tab
+                ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]'
+                : 'text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]'
+            }`}
+          >
+            {tabLabel(tab, t)}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'profile' && (
+        <ProfileSection user={user} onUpdated={handleUserUpdated} />
+      )}
+      {activeTab === 'preferences' && <PreferencesSection />}
+      {activeTab === 'password' && <PasswordSection />}
+      {activeTab === 'my-profile' && <MyProfileTab userId={user.id} />}
     </div>
   );
 }

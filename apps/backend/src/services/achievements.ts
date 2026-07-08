@@ -81,6 +81,23 @@ export async function checkAchievements(userId: string): Promise<void> {
 
   const modeSlugs = new Set(modesPlayed.map((m) => m.slug));
 
+  // Hardcore session data (all sessions regardless of isActive — wins leave isActive=true)
+  const hardcoreSessions = await db
+    .select({
+      livesRemaining: gameSessions.livesRemaining,
+      maxLives: gameModes.lives,
+    })
+    .from(gameSessions)
+    .innerJoin(gameModes, eq(gameModes.id, gameSessions.gameModeId))
+    .where(
+      and(
+        eq(gameSessions.userId, userId),
+        sql`${gameModes.slug} LIKE '%-hardcore'`,
+      ),
+    );
+
+  const hardcoreWins = hardcoreSessions.filter((s) => s.livesRemaining > 0).length;
+
   const totalGames = stats?.totalGames ?? 0;
   const totalScore = stats?.totalScore ?? 0;
   const maxStreak = stats?.maxStreak ?? 0;
@@ -138,8 +155,23 @@ export async function checkAchievements(userId: string): Promise<void> {
       case 'score_100k':
         earned = totalScore >= 100_000;
         break;
-      case 'all_modes':
-        earned = modeSlugs.size >= 5;
+      case 'all_modes': {
+        const stripSuffix = (slug: string) =>
+          slug.replace(/-(express|unlimited|hardcore)$/, '');
+        const baseSlugs = new Set([...modeSlugs].map(stripSuffix));
+        earned = baseSlugs.size >= 5;
+        break;
+      }
+      case 'hardcore_winner':
+        earned = hardcoreWins >= 1;
+        break;
+      case 'hardcore_veteran':
+        earned = hardcoreWins >= 5;
+        break;
+      case 'hardcore_perfect':
+        earned = hardcoreSessions.some(
+          (s) => s.livesRemaining > 0 && s.livesRemaining === s.maxLives,
+        );
         break;
     }
 

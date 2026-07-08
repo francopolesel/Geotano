@@ -61,6 +61,36 @@ export async function profileRoutes(app: FastifyInstance) {
           ),
         );
 
+      // Perfect games count (completed sessions where all answers were correct)
+      const [perfectResult] = await db
+        .select({
+          count: sql<number>`CAST(COUNT(*) AS INTEGER)`,
+        })
+        .from(gameSessions)
+        .where(
+          and(
+            eq(gameSessions.userId, id),
+            eq(gameSessions.isActive, false),
+            sql`${gameSessions.completedAt} IS NOT NULL`,
+            sql`${gameSessions.correctCount} = ${gameSessions.totalQuestions}`,
+            sql`${gameSessions.totalQuestions} > 0`,
+          ),
+        );
+
+      // Best streak (max consecutive correct answers across all sessions)
+      const [streakResult] = await db
+        .select({
+          maxStreak: sql<number>`CAST(COALESCE(MAX(${gameSessions.streakMax}), 0) AS INTEGER)`,
+        })
+        .from(gameSessions)
+        .where(
+          and(
+            eq(gameSessions.userId, id),
+            eq(gameSessions.isActive, false),
+            sql`${gameSessions.completedAt} IS NOT NULL`,
+          ),
+        );
+
       // Recent games (last 10)
       const recentGames = await db
         .select({
@@ -144,6 +174,8 @@ export async function profileRoutes(app: FastifyInstance) {
           totalGames: scoreResult?.totalGames ?? 0,
           bestScore: scoreResult?.bestScore ?? 0,
           friends: friendCountResult?.count ?? 0,
+          perfectGames: perfectResult?.count ?? 0,
+          bestStreak: streakResult?.maxStreak ?? 0,
         },
         recentGames: recentGames.map((g) => ({
           id: g.id,

@@ -1,7 +1,7 @@
 import type { GameModeSlug, QuestionType } from '@geotano/shared';
 
 // ---------------------------------------------------------------------------
-// Game mode configuration — 15 configs (5 base + 5 express + 5 unlimited)
+// Game mode configuration — 15 configs (5 base + 5 unlimited + 5 hardcore)
 // ---------------------------------------------------------------------------
 
 export interface GameModeConfig {
@@ -11,7 +11,7 @@ export interface GameModeConfig {
   lives: number;
   multiplier: number;
   description: string;
-  /** 60 for standard, 30 for express, undefined for unlimited. */
+  /** 50 for standard, undefined for unlimited/hardcore. */
   totalQuestions?: number;
 }
 
@@ -24,7 +24,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 15,
     lives: 3,
     multiplier: 1.0,
-    totalQuestions: 60,
+    totalQuestions: 50,
     description: 'See the flag, guess the country',
   },
   'capital-guess': {
@@ -33,7 +33,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 15,
     lives: 3,
     multiplier: 1.0,
-    totalQuestions: 60,
+    totalQuestions: 50,
     description: 'See the capital, guess the country',
   },
   'country-by-flag': {
@@ -42,7 +42,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 15,
     lives: 3,
     multiplier: 1.0,
-    totalQuestions: 60,
+    totalQuestions: 50,
     description: 'See the country, guess its flag',
   },
   continent: {
@@ -51,7 +51,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 20,
     lives: 3,
     multiplier: 1.2,
-    totalQuestions: 60,
+    totalQuestions: 50,
     description: 'Which continent does this country belong to?',
   },
   free: {
@@ -65,7 +65,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 15,
     lives: 3,
     multiplier: 1.5,
-    totalQuestions: 60,
+    totalQuestions: 50,
     description: 'Mixed questions from all categories',
   },
 };
@@ -74,18 +74,19 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
 
 function createVariant(
   base: GameModeConfig,
-  suffix: 'express' | 'unlimited',
+  suffix: 'express' | 'unlimited' | 'hardcore',
   totalQuestions?: number,
+  livesOverride?: number,
 ): GameModeConfig {
   const slug = `${base.slug}-${suffix}` as GameModeSlug;
-  const label = suffix === 'express' ? 'Express' : 'Unlimited';
+  const labels: Record<string, string> = { express: 'Express', unlimited: 'Unlimited', hardcore: 'Hardcore' };
   return {
     slug,
     questionTypes: [...base.questionTypes],
     timerSeconds: base.timerSeconds,
-    lives: base.lives,
+    lives: livesOverride ?? base.lives,
     multiplier: base.multiplier,
-    description: `${base.description} (${label})`,
+    description: `${base.description} (${labels[suffix]})`,
     totalQuestions,
   };
 }
@@ -108,6 +109,13 @@ const MODE_CONFIGS: Record<GameModeSlug, GameModeConfig> = {
   'country-by-flag-unlimited': createVariant(BASE_CONFIGS['country-by-flag'], 'unlimited'),
   'continent-unlimited': createVariant(BASE_CONFIGS['continent'], 'unlimited'),
   'free-unlimited': createVariant(BASE_CONFIGS['free'], 'unlimited'),
+
+  // Hardcore variants — lives=1, no question limit
+  'flag-guess-hardcore': createVariant(BASE_CONFIGS['flag-guess'], 'hardcore', undefined, 1),
+  'capital-guess-hardcore': createVariant(BASE_CONFIGS['capital-guess'], 'hardcore', undefined, 1),
+  'country-by-flag-hardcore': createVariant(BASE_CONFIGS['country-by-flag'], 'hardcore', undefined, 1),
+  'continent-hardcore': createVariant(BASE_CONFIGS['continent'], 'hardcore', undefined, 1),
+  'free-hardcore': createVariant(BASE_CONFIGS['free'], 'hardcore', undefined, 1),
 };
 
 export function getModeConfig(slug: GameModeSlug): GameModeConfig {

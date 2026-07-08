@@ -89,6 +89,7 @@ export interface StartSessionResponse {
   sessionId: string;
   question: ClientQuestion;
   totalQuestions?: number;
+  maxLives: number;
 }
 
 // ─── In-memory State ────────────────────────────────────────────────────────
@@ -493,7 +494,7 @@ export async function startSession(
   // Return Q1 to client (without correct answer / internal IDs)
   const { correctAnswer: _, optionsCountryIds: __, ...clientQuestion } = firstQuestion;
 
-  return { sessionId: session.id, question: clientQuestion, totalQuestions: config.totalQuestions };
+  return { sessionId: session.id, question: clientQuestion, totalQuestions: config.totalQuestions, maxLives: config.lives };
 }
 
 /**

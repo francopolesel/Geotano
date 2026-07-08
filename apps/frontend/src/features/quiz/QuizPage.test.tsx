@@ -58,6 +58,7 @@ const gameState = vi.hoisted(() => ({
   currentQuestion: sampleQuestion as any,
   score: 0,
   lives: 3,
+  maxLives: 3,
   streak: 0,
   isPlaying: true,
   totalQuestions: null,

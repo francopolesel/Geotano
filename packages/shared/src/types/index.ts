@@ -70,11 +70,11 @@ export interface Country {
 // ---------------------------------------------------------------------------
 
 export type GameModeSlug =
-  | 'flag-guess' | 'flag-guess-express' | 'flag-guess-unlimited'
-  | 'capital-guess' | 'capital-guess-express' | 'capital-guess-unlimited'
-  | 'country-by-flag' | 'country-by-flag-express' | 'country-by-flag-unlimited'
-  | 'continent' | 'continent-express' | 'continent-unlimited'
-  | 'free' | 'free-express' | 'free-unlimited';
+  | 'flag-guess' | 'flag-guess-express' | 'flag-guess-unlimited' | 'flag-guess-hardcore'
+  | 'capital-guess' | 'capital-guess-express' | 'capital-guess-unlimited' | 'capital-guess-hardcore'
+  | 'country-by-flag' | 'country-by-flag-express' | 'country-by-flag-unlimited' | 'country-by-flag-hardcore'
+  | 'continent' | 'continent-express' | 'continent-unlimited' | 'continent-hardcore'
+  | 'free' | 'free-express' | 'free-unlimited' | 'free-hardcore';
 
 export interface GameMode {
   id: EntityId;

@@ -16,6 +16,7 @@ interface SessionResponse {
   sessionId: string;
   question: QuizQuestion;
   totalQuestions?: number;
+  maxLives?: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ export function QuizPage() {
     currentQuestion,
     score,
     lives,
+    maxLives,
     streak,
     isPlaying,
     startSession,
@@ -108,7 +110,7 @@ export function QuizPage() {
     mutationFn: () =>
       api.get<SessionResponse>(`/quiz/session?mode=${mode}`),
     onSuccess: (data) => {
-      startSession(data.sessionId);
+      startSession(data.sessionId, data.maxLives);
       setQuestion(data.question);
       setTotalQuestions(data.totalQuestions ?? null);
     },
@@ -432,7 +434,7 @@ export function QuizPage() {
 
           {/* Lives */}
           <div className="flex gap-0.5">
-            {Array.from({ length: 3 }, (_, i) => (
+            {Array.from({ length: maxLives }, (_, i) => (
               <span
                 key={i}
                 className={`text-lg transition-opacity ${

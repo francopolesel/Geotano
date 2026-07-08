@@ -7,12 +7,13 @@ interface GameState {
   currentQuestion: QuizQuestion | null;
   score: number;
   lives: number;
+  maxLives: number;
   streak: number;
   isPlaying: boolean;
   totalQuestions: number | null;
 
   setMode: (mode: GameModeSlug) => void;
-  startSession: (sessionId: string) => void;
+  startSession: (sessionId: string, maxLives?: number) => void;
   setQuestion: (q: QuizQuestion) => void;
   setTotalQuestions: (n: number | null) => void;
   updateScore: (points: number) => void;
@@ -21,7 +22,7 @@ interface GameState {
   incrementStreak: () => void;
   resetStreak: () => void;
   endGame: () => void;
-  reset: () => void;
+  reset: (maxLives?: number) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -30,12 +31,18 @@ export const useGameStore = create<GameState>((set) => ({
   currentQuestion: null,
   score: 0,
   lives: 3,
+  maxLives: 3,
   streak: 0,
   isPlaying: false,
   totalQuestions: null,
 
   setMode: (mode) => set({ mode }),
-  startSession: (sessionId) => set({ sessionId, isPlaying: true }),
+  startSession: (sessionId, maxLives) =>
+    set({
+      sessionId,
+      isPlaying: true,
+      ...(maxLives !== undefined ? { maxLives, lives: maxLives } : {}),
+    }),
   setQuestion: (q) => set({ currentQuestion: q }),
   setTotalQuestions: (n) => set({ totalQuestions: n }),
   updateScore: (points) => set((s) => ({ score: s.score + points })),
@@ -44,12 +51,13 @@ export const useGameStore = create<GameState>((set) => ({
   incrementStreak: () => set((s) => ({ streak: s.streak + 1 })),
   resetStreak: () => set({ streak: 0 }),
   endGame: () => set({ isPlaying: false, currentQuestion: null }),
-  reset: () =>
+  reset: (maxLives) =>
     set({
       sessionId: null,
       currentQuestion: null,
       score: 0,
-      lives: 3,
+      lives: maxLives ?? 3,
+      maxLives: maxLives ?? 3,
       streak: 0,
       isPlaying: false,
       totalQuestions: null,

@@ -12,6 +12,7 @@ const navItems = [
   { to: '/quiz', label: 'home.start' },
   { to: '/rankings', label: 'rankings.title' },
   { to: '/friends', label: 'friends.title' },
+  { to: '/settings?tab=my-profile', label: 'nav.myProfile' },
   { to: '/settings', label: 'settings.title' },
 ];
 

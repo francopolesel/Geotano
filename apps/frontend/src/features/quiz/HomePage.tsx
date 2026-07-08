@@ -35,8 +35,8 @@ const MODE_GROUPS: ModeGroup[] = [
     color: 'from-blue-500 to-blue-600',
     variants: [
       { slug: 'flag-guess', labelKey: 'modes.variantStandard' },
-      { slug: 'flag-guess-express', labelKey: 'modes.variantExpress' },
       { slug: 'flag-guess-unlimited', labelKey: 'modes.variantUnlimited' },
+      { slug: 'flag-guess-hardcore', labelKey: 'modes.variantHardcore' },
     ],
   },
   {
@@ -47,8 +47,8 @@ const MODE_GROUPS: ModeGroup[] = [
     color: 'from-emerald-500 to-emerald-600',
     variants: [
       { slug: 'capital-guess', labelKey: 'modes.variantStandard' },
-      { slug: 'capital-guess-express', labelKey: 'modes.variantExpress' },
       { slug: 'capital-guess-unlimited', labelKey: 'modes.variantUnlimited' },
+      { slug: 'capital-guess-hardcore', labelKey: 'modes.variantHardcore' },
     ],
   },
   {
@@ -59,8 +59,8 @@ const MODE_GROUPS: ModeGroup[] = [
     color: 'from-violet-500 to-violet-600',
     variants: [
       { slug: 'country-by-flag', labelKey: 'modes.variantStandard' },
-      { slug: 'country-by-flag-express', labelKey: 'modes.variantExpress' },
       { slug: 'country-by-flag-unlimited', labelKey: 'modes.variantUnlimited' },
+      { slug: 'country-by-flag-hardcore', labelKey: 'modes.variantHardcore' },
     ],
   },
   {
@@ -71,8 +71,8 @@ const MODE_GROUPS: ModeGroup[] = [
     color: 'from-amber-500 to-amber-600',
     variants: [
       { slug: 'continent', labelKey: 'modes.variantStandard' },
-      { slug: 'continent-express', labelKey: 'modes.variantExpress' },
       { slug: 'continent-unlimited', labelKey: 'modes.variantUnlimited' },
+      { slug: 'continent-hardcore', labelKey: 'modes.variantHardcore' },
     ],
   },
   {
@@ -83,8 +83,8 @@ const MODE_GROUPS: ModeGroup[] = [
     color: 'from-rose-500 to-rose-600',
     variants: [
       { slug: 'free', labelKey: 'modes.variantStandard' },
-      { slug: 'free-express', labelKey: 'modes.variantExpress' },
       { slug: 'free-unlimited', labelKey: 'modes.variantUnlimited' },
+      { slug: 'free-hardcore', labelKey: 'modes.variantHardcore' },
     ],
   },
 ];
@@ -160,6 +160,9 @@ export function HomePage() {
                       <span className="text-xs text-[var(--color-primary)] font-semibold uppercase tracking-wider">
                         {t(variant.labelKey)}
                       </span>
+                      {variant.slug.endsWith('-hardcore') && (
+                        <span className="text-xs text-red-500 font-medium">1 ❤️</span>
+                      )}
                       <svg
                         className="ml-auto h-4 w-4 text-[var(--color-muted-foreground)] shrink-0"
                         fill="none"

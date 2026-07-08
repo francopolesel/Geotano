@@ -22,6 +22,7 @@ const T = (key: string, params?: Record<string, any>) => {
     'modes.variantStandard': 'Standard',
     'modes.variantExpress': 'Express',
     'modes.variantUnlimited': 'Unlimited',
+    'modes.variantHardcore': 'Hardcore',
     'profile.totalScore': 'Total Score',
     'profile.totalGames': 'Games',
     'profile.bestScore': 'Best Score',
@@ -122,21 +123,26 @@ describe('HomePage', () => {
     expect(screen.getAllByText('Standard')).toHaveLength(5);
   });
 
-  it('should show Express pill on each mode card', () => {
-    render(<HomePage />);
-    expect(screen.getAllByText('Express')).toHaveLength(5);
-  });
-
   it('should show Unlimited pill on each mode card', () => {
     render(<HomePage />);
     expect(screen.getAllByText('Unlimited')).toHaveLength(5);
   });
 
-  it('should navigate to express mode when express pill is clicked', () => {
+  it('should show Hardcore pill on each mode card', () => {
     render(<HomePage />);
-    const expressPills = screen.getAllByText('Express');
-    fireEvent.click(expressPills[0]);
-    expect(mockNavigate).toHaveBeenCalledWith('/quiz?mode=flag-guess-express');
+    expect(screen.getAllByText('Hardcore')).toHaveLength(5);
+  });
+
+  it('should show 1 ❤️ indicator on each hardcore button', () => {
+    render(<HomePage />);
+    expect(screen.getAllByText('1 ❤️')).toHaveLength(5);
+  });
+
+  it('should navigate to hardcore mode when hardcore pill is clicked', () => {
+    render(<HomePage />);
+    const hardcorePills = screen.getAllByText('Hardcore');
+    fireEvent.click(hardcorePills[0]);
+    expect(mockNavigate).toHaveBeenCalledWith('/quiz?mode=flag-guess-hardcore');
   });
 
   it('should navigate to unlimited mode when unlimited pill is clicked', () => {
