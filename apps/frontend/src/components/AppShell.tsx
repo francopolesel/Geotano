@@ -48,7 +48,7 @@ export function AppShell() {
               </svg>
             </button>
             <NavLink to="/" className="flex items-center text-[var(--color-foreground)]">
-              <img src="/header_logo.png" alt="Geotano" className="h-16 w-auto" />
+              <img src="/header_logo.png" alt="Geotano" className="h-24 w-auto" />
             </NavLink>
           </div>
 
