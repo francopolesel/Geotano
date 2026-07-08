@@ -47,7 +47,26 @@ export function FriendsPage() {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'remove' | 'block';
+    userId: string;
+    username: string;
+    displayName?: string;
+  } | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleConfirmedAction = async () => {
+    if (!confirmAction) return;
+    const { type, userId } = confirmAction;
+    try {
+      if (type === 'remove') await removeFriend(userId);
+      else await blockUser(userId);
+    } catch {
+      // Error is set in store
+    } finally {
+      setConfirmAction(null);
+    }
+  };
 
   useEffect(() => {
     fetchFriends();
@@ -128,7 +147,10 @@ export function FriendsPage() {
     }
   };
 
+  const displayName = confirmAction?.displayName ?? confirmAction?.username ?? '';
+
   return (
+    <>
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-6 text-2xl font-bold text-[var(--color-foreground)]">
         {t('friends.title')}
@@ -237,17 +259,13 @@ export function FriendsPage() {
                     💬
                   </button>
                   <button
-                    onClick={async () => {
-                      await removeFriend(friend.friendId);
-                    }}
+                    onClick={() => setConfirmAction({ type: 'remove', userId: friend.friendId, username: friend.username, displayName: friend.displayName })}
                     className="rounded-md min-h-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)]"
                   >
                     {t('friends.remove')}
                   </button>
                   <button
-                    onClick={async () => {
-                      await blockUser(friend.friendId);
-                    }}
+                    onClick={() => setConfirmAction({ type: 'block', userId: friend.friendId, username: friend.username, displayName: friend.displayName })}
                     className="rounded-md min-h-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
                   >
                     {t('friends.block')}
@@ -554,5 +572,40 @@ export function FriendsPage() {
       )}
 
     </div>
+
+      {/* Confirm modal — remove / block */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-lg">
+            <h3 className="mb-2 text-lg font-semibold text-[var(--color-foreground)]">
+              {confirmAction.type === 'remove' ? t('friends.confirmRemoveTitle') : t('friends.confirmBlockTitle')}
+            </h3>
+            <p className="mb-6 text-sm text-[var(--color-muted-foreground)]">
+              {confirmAction.type === 'remove'
+                ? t('friends.confirmRemoveBody', { username: displayName })
+                : t('friends.confirmBlockBody', { username: displayName })}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)]"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleConfirmedAction}
+                className={`flex-1 min-h-[44px] rounded-lg px-4 py-2 text-sm font-medium text-white hover:opacity-90 ${
+                  confirmAction.type === 'remove'
+                    ? 'bg-[var(--color-destructive)]'
+                    : 'bg-red-600'
+                }`}
+              >
+                {confirmAction.type === 'remove' ? t('friends.remove') : t('friends.block')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

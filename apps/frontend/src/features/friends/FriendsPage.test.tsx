@@ -37,6 +37,11 @@ const T = (key: string, params?: Record<string, any>) => {
     'friends.redeemSuccess': 'Friend added!',
     'friends.noBlocked': 'No blocked users',
     'friends.unblock': 'Unblock',
+    'friends.confirmRemoveTitle': 'Remove friend?',
+    'friends.confirmRemoveBody': 'Are you sure you want to remove {username} from your friends?',
+    'friends.confirmBlockTitle': 'Block user?',
+    'friends.confirmBlockBody': 'Are you sure you want to block {username}?',
+    'common.cancel': 'Cancel',
     'common.loading': 'Loading...',
     'errors.friends.inviteInvalid': 'Invalid invite code',
   };
@@ -252,19 +257,25 @@ describe('FriendsPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/profile/friend-1');
   });
 
-  it('should call removeFriend on remove click', async () => {
+  it('should call removeFriend after confirming modal', async () => {
     storeState.removeFriend.mockResolvedValueOnce(undefined);
     render(<FriendsPage />);
+    // Click Remove button → modal opens
     fireEvent.click(screen.getByText('Remove'));
+    // Click confirm button inside modal (the second Remove)
+    fireEvent.click(screen.getAllByText('Remove')[1]);
     await waitFor(() => {
       expect(storeState.removeFriend).toHaveBeenCalledWith('friend-1');
     });
   });
 
-  it('should call blockUser on block click', async () => {
+  it('should call blockUser after confirming modal', async () => {
     storeState.blockUser.mockResolvedValueOnce(undefined);
     render(<FriendsPage />);
+    // Click Block button → modal opens
     fireEvent.click(screen.getByText('Block'));
+    // Click confirm button inside modal (the second Block)
+    fireEvent.click(screen.getAllByText('Block')[1]);
     await waitFor(() => {
       expect(storeState.blockUser).toHaveBeenCalledWith('friend-1');
     });
