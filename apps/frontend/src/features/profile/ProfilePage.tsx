@@ -276,10 +276,9 @@ export function ProfilePage() {
         <h2 className="mb-3 text-lg font-semibold text-[var(--color-foreground)]">
           {t('profile.stats')}
         </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label={t('profile.totalScore')} value={stats.totalScore.toLocaleString()} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <StatCard label={t('profile.bestScore')} value={stats.bestScore.toLocaleString()} highlight />
           <StatCard label={t('profile.totalGames')} value={stats.totalGames.toLocaleString()} />
-          <StatCard label={t('profile.bestScore')} value={stats.bestScore.toLocaleString()} />
           <StatCard label={t('profile.friends')} value={stats.friends.toLocaleString()} />
         </div>
       </section>
@@ -355,10 +354,18 @@ export function ProfilePage() {
 // Stat card sub-component
 // ---------------------------------------------------------------------------
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-center">
-      <p className="text-lg font-bold text-[var(--color-foreground)]">{value}</p>
+    <div className={`rounded-lg border px-4 py-3 text-center ${
+      highlight
+        ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
+        : 'border-[var(--color-border)] bg-[var(--color-card)]'
+    }`}>
+      <p className={`font-bold ${
+        highlight ? 'text-2xl text-[var(--color-primary)]' : 'text-lg text-[var(--color-foreground)]'
+      }`}>
+        {value}
+      </p>
       <p className="text-xs text-[var(--color-muted-foreground)]">{label}</p>
     </div>
   );

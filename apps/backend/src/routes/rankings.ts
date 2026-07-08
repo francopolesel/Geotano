@@ -98,7 +98,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
           userId: gameSessions.userId,
           username: users.username,
           avatarUrl: users.avatarUrl,
-          score: sql<number>`CAST(SUM(${gameSessions.score}) AS INTEGER)`.as('score'),
+          score: sql<number>`CAST(MAX(${gameSessions.score}) AS INTEGER)`.as('score'),
         })
         .from(gameSessions)
         .innerJoin(users, eq(users.id, gameSessions.userId))
@@ -163,7 +163,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
 
         const [userScoreResult] = await db
           .select({
-            score: sql<number>`CAST(SUM(${gameSessions.score}) AS INTEGER)`,
+            score: sql<number>`CAST(MAX(${gameSessions.score}) AS INTEGER)`,
           })
           .from(gameSessions)
           .innerJoin(gameModes, eq(gameModes.id, gameSessions.gameModeId))
@@ -171,7 +171,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
           .groupBy(gameSessions.userId);
 
         if (userScoreResult && userScoreResult.score > 0) {
-          // Count users with strictly higher total score within scope
+          // Count users with strictly higher best score within scope
           const higherSubquery = db
             .select({
               uid: gameSessions.userId,
@@ -197,7 +197,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
             )
             .groupBy(gameSessions.userId)
             .having(
-              sql`CAST(SUM(${gameSessions.score}) AS INTEGER) > ${userScoreResult.score}`,
+              sql`CAST(MAX(${gameSessions.score}) AS INTEGER) > ${userScoreResult.score}`,
             )
             .as('higher');
 
