@@ -21,8 +21,8 @@ export async function quizRoutes(app: FastifyInstance) {
       }
 
       try {
-        const { sessionId, question } = await startSession(userId, mode as GameModeSlug, lang || 'en');
-        return { sessionId, question };
+        const { sessionId, question, totalQuestions } = await startSession(userId, mode as GameModeSlug, lang || 'en');
+        return { sessionId, question, totalQuestions };
       } catch (err) {
         if (err instanceof Error && err.message.includes('No countries available')) {
           return reply.status(503).send({ message: err.message });

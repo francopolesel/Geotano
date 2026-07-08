@@ -9,10 +9,12 @@ interface GameState {
   lives: number;
   streak: number;
   isPlaying: boolean;
+  totalQuestions: number | null;
 
   setMode: (mode: GameModeSlug) => void;
   startSession: (sessionId: string) => void;
   setQuestion: (q: QuizQuestion) => void;
+  setTotalQuestions: (n: number | null) => void;
   updateScore: (points: number) => void;
   updateLives: (n: number) => void;
   loseLife: () => void;
@@ -30,10 +32,12 @@ export const useGameStore = create<GameState>((set) => ({
   lives: 3,
   streak: 0,
   isPlaying: false,
+  totalQuestions: null,
 
   setMode: (mode) => set({ mode }),
   startSession: (sessionId) => set({ sessionId, isPlaying: true }),
   setQuestion: (q) => set({ currentQuestion: q }),
+  setTotalQuestions: (n) => set({ totalQuestions: n }),
   updateScore: (points) => set((s) => ({ score: s.score + points })),
   updateLives: (n) => set({ lives: n }),
   loseLife: () => set((s) => ({ lives: s.lives - 1 })),
@@ -48,5 +52,6 @@ export const useGameStore = create<GameState>((set) => ({
       lives: 3,
       streak: 0,
       isPlaying: false,
+      totalQuestions: null,
     }),
 }));

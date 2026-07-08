@@ -15,6 +15,7 @@ import type {
 interface SessionResponse {
   sessionId: string;
   question: QuizQuestion;
+  totalQuestions?: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -83,6 +84,8 @@ export function QuizPage() {
     isPlaying,
     startSession,
     setQuestion,
+    setTotalQuestions,
+    totalQuestions,
     updateScore,
     updateLives,
     loseLife,
@@ -107,6 +110,7 @@ export function QuizPage() {
     onSuccess: (data) => {
       startSession(data.sessionId);
       setQuestion(data.question);
+      setTotalQuestions(data.totalQuestions ?? null);
     },
   });
 
@@ -451,10 +455,16 @@ export function QuizPage() {
         />
       </div>
 
-      {/* Question number */}
-      <p className="mb-2 text-sm font-medium text-[var(--color-muted-foreground)]">
-        {t('quiz.question', { number: currentQuestion.questionNumber })}
-      </p>
+      {/* Question progress — 3/30 for express modes, plain number for unlimited/lives */}
+      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--color-muted-foreground)]">
+        {totalQuestions ? (
+          <span className="rounded-md bg-[var(--color-muted)] px-2.5 py-0.5 tabular-nums">
+            {currentQuestion.questionNumber}/{totalQuestions}
+          </span>
+        ) : (
+          <span>{t('quiz.question', { number: currentQuestion.questionNumber })}</span>
+        )}
+      </div>
 
       {/* Question text */}
       <h2 className="mb-6 text-xl font-semibold text-[var(--color-foreground)] sm:text-2xl">
