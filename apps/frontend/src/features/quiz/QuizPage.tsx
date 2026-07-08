@@ -416,9 +416,20 @@ export function QuizPage() {
   return (
     <>
     <div className="mx-auto max-w-2xl py-4">
-      {/* Top bar: score, lives, streak */}
+      {/* Top bar: progress, lives, streak, score */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
+          {/* Question progress — 3/30 for express modes, plain number otherwise */}
+          {totalQuestions ? (
+            <span className="rounded-md bg-[var(--color-muted)] px-2.5 py-0.5 text-sm font-medium tabular-nums text-[var(--color-foreground)]">
+              {currentQuestion.questionNumber}/{totalQuestions}
+            </span>
+          ) : (
+            <span className="text-sm font-medium text-[var(--color-muted-foreground)]">
+              {t('quiz.question', { number: currentQuestion.questionNumber })}
+            </span>
+          )}
+
           {/* Lives */}
           <div className="flex gap-0.5">
             {Array.from({ length: 3 }, (_, i) => (
@@ -453,17 +464,6 @@ export function QuizPage() {
           className={`h-full rounded-full transition-all duration-100 ${timerColor}`}
           style={{ width: `${fraction * 100}%` }}
         />
-      </div>
-
-      {/* Question progress — 3/30 for express modes, plain number for unlimited/lives */}
-      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--color-muted-foreground)]">
-        {totalQuestions ? (
-          <span className="rounded-md bg-[var(--color-muted)] px-2.5 py-0.5 tabular-nums">
-            {currentQuestion.questionNumber}/{totalQuestions}
-          </span>
-        ) : (
-          <span>{t('quiz.question', { number: currentQuestion.questionNumber })}</span>
-        )}
       </div>
 
       {/* Question text */}
