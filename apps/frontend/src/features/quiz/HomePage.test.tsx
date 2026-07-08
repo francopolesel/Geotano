@@ -133,9 +133,12 @@ describe('HomePage', () => {
     expect(screen.getAllByText('Hardcore')).toHaveLength(5);
   });
 
-  it('should show 1 ❤️ indicator on each hardcore button', () => {
+  it('should show hardcore label on each mode card without ❤️ indicator', () => {
     render(<HomePage />);
-    expect(screen.getAllByText('1 ❤️')).toHaveLength(5);
+    // Hardcore variant label should appear 5 times (one per mode group)
+    expect(screen.getAllByText('Hardcore')).toHaveLength(5);
+    // The 1 ❤️ indicator should NOT be present (removed per design)
+    expect(screen.queryByText('1 ❤️')).not.toBeInTheDocument();
   });
 
   it('should navigate to hardcore mode when hardcore pill is clicked', () => {

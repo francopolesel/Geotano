@@ -18,10 +18,21 @@ const T = (key: string) => {
     'profile.achievementsEarned': 'earned',
     'profile.recentGames': 'Recent Games',
     'profile.noGames': 'No games played yet',
-    'modes.flagGuess': 'Flag Guess',
-    'modes.capitalGuess': 'Capital Guess',
-    'modes.countryByFlag': 'Country by Flag',
+    'modes.flagGuess': 'Flag → Country',
+    'modes.flagGuessHardcore': 'Hardcore',
+    'modes.flagGuessUnlimited': 'Flag → Country (Unlimited)',
+    'modes.capitalGuess': 'Capital → Country',
+    'modes.capitalGuessHardcore': 'Hardcore',
+    'modes.capitalGuessUnlimited': 'Capital → Country (Unlimited)',
+    'modes.countryByFlag': 'Country → Flag',
+    'modes.countryByFlagHardcore': 'Hardcore',
+    'modes.countryByFlagUnlimited': 'Country → Flag (Unlimited)',
     'modes.continent': 'Continent',
+    'modes.continentHardcore': 'Extremo',
+    'modes.continentUnlimited': 'Continent (Unlimited)',
+    'modes.free': 'Mix Libre',
+    'modes.freeHardcore': 'Extremo',
+    'modes.freeUnlimited': 'Mix Libre (Unlimited)',
   };
   return dict[key] ?? key;
 };
@@ -226,7 +237,7 @@ describe('ProfilePage', () => {
     queryState.data = sampleProfile;
     render(<ProfilePage />);
 
-    expect(screen.getByText('Flag Guess')).toBeInTheDocument();
+    expect(screen.getByText('Flag → Country')).toBeInTheDocument();
     expect(screen.getByText((content) => content.includes('8/10'))).toBeInTheDocument();
     expect(screen.getByText('1,500')).toBeInTheDocument();
   });
@@ -270,5 +281,53 @@ describe('ProfilePage', () => {
 
     const avatar = screen.getByTestId('user-avatar');
     expect(avatar.dataset.hasavatar).toBe('false');
+  });
+
+  // ── Recent games mode labels ────────────────────────────────────────────
+
+  it('should show full mode name including variant for recent games', () => {
+    queryState.data = {
+      ...sampleProfile,
+      recentGames: [
+        {
+          id: 'game-1',
+          gameModeSlug: 'flag-guess',
+          score: 1500,
+          totalQuestions: 10,
+          correctCount: 8,
+          completedAt: '2026-07-05T12:00:00Z',
+        },
+        {
+          id: 'game-2',
+          gameModeSlug: 'flag-guess-hardcore',
+          score: 2500,
+          totalQuestions: 15,
+          correctCount: 12,
+          completedAt: '2026-07-06T14:00:00Z',
+        },
+      ],
+    };
+    render(<ProfilePage />);
+
+    // Standard mode shows its specific name
+    expect(screen.getByText('Flag → Country')).toBeInTheDocument();
+    // Hardcore variant shows its own name
+    expect(screen.getByText('Hardcore')).toBeInTheDocument();
+  });
+
+  it('should show all game mode variants with correct labels', () => {
+    queryState.data = {
+      ...sampleProfile,
+      recentGames: [
+        { id: 'g1', gameModeSlug: 'capital-guess-unlimited', score: 3000, totalQuestions: 20, correctCount: 18, completedAt: '2026-07-01T00:00:00Z' },
+        { id: 'g2', gameModeSlug: 'continent-hardcore', score: 1200, totalQuestions: 8, correctCount: 6, completedAt: '2026-07-02T00:00:00Z' },
+        { id: 'g3', gameModeSlug: 'free', score: 500, totalQuestions: 5, correctCount: 3, completedAt: '2026-07-03T00:00:00Z' },
+      ],
+    };
+    render(<ProfilePage />);
+
+    expect(screen.getByText('Capital → Country (Unlimited)')).toBeInTheDocument();
+    expect(screen.getByText('Extremo')).toBeInTheDocument();
+    expect(screen.getByText('Mix Libre')).toBeInTheDocument();
   });
 });

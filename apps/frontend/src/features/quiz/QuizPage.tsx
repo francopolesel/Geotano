@@ -29,7 +29,7 @@ function slugToModeKey(slug: string): string {
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
 const btnBase =
-  'w-full min-h-[44px] rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition-all duration-200 outline-none';
+  'w-full min-h-[52px] rounded-xl border-2 px-4 py-4 text-left text-base font-medium transition-all duration-200 outline-none';
 
 function getOptionBtnStyle(
   index: number,
@@ -315,49 +315,49 @@ export function QuizPage() {
 
     return (
       <>
-        <div className="mx-auto max-w-md py-12">
+        <div className="mx-auto max-w-2xl py-12">
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
             {isWin ? (
               <>
-                <h2 className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                <h2 className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
                   {t('quiz.winTitle')}
                 </h2>
-                <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+                <p className="mt-2 text-base text-[var(--color-muted-foreground)]">
                   {t('quiz.winMessage', { mode: t(`modes.${slugToModeKey(mode)}`) })}
                 </p>
               </>
             ) : (
-              <h2 className="text-3xl font-bold text-[var(--color-foreground)]">
+              <h2 className="text-4xl font-bold text-[var(--color-foreground)]">
                 {t('quiz.gameOverTitle')}
               </h2>
             )}
 
             <div className="my-8 space-y-3">
-              <p className="text-5xl font-bold text-[var(--color-primary)]">
+              <p className="text-6xl font-bold text-[var(--color-primary)]">
                 {gameResult.totalScore}
               </p>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
+              <p className="text-base text-[var(--color-muted-foreground)]">
                 {t('quiz.result', { score: gameResult.totalScore })}
               </p>
 
               <div className="mt-6 grid grid-cols-3 gap-4">
-                <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
-                  <p className="text-lg font-bold text-[var(--color-foreground)]">
+                <div className="flex min-h-[72px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-4">
+                  <p className="text-xl font-bold text-[var(--color-foreground)]">
                     {gameResult.correctCount}/{gameResult.totalQuestions}
                   </p>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">{t(isWin ? 'quiz.correctCount' : 'quiz.correct', { count: gameResult.correctCount })}</p>
+                  <p className="text-sm text-[var(--color-muted-foreground)]">{t(isWin ? 'quiz.correctCount' : 'quiz.correct', { count: gameResult.correctCount })}</p>
                 </div>
-                <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
-                  <p className="text-lg font-bold text-[var(--color-foreground)]">
+                <div className="flex min-h-[72px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-4">
+                  <p className="text-xl font-bold text-[var(--color-foreground)]">
                     {gameResult.streakMax}
                   </p>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">{t(isWin ? 'quiz.longestStreak' : 'quiz.streak', { count: gameResult.streakMax })}</p>
+                  <p className="text-sm text-[var(--color-muted-foreground)]">{t('quiz.longestStreak', { count: gameResult.streakMax })}</p>
                 </div>
-                <div className="flex min-h-[64px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-3">
-                  <p className="text-lg font-bold text-[var(--color-foreground)]">
+                <div className="flex min-h-[72px] flex-col items-center justify-center rounded-lg bg-[var(--color-muted)] p-4">
+                  <p className="text-xl font-bold text-[var(--color-foreground)]">
                     {gameResult.totalQuestions}
                   </p>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">{t('quiz.question', { number: '' }).replace(/ \d*$/, '')}</p>
+                  <p className="text-sm text-[var(--color-muted-foreground)]">{t('quiz.question', { number: '' }).replace(/ \d*$/, '')}</p>
                 </div>
               </div>
             </div>
@@ -365,13 +365,13 @@ export function QuizPage() {
             <div className="flex flex-col gap-3">
               <button
                 onClick={handlePlayAgain}
-                className="w-full min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
+                className="w-full min-h-[52px] rounded-lg bg-[var(--color-primary)] px-4 py-3 text-base font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
               >
                 {t('quiz.playAgain')}
               </button>
               <button
                 onClick={handleGoHome}
-                className="w-full min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
+                className="w-full min-h-[52px] rounded-lg border border-[var(--color-border)] px-4 py-3 text-base font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
               >
                 {t('quiz.backToHome')}
               </button>
@@ -417,17 +417,17 @@ export function QuizPage() {
   // ── Quiz screen ───────────────────────────────────────────────────────────
   return (
     <>
-    <div className="mx-auto max-w-2xl py-4">
+    <div className="mx-auto max-w-4xl py-4">
       {/* Top bar: progress, lives, streak, score */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           {/* Question progress — 3/30 for express modes, plain number otherwise */}
           {totalQuestions ? (
-            <span className="rounded-md bg-[var(--color-muted)] px-2.5 py-0.5 text-sm font-medium tabular-nums text-[var(--color-foreground)]">
+            <span className="rounded-md bg-[var(--color-muted)] px-2.5 py-0.5 text-base font-medium tabular-nums text-[var(--color-foreground)]">
               {currentQuestion.questionNumber}/{totalQuestions}
             </span>
           ) : (
-            <span className="text-sm font-medium text-[var(--color-muted-foreground)]">
+            <span className="text-base font-medium text-[var(--color-muted-foreground)]">
               {t('quiz.question', { number: currentQuestion.questionNumber })}
             </span>
           )}
@@ -437,7 +437,7 @@ export function QuizPage() {
             {Array.from({ length: maxLives }, (_, i) => (
               <span
                 key={i}
-                className={`text-lg transition-opacity ${
+                className={`text-2xl transition-opacity ${
                   i < lives ? 'opacity-100' : 'opacity-20'
                 }`}
               >
@@ -448,20 +448,20 @@ export function QuizPage() {
 
           {/* Streak — show fire icon after 5 consecutive correct answers */}
           {streak >= 5 && (
-            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
               {t('quiz.streakWithCount', { count: streak })}
             </span>
           )}
         </div>
 
         {/* Score */}
-        <span className="text-lg font-bold text-[var(--color-foreground)]">
+        <span className="text-2xl font-bold text-[var(--color-foreground)]">
           {t('quiz.score')}: {score}
         </span>
       </div>
 
       {/* Timer bar */}
-      <div className="mb-6 h-2 w-full overflow-hidden rounded-full bg-[var(--color-muted)]">
+      <div className="mb-6 h-3 w-full overflow-hidden rounded-full bg-[var(--color-muted)]">
         <div
           className={`h-full rounded-full transition-all duration-100 ${timerColor}`}
           style={{ width: `${fraction * 100}%` }}
@@ -469,7 +469,7 @@ export function QuizPage() {
       </div>
 
       {/* Question text */}
-      <h2 className="mb-6 text-xl font-semibold text-[var(--color-foreground)] sm:text-2xl">
+      <h2 className="mb-6 text-2xl font-semibold text-[var(--color-foreground)] sm:text-3xl">
         {currentQuestion.questionText}
       </h2>
 
@@ -479,7 +479,7 @@ export function QuizPage() {
           <img
             src={currentQuestion.flagUrl}
             alt={t('quiz.flagAlt')}
-            className="h-32 rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-40"
+            className="h-40 rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-52"
           />
         </div>
       )}
@@ -532,7 +532,7 @@ function LeaveModalContent({ onStay, onLeave, score, streak }: {
   const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-lg">
+      <div className="w-full max-w-md rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-lg">
         <h3 className="mb-2 text-lg font-semibold text-[var(--color-foreground)]">
           {t('quiz.leaveTitle')}
         </h3>

@@ -10,6 +10,7 @@ import { FriendsPage } from '../features/friends/FriendsPage';
 import { ChatPage } from '../features/friends/ChatPage';
 import { RankingsPage } from '../features/rankings/RankingsPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
+import { MyProfilePage } from '../features/profile/MyProfilePage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 
 const queryClient = new QueryClient({
@@ -40,6 +41,7 @@ const router = createBrowserRouter([
           { path: 'profile/:userId', element: <ProfilePage /> },
           { path: 'rankings', element: <RankingsPage /> },
           { path: 'settings', element: <SettingsPage /> },
+          { path: 'my-profile', element: <MyProfilePage /> },
         ],
       },
     ],

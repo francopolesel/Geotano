@@ -168,6 +168,28 @@ describe('authStore', () => {
     expect(state.isAuthenticated).toBe(true);
   });
 
+  it('should hydrate bio from localStorage when present', () => {
+    const user = { id: '1', username: 'testuser', email: 'test@test.com', bio: 'Geo enthusiast' };
+    localStorageMock.setItem('auth_token', 'stored-token');
+    localStorageMock.setItem('auth_user', JSON.stringify(user));
+
+    useAuthStore.getState().hydrate();
+
+    const state = useAuthStore.getState();
+    expect(state.user?.bio).toBe('Geo enthusiast');
+  });
+
+  it('should hydrate bio as undefined when not in stored user', () => {
+    const user = { id: '1', username: 'testuser', email: 'test@test.com' };
+    localStorageMock.setItem('auth_token', 'stored-token');
+    localStorageMock.setItem('auth_user', JSON.stringify(user));
+
+    useAuthStore.getState().hydrate();
+
+    const state = useAuthStore.getState();
+    expect(state.user?.bio).toBeUndefined();
+  });
+
   it('should handle corrupted localStorage on hydrate', () => {
     localStorageMock.setItem('auth_token', 'some-token');
     localStorageMock.setItem('auth_user', 'not-valid-json');

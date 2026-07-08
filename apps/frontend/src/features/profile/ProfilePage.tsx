@@ -53,10 +53,20 @@ interface ProfileResponse {
 
 const MODE_LABELS: Record<string, string> = {
   'flag-guess': 'modes.flagGuess',
+  'flag-guess-hardcore': 'modes.flagGuessHardcore',
+  'flag-guess-unlimited': 'modes.flagGuessUnlimited',
   'capital-guess': 'modes.capitalGuess',
+  'capital-guess-hardcore': 'modes.capitalGuessHardcore',
+  'capital-guess-unlimited': 'modes.capitalGuessUnlimited',
   'country-by-flag': 'modes.countryByFlag',
+  'country-by-flag-hardcore': 'modes.countryByFlagHardcore',
+  'country-by-flag-unlimited': 'modes.countryByFlagUnlimited',
   continent: 'modes.continent',
+  'continent-hardcore': 'modes.continentHardcore',
+  'continent-unlimited': 'modes.continentUnlimited',
   free: 'modes.free',
+  'free-hardcore': 'modes.freeHardcore',
+  'free-unlimited': 'modes.freeUnlimited',
 };
 
 function formatDate(dateStr: string): string {

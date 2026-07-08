@@ -574,4 +574,63 @@ describe('QuizPage', () => {
     render(<QuizPage />);
     expect(screen.getByAltText('Geotano')).toBeInTheDocument();
   });
+
+  // ── Desktop sizing ─────────────────────────────────────────────────────
+
+  it('should render quiz container with max-w-4xl for desktop sizing', () => {
+    render(<QuizPage />);
+    // The outer quiz div should have the max-w-4xl class
+    const quizContainer = document.querySelector('.max-w-4xl');
+    expect(quizContainer).toBeInTheDocument();
+  });
+
+  it('should render timer bar with h-3 for thicker desktop bar', () => {
+    render(<QuizPage />);
+    // The timer bar container should have h-3 (was h-2)
+    const timerContainer = document.querySelector('.h-3.w-full.overflow-hidden.rounded-full');
+    expect(timerContainer).toBeInTheDocument();
+  });
+
+  it('should render result screen with max-w-2xl (was max-w-md)', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 5000,
+      livesRemaining: 2,
+      result: sampleGameResult,
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      // The result container should use max-w-2xl now (was max-w-md)
+      const resultContainer = document.querySelector('.max-w-2xl');
+      expect(resultContainer).toBeInTheDocument();
+    });
+  });
+
+  it('should always show longest streak (best streak) label on game over, not just streak', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: false,
+      score: -50,
+      livesRemaining: 0,
+      result: { ...sampleGameResult, streakMax: 7 },
+    });
+
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Berlin'));
+
+    await waitFor(() => {
+      // Should show "Best streak: 7" even on loss (was only "Streak: 7" on loss)
+      expect(screen.getByText('Best streak: 7')).toBeInTheDocument();
+    });
+  });
 });

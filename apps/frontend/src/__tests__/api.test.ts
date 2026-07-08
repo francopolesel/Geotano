@@ -195,7 +195,7 @@ describe('api methods', () => {
     mockStorage.clear();
   });
 
-  it('post sends JSON body with POST method', async () => {
+  it('post sends JSON body with POST method and injects lang', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ id: 1 }),
@@ -206,7 +206,9 @@ describe('api methods', () => {
 
     const [, options] = mockFetch.mock.calls[0];
     expect(options.method).toBe('POST');
-    expect(options.body).toBe(JSON.stringify({ name: 'test' }));
+    const body = JSON.parse(options.body as string);
+    expect(body.name).toBe('test');
+    expect(body.lang).toBe('en'); // lang is now auto-injected into POST bodies
   });
 
   it('delete sends DELETE method', async () => {
@@ -222,7 +224,7 @@ describe('api methods', () => {
     expect(options.method).toBe('DELETE');
   });
 
-  it('patch sends JSON body with PATCH method', async () => {
+  it('patch sends JSON body with PATCH method and injects lang', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ id: 1 }),
@@ -233,6 +235,62 @@ describe('api methods', () => {
 
     const [, options] = mockFetch.mock.calls[0];
     expect(options.method).toBe('PATCH');
-    expect(options.body).toBe(JSON.stringify({ name: 'updated' }));
+    const body = JSON.parse(options.body as string);
+    expect(body.name).toBe('updated');
+    expect(body.lang).toBe('en'); // lang is now auto-injected into PATCH bodies
+  });
+
+  it('post should include lang in the request body', async () => {
+    mockLanguage.value = 'es';
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: 1 }),
+      status: 200,
+    });
+
+    await api.post('/quiz/answer', {
+      sessionId: 's1',
+      questionId: 'q1',
+      answer: 'Argentina',
+      timeMs: 3000,
+    });
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body as string);
+
+    // The bug: POST body does NOT include lang — backend reads it from body,
+    // so it silently defaults to 'en'. The fix must inject lang into the body.
+    expect(body.lang).toBe('es');
+  });
+
+  it('patch should include lang in the request body', async () => {
+    mockLanguage.value = 'es';
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: 1 }),
+      status: 200,
+    });
+
+    await api.patch('/auth/profile', { bio: 'Hola mundo' });
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body as string);
+
+    expect(body.lang).toBe('es');
+  });
+
+  it('delete should still append lang only in query string (no body)', async () => {
+    mockLanguage.value = 'es';
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({}),
+      status: 200,
+    });
+
+    await api.delete('/test/1');
+
+    const calledUrl = mockFetch.mock.calls[0][0] as string;
+    // DELETE has no body — lang must still appear in the URL
+    expect(calledUrl).toContain('lang=es');
   });
 });

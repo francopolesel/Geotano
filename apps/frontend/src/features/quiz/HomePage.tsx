@@ -160,9 +160,6 @@ export function HomePage() {
                       <span className="text-xs text-[var(--color-primary)] font-semibold uppercase tracking-wider">
                         {t(variant.labelKey)}
                       </span>
-                      {variant.slug.endsWith('-hardcore') && (
-                        <span className="text-xs text-red-500 font-medium">1 ❤️</span>
-                      )}
                       <svg
                         className="ml-auto h-4 w-4 text-[var(--color-muted-foreground)] shrink-0"
                         fill="none"

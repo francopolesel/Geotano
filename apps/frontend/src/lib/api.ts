@@ -41,6 +41,21 @@ async function request<T>(
   const lang = i18n.language?.startsWith('es') ? 'es' : 'en';
   const url = `${API_BASE}${endpoint}${cacheBuster}&lang=${lang}`;
 
+  // Inject lang into the request body for POST/PATCH so the backend can
+  // read it from the body (the query string is unreliable — some handlers
+  // like POST /api/quiz/answer read lang from request.body, not request.query).
+  if (options.body && options.method && ['POST', 'PATCH'].includes(options.method.toUpperCase())) {
+    try {
+      const parsed = JSON.parse(options.body as string);
+      if (!parsed.lang) {
+        parsed.lang = lang;
+        options = { ...options, body: JSON.stringify(parsed) };
+      }
+    } catch {
+      // Body is not JSON — leave as-is (e.g. FormData)
+    }
+  }
+
   const res = await fetch(url, {
     ...options,
     headers,
