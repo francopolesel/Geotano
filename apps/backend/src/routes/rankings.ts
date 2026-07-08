@@ -99,6 +99,20 @@ export async function rankingsRoutes(app: FastifyInstance) {
           username: users.username,
           avatarUrl: users.avatarUrl,
           score: sql<number>`CAST(MAX(${gameSessions.score}) AS INTEGER)`.as('score'),
+          gameModeSlug: modeSlug
+            ? sql<string>`${modeSlug}`.as('game_mode_slug')
+            : sql<string>`
+                (
+                  SELECT gm2.slug::text
+                  FROM game_sessions gs2
+                  JOIN game_modes gm2 ON gm2.id = gs2.game_mode_id
+                  WHERE gs2.user_id = ${gameSessions.userId}
+                    AND gs2.is_active = false
+                    AND gs2.completed_at IS NOT NULL
+                  ORDER BY gs2.score DESC
+                  LIMIT 1
+                )
+              `.as('game_mode_slug'),
         })
         .from(gameSessions)
         .innerJoin(users, eq(users.id, gameSessions.userId))
@@ -124,7 +138,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
           avatarUrl: e.avatarUrl ?? undefined,
           score: e.score,
           rank,
-          gameModeSlug: modeSlug ?? undefined,
+          gameModeSlug: (e.gameModeSlug ?? undefined) as GameModeSlug | undefined,
         };
       });
 

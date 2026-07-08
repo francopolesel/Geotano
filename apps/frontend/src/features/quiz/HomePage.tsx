@@ -131,7 +131,7 @@ export function HomePage() {
           {MODE_GROUPS.map((group) => (
             <div
               key={group.baseSlug}
-              className="relative overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 text-left shadow-sm transition-all hover:shadow-md"
+              className="relative flex flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 text-left shadow-sm transition-all hover:shadow-md"
             >
               {/* Color accent bar */}
               <div
@@ -149,7 +149,7 @@ export function HomePage() {
               </div>
 
               {/* Mode buttons — clickable to play */}
-              <div className="mt-4 flex flex-col gap-2">
+              <div className="mt-auto flex flex-col gap-2 pt-4">
                 {group.variants.map((variant) => (
                   <button
                     key={variant.slug}

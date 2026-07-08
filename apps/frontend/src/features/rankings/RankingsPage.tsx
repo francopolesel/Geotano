@@ -19,6 +19,10 @@ const MODE_SLUGS: { slug: GameModeSlug; key: string }[] = [
   { slug: 'free', key: 'modes.free' },
 ];
 
+const MODE_SLUG_TO_KEY: Record<string, string> = Object.fromEntries(
+  MODE_SLUGS.map((m) => [m.slug, m.key]),
+);
+
 export async function fetchRankings(
   scope: Scope,
   period: Period,
@@ -222,8 +226,17 @@ export function RankingsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-[var(--color-foreground)]">
-                          {entry.score.toLocaleString()}
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="font-mono text-sm font-semibold text-[var(--color-foreground)]">
+                              {entry.score.toLocaleString()}
+                            </span>
+                            {!mode && entry.gameModeSlug && (
+                              <span className="rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                {t(MODE_SLUG_TO_KEY[entry.gameModeSlug] ?? entry.gameModeSlug)}
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
