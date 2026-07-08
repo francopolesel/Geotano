@@ -47,9 +47,9 @@ import { calculateScore, getQuestionText, getAnswerText } from '../services/quiz
 // ─── calculateScore (pure function, no DB needed) ───────────────────────────
 
 describe('calculateScore', () => {
-  it('should return 0 for an incorrect answer', () => {
+  it('should return -50 for an incorrect answer', () => {
     const score = calculateScore(false, 5000, 15000, 0, 1.0);
-    expect(score).toBe(0);
+    expect(score).toBe(-50);
   });
 
   it('should return base score for a correct answer with no streak', () => {

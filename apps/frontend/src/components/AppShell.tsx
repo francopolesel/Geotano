@@ -30,7 +30,7 @@ export function AppShell() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Top navigation bar */}
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3">
+      <header className="border-b border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div className="flex items-center gap-4">
             {/* Mobile hamburger */}
@@ -48,7 +48,7 @@ export function AppShell() {
               </svg>
             </button>
             <NavLink to="/" className="flex items-center text-[var(--color-foreground)]">
-              <img src="/header_logo.png" alt="Geotano" className="h-24 w-auto" />
+              <img src="/header_logo.png" alt="Geotano" className="h-12 w-auto" />
             </NavLink>
           </div>
 

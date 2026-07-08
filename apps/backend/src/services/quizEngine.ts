@@ -15,6 +15,7 @@ import { eq, and, sql, notInArray } from 'drizzle-orm';
 const BASE_SCORE = 100;
 const STREAK_THRESHOLD = 3;
 const STREAK_MULTIPLIER = 1.5;
+const WRONG_PENALTY = -50;
 const OPTIONS_COUNT = 4;
 
 /** Continent name translations (DB stores only English). */
@@ -388,7 +389,7 @@ export function calculateScore(
   streakBefore: number,
   multiplier: number,
 ): number {
-  if (!wasCorrect) return 0;
+  if (!wasCorrect) return WRONG_PENALTY;
 
   let score = BASE_SCORE;
 
@@ -575,7 +576,7 @@ export async function submitAnswer(
   const [updatedSession] = await db
     .update(gameSessions)
     .set({
-      score: session.score + scoreEarned,
+      score: Math.max(0, session.score + scoreEarned),
       correctCount: session.correctCount + (wasCorrect ? 1 : 0),
       totalQuestions: session.totalQuestions + 1,
       streakMax: Math.max(session.streakMax, newStreak),
@@ -621,7 +622,7 @@ export async function submitAnswer(
     return result;
   }
 
-  // ── Express win check (totalQuestions ≥ mode limit) ────────────────────
+  // ── Win check (reached totalQuestions for standard/express) ────────────
   if (config.totalQuestions && updatedSession.totalQuestions >= config.totalQuestions) {
     questionCache.delete(sessionId);
     questionPool.delete(sessionId);

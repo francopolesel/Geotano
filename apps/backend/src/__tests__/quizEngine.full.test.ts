@@ -208,7 +208,7 @@ describe('startSession + submitAnswer integration', () => {
     const answer = await submitAnswer('session-1', 'user-1', 'WrongAnswer', 5000, 'en');
 
     expect(answer.correct).toBe(false);
-    expect(answer.score).toBe(0);
+    expect(answer.score).toBe(-50);
     expect(answer.livesRemaining).toBe(0);
     expect(answer.result).toBeDefined();
     expect(answer.result!.totalQuestions).toBe(1);
@@ -305,7 +305,7 @@ describe('startSession + submitAnswer integration', () => {
 
     // Time exceeded, so should be incorrect even though text matches
     expect(answer.correct).toBe(false);
-    expect(answer.score).toBe(0);
+    expect(answer.score).toBe(-50);
   });
 
   it('should generate fallback question when pool is empty', async () => {

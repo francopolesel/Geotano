@@ -11,7 +11,7 @@ export interface GameModeConfig {
   lives: number;
   multiplier: number;
   description: string;
-  /** 30 for express, undefined for unlimited/lives-based modes. */
+  /** 60 for standard, 30 for express, undefined for unlimited. */
   totalQuestions?: number;
 }
 
@@ -24,6 +24,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 15,
     lives: 3,
     multiplier: 1.0,
+    totalQuestions: 60,
     description: 'See the flag, guess the country',
   },
   'capital-guess': {
@@ -32,6 +33,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 15,
     lives: 3,
     multiplier: 1.0,
+    totalQuestions: 60,
     description: 'See the capital, guess the country',
   },
   'country-by-flag': {
@@ -40,6 +42,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 15,
     lives: 3,
     multiplier: 1.0,
+    totalQuestions: 60,
     description: 'See the country, guess its flag',
   },
   continent: {
@@ -48,6 +51,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 20,
     lives: 3,
     multiplier: 1.2,
+    totalQuestions: 60,
     description: 'Which continent does this country belong to?',
   },
   free: {
@@ -61,6 +65,7 @@ const BASE_CONFIGS: Record<string, GameModeConfig> = {
     timerSeconds: 15,
     lives: 3,
     multiplier: 1.5,
+    totalQuestions: 60,
     description: 'Mixed questions from all categories',
   },
 };

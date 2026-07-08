@@ -82,9 +82,9 @@ describe('unlimited variant configs', () => {
 
 describe('base mode configs', () => {
   for (const slug of BASE_SLUGS) {
-    it(`${slug} should have no totalQuestions`, () => {
+    it(`${slug} should have totalQuestions = 60`, () => {
       const config = getModeConfig(slug);
-      expect(config.totalQuestions).toBeUndefined();
+      expect(config.totalQuestions).toBe(60);
     });
   }
 });
@@ -130,12 +130,14 @@ describe('getAllModeConfigs', () => {
     }
   });
 
-  it('should include totalQuestions only for express variants', () => {
+  it('should include totalQuestions for base and express variants', () => {
     for (const config of getAllModeConfigs()) {
       if (config.slug.endsWith('-express')) {
         expect(config.totalQuestions).toBe(30);
-      } else {
+      } else if (config.slug.endsWith('-unlimited')) {
         expect(config.totalQuestions).toBeUndefined();
+      } else {
+        expect(config.totalQuestions).toBe(60);
       }
     }
   });
