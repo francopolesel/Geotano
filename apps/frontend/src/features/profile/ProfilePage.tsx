@@ -113,8 +113,9 @@ export function ProfilePage() {
 
   if (error || !data) {
     return (
-      <div className="mx-auto max-w-2xl py-12 text-center text-sm text-[var(--color-destructive)]">
-        {t('common.error')}
+      <div className="mx-auto max-w-2xl py-12 text-center">
+        <img src="/error_image.png" alt="" className="mx-auto mb-4 h-20 w-20 rounded-xl" />
+        <p className="text-sm text-[var(--color-destructive)]">{t('common.error')}</p>
       </div>
     );
   }

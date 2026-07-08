@@ -193,8 +193,9 @@ export function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Server error */}
           {error && (
-            <div className="rounded-lg bg-[var(--color-destructive)]/10 px-4 py-3 text-sm text-[var(--color-destructive)]">
-              {error}
+            <div className="flex items-center gap-3 rounded-lg bg-[var(--color-destructive)]/10 px-4 py-3">
+              <img src="/error_image.png" alt="" className="h-10 w-10 shrink-0 rounded-md" />
+              <p className="text-sm text-[var(--color-destructive)]">{error}</p>
             </div>
           )}
 

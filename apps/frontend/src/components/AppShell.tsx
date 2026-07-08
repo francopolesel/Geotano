@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle } from './LanguageToggle';
 import { NotificationBell } from './NotificationBell';
-import logo from '../assets/logo.png';
+// header_logo from /public — direct URL, no import needed
 
 const navItems = [
   { to: '/', label: 'home.title' },
@@ -47,9 +47,8 @@ export function AppShell() {
                 )}
               </svg>
             </button>
-            <NavLink to="/" className="flex items-center gap-2 text-xl font-bold text-[var(--color-foreground)]">
-              <img src={logo} alt="Geotano" className="h-10 w-10" />
-              {t('app.name')}
+            <NavLink to="/" className="flex items-center text-[var(--color-foreground)]">
+              <img src="/header_logo.png" alt="Geotano" className="h-10 w-auto" />
             </NavLink>
           </div>
 

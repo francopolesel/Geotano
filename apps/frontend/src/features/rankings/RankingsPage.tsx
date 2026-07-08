@@ -139,6 +139,7 @@ export function RankingsPage() {
       {/* Error state */}
       {error && !isLoading && (
         <div className="py-12 text-center">
+          <img src="/error_image.png" alt="" className="mx-auto mb-4 h-20 w-20 rounded-xl" />
           <p className="mb-3 text-sm text-[var(--color-destructive)]">
             {t('common.error')}
           </p>

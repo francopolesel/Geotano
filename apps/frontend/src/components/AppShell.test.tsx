@@ -58,10 +58,7 @@ vi.mock('./NotificationBell', () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }));
 
-// Mock image import (vite asset)
-vi.mock('../assets/logo.png', () => ({
-  default: 'logo-mock.png',
-}));
+// No logo import needed — using /public header_logo.png directly
 
 import { AppShell } from './AppShell';
 import { NavLink } from 'react-router-dom';
@@ -73,10 +70,11 @@ describe('AppShell', () => {
     mockNavigate.mockClear();
   });
 
-  it('should render the app name and navigation items', () => {
+  it('should render the header logo and navigation items', () => {
     render(<AppShell />);
 
-    expect(screen.getByText('Geotano')).toBeInTheDocument();
+    const logo = screen.getByAltText('Geotano');
+    expect(logo).toHaveAttribute('src', '/header_logo.png');
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Start')).toBeInTheDocument();
     expect(screen.getByText('Rankings')).toBeInTheDocument();
@@ -151,11 +149,11 @@ describe('AppShell', () => {
     expect(homeLink).toBeDefined();
   });
 
-  it('should render the logo image', () => {
+  it('should render the header logo image from public', () => {
     render(<AppShell />);
 
     const logo = screen.getByAltText('Geotano');
-    expect(logo).toHaveAttribute('src', 'logo-mock.png');
+    expect(logo).toHaveAttribute('src', '/header_logo.png');
   });
 
   it('should render logout button when user is logged in', () => {
