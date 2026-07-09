@@ -613,3 +613,251 @@ describe('GET /api/friends/blocked', () => {
     expect(body[0]).toMatchObject({ userId: 'user-2', username: 'blocked2' });
   });
 });
+
+describe('GET /api/users/search', () => {
+  let app: Awaited<ReturnType<typeof buildApp>>;
+
+  beforeEach(async () => {
+    vi.resetAllMocks();
+    setupMockDb();
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('should return 400 when query is too short', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/users/search?q=a',
+      headers: { authorization: 'Bearer valid-token' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).errorCode).toBe('SHORT_QUERY');
+  });
+
+  it('should return 400 when query is missing', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/users/search',
+      headers: { authorization: 'Bearer valid-token' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).errorCode).toBe('SHORT_QUERY');
+  });
+
+  it('should return matching users excluding self and existing friends', async () => {
+    // db.select(...).from(users).where(and(ne(uid), LIKE, NOT EXISTS(...))).limit(10)
+    waitData.push([
+      { id: 'user-3', username: 'player3', displayName: 'Player 3', avatarUrl: null },
+    ]);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/users/search?q=play',
+      headers: { authorization: 'Bearer valid-token' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.users).toHaveLength(1);
+    expect(body.users[0]).toMatchObject({ username: 'player3' });
+  });
+
+  it('should return empty array when no matches', async () => {
+    waitData.push([]);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/users/search?q=zzzzz',
+      headers: { authorization: 'Bearer valid-token' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).users).toEqual([]);
+  });
+});
+
+describe('POST /api/friends/request', () => {
+  let app: Awaited<ReturnType<typeof buildApp>>;
+
+  beforeEach(async () => {
+    vi.resetAllMocks();
+    setupMockDb();
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('should return 400 when username missing', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/request',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).errorCode).toBe('MISSING_FIELD');
+  });
+
+  it('should return 404 when target user not found', async () => {
+    waitData.push([]);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/request',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { username: 'nonexistent' },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body).errorCode).toBe('USER_NOT_FOUND');
+  });
+
+  it('should return 400 when sending request to self', async () => {
+    waitData.push([{ id: 'user-1', username: 'testuser' }]);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/request',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { username: 'testuser' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).errorCode).toBe('SELF_REQUEST');
+  });
+
+  it('should return 409 when already friends', async () => {
+    waitData.push([{ id: 'user-2', username: 'friend2' }]);
+    waitData.push([{ id: 'f1', userId: 'user-1', friendId: 'user-2', status: 'accepted' }]);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/request',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { username: 'friend2' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('ALREADY_FRIENDS');
+  });
+
+  it('should return 409 when request already sent', async () => {
+    waitData.push([{ id: 'user-2', username: 'friend2' }]);
+    waitData.push([{ id: 'f1', userId: 'user-1', friendId: 'user-2', status: 'pending' }]);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/request',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { username: 'friend2' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('REQUEST_ALREADY_SENT');
+  });
+
+  it('should send friend request successfully', async () => {
+    waitData.push([{ id: 'user-2', username: 'friend2' }]);  // target user
+    waitData.push([]);                                          // no existing
+    // insert → returning
+    waitData.push([{
+      id: 'fr-1',
+      status: 'pending',
+      createdAt: NOW,
+    }]);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/request',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { username: 'friend2' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.status).toBe('pending');
+    expect(body).toHaveProperty('id');
+  });
+});
+
+describe('POST /api/friends/accept', () => {
+  let app: Awaited<ReturnType<typeof buildApp>>;
+
+  beforeEach(async () => {
+    vi.resetAllMocks();
+    setupMockDb();
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('should return 404 when request not found', async () => {
+    waitData.push([]);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/accept',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { requestId: 'nonexistent' },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body).errorCode).toBe('REQUEST_NOT_FOUND');
+  });
+
+  it('should accept friend request successfully', async () => {
+    // Find the request
+    waitData.push([{ id: 'fr-1', userId: 'user-2', friendId: 'user-1', status: 'pending' }]);
+    // Update → returning
+    waitData.push([{ id: 'fr-1', status: 'accepted' }]);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/accept',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { requestId: 'fr-1' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.status).toBe('accepted');
+    expect(body.friendId).toBe('user-2');
+  });
+});
+
+describe('POST /api/friends/decline', () => {
+  let app: Awaited<ReturnType<typeof buildApp>>;
+
+  beforeEach(async () => {
+    vi.resetAllMocks();
+    setupMockDb();
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('should return 404 when request not found', async () => {
+    waitData.push([]);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/decline',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { requestId: 'nonexistent' },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body).errorCode).toBe('REQUEST_NOT_FOUND');
+  });
+
+  it('should decline friend request successfully', async () => {
+    waitData.push([{ id: 'fr-1', userId: 'user-2', friendId: 'user-1', status: 'pending' }]);
+    mockDb.delete.mockReturnThis();
+    mockDb.where.mockReturnThis();
+    waitData.push(undefined);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/friends/decline',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { requestId: 'fr-1' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ success: true });
+  });
+});

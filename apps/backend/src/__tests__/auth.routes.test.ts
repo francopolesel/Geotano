@@ -449,6 +449,28 @@ describe('POST /api/auth/google', () => {
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).user.displayName).toBe('emailonly');
   });
+
+  it('should return 400 when name, given_name, and email are all missing (falls to "user" default then fails at email check)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        sub: 'google-000',
+        email: null,
+        // no name, no given_name → name defaults to 'user', then email check fails
+        picture: null,
+        aud: 'my-client-id',
+      }),
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/google',
+      payload: { credential: 'valid-token', clientId: 'my-client-id' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).errorCode).toBe('GOOGLE_AUTH_FAILED');
+  });
 });
 
 describe('PATCH /api/auth/profile', () => {

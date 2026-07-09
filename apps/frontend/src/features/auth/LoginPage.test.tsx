@@ -400,6 +400,34 @@ describe('LoginPage', () => {
     });
   });
 
+  it('should show fallback error on non-Error Google credential failure', async () => {
+    // When the rejected value is not an Error instance (e.g. a string),
+    // the component falls back to the generic googleFailed translation.
+    mockPost.mockRejectedValueOnce('string error');
+
+    renderPage();
+    googleCredentialCallback!({ credential: 'bad-token' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Google sign-in failed')).toBeInTheDocument();
+    });
+  });
+
+  // ── Google not configured ─────────────────────────────────────────────────
+
+  it('should show Google not configured warning when env var is missing', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', undefined);
+    vi.resetModules();
+
+    const { LoginPage: LoginPageNoGoogle } = await import('./LoginPage');
+    render(<LoginPageNoGoogle />);
+
+    expect(screen.getByText('Google auth not configured')).toBeInTheDocument();
+
+    // Restore env for subsequent tests
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'test-google-client-id');
+  });
+
   // ── Register link ────────────────────────────────────────────────────────
 
   it('should link to register page', () => {

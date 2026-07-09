@@ -171,6 +171,50 @@ describe('Rankings API', () => {
     expect(body.period).toBe('daily');
   });
 
+  it('should default scope to global when not provided', async () => {
+    mockDb.where
+      .mockImplementationOnce(() => mockDb)
+      .mockResolvedValueOnce([{ totalPlayers: 5 }]);
+
+    mockDb.limit.mockResolvedValueOnce([
+      { userId: 'user-1', username: 'testuser', avatarUrl: null, score: 1500 },
+    ]);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/rankings?period=forever',  // no scope param
+      headers: { authorization: 'Bearer valid-token' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.scope).toBe('global');
+  });
+
+  it('should handle zero total players when no games exist', async () => {
+    mockDb.where
+      .mockImplementationOnce(() => mockDb)     // 1st: main query chaining
+      .mockResolvedValueOnce([])                 // 2nd: totalPlayers query → empty []
+      .mockImplementationOnce(() => mockDb);     // 3rd: userRank query chaining
+
+    mockDb.limit.mockResolvedValueOnce([]);      // main query → empty entries
+
+    mockDb.groupBy
+      .mockImplementationOnce(() => mockDb)     // 1st: main query chaining
+      .mockResolvedValueOnce([]);                // 2nd: userRank query → empty
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/rankings?scope=global&period=forever',
+      headers: { authorization: 'Bearer valid-token' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.totalPlayers).toBe(0);
+    expect(body.entries).toEqual([]);
+  });
+
   it('should include userRank when user is in top entries', async () => {
     mockDb.where
       .mockImplementationOnce(() => mockDb)

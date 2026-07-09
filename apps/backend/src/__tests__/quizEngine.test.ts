@@ -300,6 +300,31 @@ describe('startSession — mode insert path', () => {
   });
 });
 
+// ─── startSession: error when session creation fails ──────────────────────────
+
+describe('startSession — creation failure', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockDb();
+    waitData.length = 0;
+    questionPool.clear();
+    questionCache.clear();
+  });
+
+  it('should throw when session select returns empty after insert', async () => {
+    // 1. gameModes select → mode found
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    // 2. insert gameSessions succeeds (no return value)
+    waitData.push(undefined);
+    // 3. gameSessions select → empty (session was NOT created, e.g. DB constraint fail)
+    waitData.push([]);
+
+    await expect(
+      startSession('user-1', 'flag-guess', 'en'),
+    ).rejects.toThrow(/failed to create session/i);
+  });
+});
+
 // ─── startSession: error when no countries available ──────────────────────────
 
 describe('startSession — empty batch error', () => {

@@ -10,6 +10,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       const keys: Record<string, string> = {
+        'achievements.tierPlatinum': 'Platinum',
         'achievements.tierGold': 'Gold',
         'achievements.tierSilver': 'Silver',
         'achievements.tierBronze': 'Bronze',
@@ -80,6 +81,14 @@ describe('AchievementBadge', () => {
     render(<AchievementBadge achievement={{ ...baseAchievement, tier: 2, earnedAt: '2025-01-01T00:00:00Z' }} />);
 
     expect(screen.getByText('Silver')).toBeInTheDocument();
+  });
+
+  it('should display Platinum tier text and cyan styling for tier 4', () => {
+    const { container } = render(<AchievementBadge achievement={{ ...baseAchievement, tier: 4, earnedAt: '2025-01-01T00:00:00Z' }} />);
+
+    expect(screen.getByText('Platinum')).toBeInTheDocument();
+    const tierSpan = screen.getByText('Platinum');
+    expect(tierSpan.className).toContain('text-cyan-400');
   });
 
   it('should not render tier badge when tier is missing', () => {

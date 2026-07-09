@@ -89,6 +89,36 @@ describe('api ?lang= interceptor', () => {
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('&lang=en');
   });
+
+  it('should append cache-busting _t parameter to URL', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ data: 'ok' }),
+      status: 200,
+    });
+
+    await api.get('/test');
+
+    const calledUrl = mockFetch.mock.calls[0][0] as string;
+    expect(calledUrl).toMatch(/[?&]_t=\d+_/);
+  });
+
+  it('should use distinct cache-busting values on consecutive requests', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({}),
+      status: 200,
+    });
+
+    await api.get('/test');
+    await api.get('/test');
+
+    const url1 = mockFetch.mock.calls[0][0] as string;
+    const url2 = mockFetch.mock.calls[1][0] as string;
+    const t1 = url1.match(/_t=(\d+)/)?.[1];
+    const t2 = url2.match(/_t=(\d+)/)?.[1];
+    expect(t1).not.toBe(t2);
+  });
 });
 
 // ─── Error Handling ─────────────────────────────────────────────────────────
@@ -292,5 +322,47 @@ describe('api methods', () => {
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     // DELETE has no body — lang must still appear in the URL
     expect(calledUrl).toContain('lang=es');
+  });
+
+  it('should not override lang when already present in body', async () => {
+    mockLanguage.value = 'en';
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: 1 }),
+      status: 200,
+    });
+
+    // Body already has lang='fr' — the interceptor should NOT overwrite it
+    await api.post('/test', { name: 'test', lang: 'fr' });
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body as string);
+    expect(body.lang).toBe('fr');
+  });
+
+  it('should handle non-JSON body gracefully (FormData scenario)', async () => {
+    mockLanguage.value = 'en';
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: 'ok' }),
+      status: 200,
+    });
+
+    // Spy on JSON.parse to throw exactly once — simulating a non-JSON body
+    const parseSpy = vi.spyOn(JSON, 'parse').mockImplementationOnce(() => {
+      throw new SyntaxError('Unexpected token');
+    });
+
+    await api.post('/test', { name: 'test' });
+
+    parseSpy.mockRestore();
+
+    // The catch silently swallowed the error — fetch was still called
+    expect(mockFetch).toHaveBeenCalled();
+
+    const [, options] = mockFetch.mock.calls[0];
+    // Body should NOT have been modified (lang injection skipped)
+    const body = JSON.parse(options.body as string);
+    expect(body.lang).toBeUndefined();
   });
 });

@@ -57,7 +57,8 @@ vi.mock('../services/notifications.js', () => ({
   createNotification: vi.fn(() => ({ catch: vi.fn() })),
 }));
 
-import { initSocket, getIO, __resetForTesting } from '../socket/index.js';
+import { initSocket, getIO, getUserSocketIds, __resetForTesting } from '../socket/index.js';
+import { createNotification } from '../services/notifications.js';
 
 function setupMockDb() {
   waitData.length = 0;
@@ -96,6 +97,11 @@ describe('socket/index', () => {
   describe('getIO', () => {
     it('should throw when not initialized', () => {
       expect(() => getIO()).toThrow('not initialized');
+    });
+
+    it('should return instance after initialization', () => {
+      initSocket({ server: {} } as any);
+      expect(getIO()).toBeDefined();
     });
   });
 
@@ -420,6 +426,51 @@ describe('socket/index', () => {
           .filter(call => call[0] === 'friend-socket');
         expect(toCalls.length).toBeGreaterThanOrEqual(1);
       });
+
+      it('should create notification for receiver on chat:send', async () => {
+        mockVerifyToken.mockReturnValueOnce({ userId: 'user-1' });
+        initSocket({ server: {} } as any);
+
+        waitData.push([
+          { userId: 'user-1', friendId: 'user-2', status: 'accepted' },
+        ]);
+        waitData.push([{ userId: 'user-1', friendId: 'user-2', status: 'accepted' }]);
+        const msgDate = new Date();
+        waitData.push([{
+          id: 'msg-1', senderId: 'user-1', receiverId: 'user-2',
+          content: 'Hey!', read: false, createdAt: msgDate,
+        }]);
+
+        let chatSendHandler: Function = () => {};
+        const socket = createMockSocket({ id: 'sender-socket' });
+        socket.on.mockImplementation((event: string, handler: any) => {
+          if (event === 'chat:send') chatSendHandler = handler;
+        });
+
+        authMiddleware(socket, vi.fn());
+        await connectionHandler(socket);
+        await chatSendHandler({ receiverId: 'user-2', content: 'Hey!' });
+
+        expect(createNotification).toHaveBeenCalledWith(
+          expect.objectContaining({
+            userId: 'user-2',
+            type: 'new_message',
+            fromUserId: 'user-1',
+          }),
+        );
+      });
+    });
+  });
+
+  describe('getUserSocketIds', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      setupMockDb();
+      __resetForTesting();
+    });
+
+    it('should return empty array for unknown user', () => {
+      expect(getUserSocketIds('nonexistent')).toEqual([]);
     });
   });
 });

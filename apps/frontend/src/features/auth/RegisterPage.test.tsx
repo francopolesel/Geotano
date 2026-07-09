@@ -260,6 +260,18 @@ describe('RegisterPage', () => {
     });
   });
 
+  it('should show validation error for empty password', async () => {
+    render(<RegisterPage />);
+    fireEvent.change(screen.getByPlaceholderText('Enter your username'), { target: { value: 'testuser' } });
+    fireEvent.change(screen.getByPlaceholderText('your@email.com'), { target: { value: 'test@test.com' } });
+    // Leave password empty
+    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Password is required')).toBeInTheDocument();
+    });
+  });
+
   // ── Form submission ──────────────────────────────────────────────────────
 
   it('should call register and navigate on valid submit', async () => {
@@ -301,6 +313,17 @@ describe('RegisterPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Register' }));
 
     expect(mockClearError).toHaveBeenCalled();
+  });
+
+  it('should show fallback error on non-Error Google credential failure', async () => {
+    mockPost.mockRejectedValueOnce('string error');
+
+    render(<RegisterPage />);
+    googleCredentialCallback!({ credential: 'bad-token' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Google sign-in failed')).toBeInTheDocument();
+    });
   });
 
   // ── Login link ───────────────────────────────────────────────────────────

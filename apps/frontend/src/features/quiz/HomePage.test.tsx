@@ -27,6 +27,7 @@ const T = (key: string, params?: Record<string, any>) => {
     'profile.totalGames': 'Games',
     'profile.bestScore': 'Best Score',
     'profile.friends': 'Friends',
+    'profile.bestPlayer': '🏆 Best Player #{position}',
     'common.loading': 'Loading...',
     'home.noGamesYet': 'Play your first game to see stats!',
   };
@@ -243,6 +244,67 @@ describe('HomePage', () => {
     const unlimitedButtons = screen.getAllByText('Unlimited');
     unlimitedButtons.forEach((btn) => {
       expect(btn.textContent).not.toContain('🔥');
+    });
+  });
+
+  // ── Best Player ───────────────────────────────────────────────────────────
+
+  it('should show Best Player banner with 👑 for globalRank 1', async () => {
+    mockApiGet.mockResolvedValue({
+      stats: { totalScore: 50000, totalGames: 100, bestScore: 5000, friends: 25, globalRank: 1 },
+    });
+    render(<HomePage />);
+
+    await waitFor(() => {
+      // The 👑 and Best Player text are in the same <p> element — use function matcher
+      expect(screen.getByText((content) => content.includes('🏆 Best Player #1'))).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes('👑'))).toBeInTheDocument();
+    });
+  });
+
+  it('should show Best Player banner without crown for globalRank 2', async () => {
+    mockApiGet.mockResolvedValue({
+      stats: { totalScore: 30000, totalGames: 80, bestScore: 4000, friends: 20, globalRank: 2 },
+    });
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('🏆 Best Player #2', { exact: false })).toBeInTheDocument();
+      expect(screen.queryByText((content) => content.includes('👑'))).not.toBeInTheDocument();
+    });
+  });
+
+  it('should show Best Player banner for globalRank 3', async () => {
+    mockApiGet.mockResolvedValue({
+      stats: { totalScore: 10000, totalGames: 50, bestScore: 3000, friends: 15, globalRank: 3 },
+    });
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('🏆 Best Player #3', { exact: false })).toBeInTheDocument();
+    });
+  });
+
+  it('should not show Best Player banner for globalRank > 3', async () => {
+    mockApiGet.mockResolvedValue({
+      stats: { totalScore: 5000, totalGames: 20, bestScore: 1500, friends: 5, globalRank: 5 },
+    });
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Best Player/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('should not show Best Player banner when globalRank is undefined', async () => {
+    mockApiGet.mockResolvedValue({
+      stats: { totalScore: 15000, totalGames: 42, bestScore: 2500, friends: 12 },
+    });
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('15000')).toBeInTheDocument(); // stats still show
+      expect(screen.queryByText(/Best Player/)).not.toBeInTheDocument();
     });
   });
 });
