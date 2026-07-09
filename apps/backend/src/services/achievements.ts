@@ -84,6 +84,7 @@ export async function checkAchievements(userId: string): Promise<void> {
   // Hardcore session data (all sessions regardless of isActive — wins leave isActive=true)
   const hardcoreSessions = await db
     .select({
+      slug: gameModes.slug,
       livesRemaining: gameSessions.livesRemaining,
       maxLives: gameModes.lives,
     })
@@ -97,6 +98,17 @@ export async function checkAchievements(userId: string): Promise<void> {
     );
 
   const hardcoreWins = hardcoreSessions.filter((s) => s.livesRemaining > 0).length;
+  const hardcoreWonSlugs = new Set(
+    hardcoreSessions.filter((s) => s.livesRemaining > 0).map((s) => s.slug),
+  );
+  const expectedHardcoreSlugs = new Set([
+    'flag-guess-hardcore',
+    'capital-guess-hardcore',
+    'country-by-flag-hardcore',
+    'continent-hardcore',
+    'free-hardcore',
+  ]);
+  const wonAllHardcoreModes = [...expectedHardcoreSlugs].every((s) => hardcoreWonSlugs.has(s));
 
   const totalGames = stats?.totalGames ?? 0;
   const totalScore = stats?.totalScore ?? 0;
@@ -172,6 +184,15 @@ export async function checkAchievements(userId: string): Promise<void> {
         earned = hardcoreSessions.some(
           (s) => s.livesRemaining > 0 && s.livesRemaining === s.maxLives,
         );
+        break;
+      case 'streak_100':
+        earned = maxStreak >= 100;
+        break;
+      case 'hardcore_grandmaster':
+        earned = wonAllHardcoreModes;
+        break;
+      case 'score_1m':
+        earned = totalScore >= 1_000_000;
         break;
     }
 

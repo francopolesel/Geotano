@@ -10,6 +10,7 @@ interface HomeStats {
   totalGames: number;
   bestScore: number;
   friends: number;
+  globalRank?: number;
 }
 
 interface ModeVariant {
@@ -190,7 +191,27 @@ export function HomePage() {
         {statsLoading ? (
           <p className="text-sm text-[var(--color-muted-foreground)]">{t('common.loading')}</p>
         ) : stats && stats.totalGames > 0 ? (
-          <div className="grid grid-cols-4 gap-4">
+          <>
+            {/* Best Player rank — only for global top 3 */}
+            {(stats as any).globalRank !== undefined && (stats as any).globalRank <= 3 && (
+              <div className={`mb-4 rounded-lg border-2 px-4 py-3 text-center ${
+                (stats as any).globalRank === 1
+                  ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20 shadow-[0_0_15px_rgba(234,179,8,0.3)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-card)]'
+              }`}>
+                <p className={`font-bold ${
+                  (stats as any).globalRank === 1
+                    ? 'text-3xl text-yellow-600 dark:text-yellow-400'
+                    : 'text-lg text-[var(--color-foreground)]'
+                }`}>
+                  {(stats as any).globalRank === 1 ? '👑 #1' : `#${(stats as any).globalRank}`}
+                </p>
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  {t('profile.bestPlayer', { position: (stats as any).globalRank })}
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
               <p className="text-lg font-bold text-[var(--color-foreground)]">{stats.totalScore}</p>
               <p className="text-xs text-[var(--color-muted-foreground)]">{t('profile.totalScore')}</p>
@@ -208,6 +229,7 @@ export function HomePage() {
               <p className="text-xs text-[var(--color-muted-foreground)]">{t('profile.friends')}</p>
             </div>
           </div>
+          </>
         ) : (
           <p className="text-sm text-[var(--color-card-foreground)]">
             {t('home.noGamesYet')}

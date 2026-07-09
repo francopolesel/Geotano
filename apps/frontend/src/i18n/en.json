@@ -145,7 +145,7 @@
   "profile.userIdMissing": "User ID is missing",
   "profile.stats.perfectGames": "Perfect Games",
     "profile.stats.streak": "Best Streak",
-    "profile.bestPlayer": "Best Player #{position}",
+    "profile.bestPlayer": "Best Player #{{position}}",
 
   "rankings.title": "Rankings",
   "rankings.global": "Global",
@@ -242,6 +242,7 @@
   "notifications.someone": "Someone",
   "notifications.descriptionFormat": "{{fromName}} — {{label}}",
 
+  "achievements.tierPlatinum": "PLATINUM",
   "achievements.tierGold": "GOLD",
   "achievements.tierSilver": "SILVER",
   "achievements.tierBronze": "BRONZE",
@@ -251,6 +252,12 @@
   "achievements.hardcoreVeteranDesc": "Win 5 hardcore games",
   "achievements.hardcorePerfect": "Hardcore Perfect",
   "achievements.hardcorePerfectDesc": "Win a hardcore game without losing a life",
+  "achievements.streak100": "Century Streak",
+  "achievements.streak100Desc": "Get a 100-answer streak",
+  "achievements.hardcoreGrandmaster": "Hardcore Grandmaster",
+  "achievements.hardcoreGrandmasterDesc": "Win a hardcore game in all 5 modes",
+  "achievements.score1m": "Millionaire",
+  "achievements.score1mDesc": "Reach 1,000,000 total score",
 
   "errors.common.sessionExpired": "Session expired. Please log in again.",
   "errors.common.loginFailed": "Login failed",

@@ -44,18 +44,22 @@ export function AchievementBadge({ achievement }: AchievementBadgeProps) {
       {achievement.tier && (
         <span
           className={`text-[10px] font-semibold ${
-            achievement.tier === 3
-              ? 'text-yellow-500'
-              : achievement.tier === 2
-                ? 'text-gray-400'
-                : 'text-amber-700'
+            achievement.tier === 4
+              ? 'text-cyan-400'
+              : achievement.tier === 3
+                ? 'text-yellow-500'
+                : achievement.tier === 2
+                  ? 'text-gray-400'
+                  : 'text-amber-700'
           }`}
         >
-          {achievement.tier === 3
-            ? t('achievements.tierGold')
-            : achievement.tier === 2
-              ? t('achievements.tierSilver')
-              : t('achievements.tierBronze')}
+          {achievement.tier === 4
+            ? t('achievements.tierPlatinum')
+            : achievement.tier === 3
+              ? t('achievements.tierGold')
+              : achievement.tier === 2
+                ? t('achievements.tierSilver')
+                : t('achievements.tierBronze')}
         </span>
       )}
     </div>

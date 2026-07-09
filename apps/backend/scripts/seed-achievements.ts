@@ -210,6 +210,40 @@ async function seedAchievements() {
       tier: null,
       sortOrder: 18,
     },
+    // ── Platinum ────────────────────────────────────────────────────
+    {
+      slug: 'streak_100',
+      nameEn: 'Century Streak',
+      nameEs: 'Racha Centenaria',
+      descriptionEn: 'Get a 100-answer streak',
+      descriptionEs: 'Conseguí una racha de 100 respuestas correctas',
+      icon: '💎',
+      category: 'gameplay',
+      tier: 4,
+      sortOrder: 19,
+    },
+    {
+      slug: 'hardcore_grandmaster',
+      nameEn: 'Hardcore Grandmaster',
+      nameEs: 'Gran Maestro Hardcore',
+      descriptionEn: 'Win a hardcore game in all 5 modes',
+      descriptionEs: 'Ganá una partida hardcore en los 5 modos',
+      icon: '⚜️',
+      category: 'mastery',
+      tier: 4,
+      sortOrder: 20,
+    },
+    {
+      slug: 'score_1m',
+      nameEn: 'Millionaire',
+      nameEs: 'Millonario',
+      descriptionEn: 'Reach 1,000,000 total score',
+      descriptionEs: 'Alcanzá 1,000,000 de puntos totales',
+      icon: '💵',
+      category: 'mastery',
+      tier: 4,
+      sortOrder: 21,
+    },
   ];
 
   for (const ach of allAchievements) {

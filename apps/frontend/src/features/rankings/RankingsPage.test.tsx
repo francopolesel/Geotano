@@ -265,7 +265,7 @@ describe('RankingsPage', () => {
     // "Capital Guess" appears once as mode tab + once as badge = 2
     expect(screen.getAllByText('Capital Guess')).toHaveLength(2);
     // Hardcore badge should be present
-    expect(screen.getByText('Extremo 🔥')).toBeInTheDocument();
+    expect(screen.getByText('🔥Extremo')).toBeInTheDocument();
   });
 
   it('should show base mode name for unlimited slug', () => {

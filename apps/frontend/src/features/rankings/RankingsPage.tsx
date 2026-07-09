@@ -241,7 +241,7 @@ export function RankingsPage() {
                           </div>
                         </td>
                         <td className="px-3 sm:px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2">
                             <span className="font-mono text-sm font-semibold text-[var(--color-foreground)]">
                               {entry.score.toLocaleString()}
                             </span>
@@ -250,23 +250,23 @@ export function RankingsPage() {
                               const baseKey = MODE_SLUG_TO_KEY[base];
                               if (!baseKey) {
                                 return (
-                                  <span className="rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                  <span className="rounded bg-[var(--color-muted)] px-1 py-0.5 text-[9px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
                                     {entry.gameModeSlug}
                                   </span>
                                 );
                               }
                               return (
-                                <div className="flex items-center gap-1">
-                                  <span className="rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                <div className="flex items-center gap-0.5 sm:gap-1">
+                                  <span className="rounded bg-[var(--color-muted)] px-1 py-0.5 text-[9px] sm:text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
                                     {t(baseKey)}
                                   </span>
                                   {variant === 'hardcore' && (
-                                    <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-medium text-white whitespace-nowrap">
-                                      {t('modes.variantHardcore')} 🔥
+                                    <span className="rounded bg-red-600 px-1 py-0.5 text-[9px] sm:text-[10px] font-medium text-white whitespace-nowrap">
+                                      🔥{t('modes.variantHardcore')}
                                     </span>
                                   )}
                                   {variant === 'unlimited' && (
-                                    <span className="rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                    <span className="rounded bg-[var(--color-muted)] px-1 py-0.5 text-[9px] sm:text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
                                       {t('modes.variantUnlimited')}
                                     </span>
                                   )}

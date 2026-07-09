@@ -145,7 +145,7 @@
   "profile.userIdMissing": "Falta el ID de usuario",
   "profile.stats.perfectGames": "Juegos Perfectos",
     "profile.stats.streak": "Mejor Racha",
-    "profile.bestPlayer": "Mejor Jugador #{position}",
+    "profile.bestPlayer": "Mejor Jugador #{{position}}",
 
   "rankings.title": "Rankings",
   "rankings.global": "Global",
@@ -242,6 +242,7 @@
   "notifications.someone": "Alguien",
   "notifications.descriptionFormat": "{{fromName}} — {{label}}",
 
+  "achievements.tierPlatinum": "PLATINO",
   "achievements.tierGold": "ORO",
   "achievements.tierSilver": "PLATA",
   "achievements.tierBronze": "BRONCE",
@@ -251,6 +252,12 @@
   "achievements.hardcoreVeteranDesc": "Ganá 5 partidas hardcore",
   "achievements.hardcorePerfect": "Hardcore Perfecto",
   "achievements.hardcorePerfectDesc": "Ganá una partida hardcore sin perder una vida",
+  "achievements.streak100": "Racha Centenaria",
+  "achievements.streak100Desc": "Conseguí una racha de 100 respuestas correctas",
+  "achievements.hardcoreGrandmaster": "Gran Maestro Hardcore",
+  "achievements.hardcoreGrandmasterDesc": "Ganá una partida hardcore en los 5 modos",
+  "achievements.score1m": "Millonario",
+  "achievements.score1mDesc": "Alcanzá 1,000,000 de puntos totales",
 
   "errors.common.sessionExpired": "Sesión expirada. Iniciá sesión de nuevo.",
   "errors.common.loginFailed": "Error al iniciar sesión",
