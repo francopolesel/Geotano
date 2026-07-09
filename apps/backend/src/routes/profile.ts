@@ -48,6 +48,36 @@ export async function profileRoutes(app: FastifyInstance) {
           ),
         );
 
+      // Global rank (position among all users by best score)
+      let globalRank: number | undefined;
+      if (scoreResult && scoreResult.bestScore > 0) {
+        const higherRanked = await db
+          .select({
+            count: sql<number>`CAST(COUNT(*) AS INTEGER)`,
+          })
+          .from(
+            db
+              .select({
+                userId: gameSessions.userId,
+              })
+              .from(gameSessions)
+              .innerJoin(gameModes, eq(gameModes.id, gameSessions.gameModeId))
+              .where(
+                and(
+                  eq(gameSessions.isActive, false),
+                  sql`${gameSessions.completedAt} IS NOT NULL`,
+                ),
+              )
+              .groupBy(gameSessions.userId)
+              .having(
+                sql`CAST(MAX(${gameSessions.score}) AS INTEGER) > ${scoreResult.bestScore}`,
+              )
+              .as('higher'),
+          );
+
+        globalRank = (higherRanked[0]?.count ?? 0) + 1;
+      }
+
       // Friend count
       const [friendCountResult] = await db
         .select({
@@ -176,6 +206,7 @@ export async function profileRoutes(app: FastifyInstance) {
           friends: friendCountResult?.count ?? 0,
           perfectGames: perfectResult?.count ?? 0,
           bestStreak: streakResult?.maxStreak ?? 0,
+          globalRank: globalRank,
         },
         recentGames: recentGames.map((g) => ({
           id: g.id,

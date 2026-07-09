@@ -130,20 +130,23 @@ describe('HomePage', () => {
 
   it('should show Hardcore pill on each mode card', () => {
     render(<HomePage />);
-    expect(screen.getAllByText('Hardcore')).toHaveLength(5);
+    // Each hardcore button now shows "🔥 Hardcore"
+    const hardcoreButtons = screen.getAllByText((content) => content.includes('🔥 Hardcore'));
+    expect(hardcoreButtons).toHaveLength(5);
   });
 
   it('should show hardcore label on each mode card without ❤️ indicator', () => {
     render(<HomePage />);
-    // Hardcore variant label should appear 5 times (one per mode group)
-    expect(screen.getAllByText('Hardcore')).toHaveLength(5);
+    // Hardcore variant label should appear 5 times (one per mode group) with fire emoji
+    const hardcoreButtons = screen.getAllByText((content) => content.includes('🔥 Hardcore'));
+    expect(hardcoreButtons).toHaveLength(5);
     // The 1 ❤️ indicator should NOT be present (removed per design)
     expect(screen.queryByText('1 ❤️')).not.toBeInTheDocument();
   });
 
   it('should navigate to hardcore mode when hardcore pill is clicked', () => {
     render(<HomePage />);
-    const hardcorePills = screen.getAllByText('Hardcore');
+    const hardcorePills = screen.getAllByText((content) => content.includes('🔥 Hardcore'));
     fireEvent.click(hardcorePills[0]);
     expect(mockNavigate).toHaveBeenCalledWith('/quiz?mode=flag-guess-hardcore');
   });
@@ -206,5 +209,40 @@ describe('HomePage', () => {
     mockUser.current = null;
     render(<HomePage />);
     expect(mockApiGet).not.toHaveBeenCalled();
+  });
+
+  // ── Hardcore variant styles ────────────────────────────────────────────
+
+  it('should have red border on all hardcore variant buttons', () => {
+    render(<HomePage />);
+    const hardcoreButtons = screen.getAllByText((content) => content.includes('🔥 Hardcore'));
+    expect(hardcoreButtons).toHaveLength(5);
+
+    hardcoreButtons.forEach((btn) => {
+      const button = btn.closest('button') || btn;
+      expect(button.className).toMatch(/border-red|ring-red/);
+    });
+  });
+
+  it('should show fire emoji on all hardcore variant buttons', () => {
+    render(<HomePage />);
+    const fireElements = screen.getAllByText((content) => content.includes('🔥'));
+    expect(fireElements).toHaveLength(5);
+  });
+
+  it('should not show fire emoji on standard variant buttons', () => {
+    render(<HomePage />);
+    const standardButtons = screen.getAllByText('Standard');
+    standardButtons.forEach((btn) => {
+      expect(btn.textContent).not.toContain('🔥');
+    });
+  });
+
+  it('should not show fire emoji on unlimited variant buttons', () => {
+    render(<HomePage />);
+    const unlimitedButtons = screen.getAllByText('Unlimited');
+    unlimitedButtons.forEach((btn) => {
+      expect(btn.textContent).not.toContain('🔥');
+    });
   });
 });

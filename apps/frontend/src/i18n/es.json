@@ -144,7 +144,8 @@
   "profile.unblock": "Desbloquear usuario",
   "profile.userIdMissing": "Falta el ID de usuario",
   "profile.stats.perfectGames": "Juegos Perfectos",
-  "profile.stats.streak": "Mejor Racha",
+    "profile.stats.streak": "Mejor Racha",
+    "profile.bestPlayer": "Mejor Jugador #{position}",
 
   "rankings.title": "Rankings",
   "rankings.global": "Global",

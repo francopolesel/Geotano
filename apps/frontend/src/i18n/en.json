@@ -144,7 +144,8 @@
   "profile.unblock": "Unblock user",
   "profile.userIdMissing": "User ID is missing",
   "profile.stats.perfectGames": "Perfect Games",
-  "profile.stats.streak": "Best Streak",
+    "profile.stats.streak": "Best Streak",
+    "profile.bestPlayer": "Best Player #{position}",
 
   "rankings.title": "Rankings",
   "rankings.global": "Global",

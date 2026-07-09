@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 // ─── Translation dictionary ────────────────────────────────────────────────
-const T = (key: string) => {
+const T = (key: string, params?: Record<string, any>) => {
   const dict: Record<string, string> = {
     'profile.userIdMissing': 'User ID missing',
     'common.loading': 'Loading...',
@@ -33,8 +33,13 @@ const T = (key: string) => {
     'modes.free': 'Mix Libre',
     'modes.freeHardcore': 'Extremo',
     'modes.freeUnlimited': 'Mix Libre (Unlimited)',
+    'profile.bestPlayer': 'Best Player #{position}',
+    'profile.bestPlayerRank': '#{rank}',
+    'profile.stats.rank': 'Global Rank',
   };
-  return dict[key] ?? key;
+  let text = dict[key] ?? key;
+  if (params) text = text.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? `{${k}}`));
+  return text;
 };
 
 // ─── Shared mutable query state ────────────────────────────────────────────
@@ -77,7 +82,7 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => T(key) }),
+  useTranslation: () => ({ t: (key: string, params?: Record<string, any>) => T(key, params) }),
   initReactI18next: { type: '3rdParty' },
 }));
 
@@ -205,6 +210,58 @@ describe('ProfilePage', () => {
     expect(screen.getByText('Best Score')).toBeInTheDocument();
     expect(screen.getByText('Games Played')).toBeInTheDocument();
     expect(screen.getByText('Friends')).toBeInTheDocument();
+  });
+
+  // ── Best Player stat ─────────────────────────────────────────────────────
+
+  it('should show Best Player #1 stat with crown and golden style when globalRank is 1', () => {
+    queryState.data = {
+      ...sampleProfile,
+      stats: { totalScore: 15000, totalGames: 42, bestScore: 2500, friends: 12, globalRank: 1 },
+    };
+    render(<ProfilePage />);
+
+    expect(screen.getByText('Best Player #1')).toBeInTheDocument();
+    expect(screen.getByText('👑 #1')).toBeInTheDocument();
+  });
+
+  it('should show Best Player #2 stat without crown when globalRank is 2', () => {
+    queryState.data = {
+      ...sampleProfile,
+      stats: { totalScore: 15000, totalGames: 42, bestScore: 2500, friends: 12, globalRank: 2 },
+    };
+    render(<ProfilePage />);
+
+    expect(screen.getByText('Best Player #2')).toBeInTheDocument();
+    expect(screen.queryByText('👑')).not.toBeInTheDocument();
+  });
+
+  it('should show Best Player #3 stat without crown when globalRank is 3', () => {
+    queryState.data = {
+      ...sampleProfile,
+      stats: { totalScore: 15000, totalGames: 42, bestScore: 2500, friends: 12, globalRank: 3 },
+    };
+    render(<ProfilePage />);
+
+    expect(screen.getByText('Best Player #3')).toBeInTheDocument();
+    expect(screen.queryByText('👑')).not.toBeInTheDocument();
+  });
+
+  it('should not show Best Player stat when globalRank is greater than 3', () => {
+    queryState.data = {
+      ...sampleProfile,
+      stats: { totalScore: 15000, totalGames: 42, bestScore: 2500, friends: 12, globalRank: 5 },
+    };
+    render(<ProfilePage />);
+
+    expect(screen.queryByText(/Best Player/i)).not.toBeInTheDocument();
+  });
+
+  it('should not show Best Player stat when globalRank is undefined', () => {
+    queryState.data = { ...sampleProfile };
+    render(<ProfilePage />);
+
+    expect(screen.queryByText(/Best Player/i)).not.toBeInTheDocument();
   });
 
   // ── Achievements ─────────────────────────────────────────────────────────

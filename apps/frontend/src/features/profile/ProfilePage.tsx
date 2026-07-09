@@ -21,6 +21,7 @@ interface UserStats {
   totalGames: number;
   bestScore: number;
   friends: number;
+  globalRank?: number;
 }
 
 interface RecentGame {
@@ -284,14 +285,35 @@ export function ProfilePage() {
 
       {/* Stats grid */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-[var(--color-foreground)]">
-          {t('profile.stats')}
-        </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <StatCard label={t('profile.bestScore')} value={stats.bestScore.toLocaleString()} highlight />
-          <StatCard label={t('profile.totalGames')} value={stats.totalGames.toLocaleString()} />
-          <StatCard label={t('profile.friends')} value={stats.friends.toLocaleString()} />
-        </div>
+          <h2 className="mb-3 text-lg font-semibold text-[var(--color-foreground)]">
+            {t('profile.stats')}
+          </h2>
+
+          {/* Best Player rank — only for global top 3 */}
+          {stats.globalRank !== undefined && stats.globalRank <= 3 && (
+            <div className={`mb-3 rounded-lg border-2 px-4 py-3 text-center ${
+              stats.globalRank === 1
+                ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20 shadow-[0_0_15px_rgba(234,179,8,0.3)]'
+                : 'border-[var(--color-border)] bg-[var(--color-card)]'
+            }`}>
+              <p className={`font-bold ${
+                stats.globalRank === 1
+                  ? 'text-3xl text-yellow-600 dark:text-yellow-400'
+                  : 'text-lg text-[var(--color-foreground)]'
+              }`}>
+                {stats.globalRank === 1 ? '👑 #1' : `#${stats.globalRank}`}
+              </p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">
+                {t('profile.bestPlayer', { position: stats.globalRank })}
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <StatCard label={t('profile.bestScore')} value={stats.bestScore.toLocaleString()} highlight />
+            <StatCard label={t('profile.totalGames')} value={stats.totalGames.toLocaleString()} />
+            <StatCard label={t('profile.friends')} value={stats.friends.toLocaleString()} />
+          </div>
       </section>
 
       {/* Achievements */}

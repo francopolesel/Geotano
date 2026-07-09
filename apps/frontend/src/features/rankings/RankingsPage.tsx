@@ -184,17 +184,17 @@ export function RankingsPage() {
               {t('rankings.noData')}
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
-              <table className="w-full text-sm min-w-[400px]">
+            <div className="-mx-4 sm:mx-0 overflow-x-auto rounded-none sm:rounded-lg border-x-0 sm:border-x border-[var(--color-border)]">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--color-border)] bg-[var(--color-muted)]/50">
-                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase text-[var(--color-muted-foreground)]">
+                    <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium uppercase text-[var(--color-muted-foreground)] w-8 sm:w-auto">
                       #
                     </th>
-                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase text-[var(--color-muted-foreground)]">
+                    <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium uppercase text-[var(--color-muted-foreground)]">
                       {t('rankings.player')}
                     </th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium uppercase text-[var(--color-muted-foreground)]">
+                    <th className="px-3 sm:px-4 py-2.5 text-right text-xs font-medium uppercase text-[var(--color-muted-foreground)] whitespace-nowrap">
                       {t('rankings.score')}
                     </th>
                   </tr>
@@ -212,10 +212,10 @@ export function RankingsPage() {
                             : 'hover:bg-[var(--color-muted)]/30'
                         }`}
                       >
-                        <td className="px-4 py-3 font-mono text-xs text-[var(--color-muted-foreground)]">
+                        <td className="px-3 sm:px-4 py-3 font-mono text-xs text-[var(--color-muted-foreground)]">
                           {entry.rank}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 sm:px-4 py-3">
                           <div className="flex items-center gap-3">
                             <UserAvatar
                               avatarUrl={entry.avatarUrl}
@@ -240,7 +240,7 @@ export function RankingsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-3 sm:px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <span className="font-mono text-sm font-semibold text-[var(--color-foreground)]">
                               {entry.score.toLocaleString()}

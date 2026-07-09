@@ -154,11 +154,15 @@ export function HomePage() {
                   <button
                     key={variant.slug}
                     onClick={() => handleStart(variant.slug)}
-                    className="min-h-[48px] w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-left text-sm font-medium text-[var(--color-foreground)] transition-all hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-md hover:bg-[var(--color-primary)]/5 active:translate-y-0 active:shadow-sm"
+                    className={`min-h-[48px] w-full rounded-lg border px-4 py-2.5 text-left text-sm font-medium text-[var(--color-foreground)] transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm ${
+                      variant.slug.endsWith('-hardcore')
+                        ? 'border-red-500/50 bg-red-50 dark:bg-red-950/20 hover:border-red-500 hover:bg-red-100 dark:hover:bg-red-950/40'
+                        : 'border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5'
+                    }`}
                   >
                     <span className="flex items-center gap-2">
                       <span className="text-xs text-[var(--color-primary)] font-semibold uppercase tracking-wider">
-                        {t(variant.labelKey)}
+                        {variant.slug.endsWith('-hardcore') ? `🔥 ${t(variant.labelKey)}` : t(variant.labelKey)}
                       </span>
                       <svg
                         className="ml-auto h-4 w-4 text-[var(--color-muted-foreground)] shrink-0"

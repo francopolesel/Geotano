@@ -24,6 +24,8 @@ const T = (key: string, params?: Record<string, any>) => {
     'modes.countryByFlag': 'Country by Flag',
     'modes.continent': 'Continent',
     'modes.free': 'Free Mode',
+    'modes.variantHardcore': 'Extremo',
+    'modes.variantUnlimited': 'Unlimited',
   };
   let text = dict[key] ?? key;
   if (params) text = text.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? `{${k}}`));
@@ -247,6 +249,37 @@ describe('RankingsPage', () => {
     render(<RankingsPage />);
     fireEvent.click(screen.getByText('Capital Guess'));
     expect(screen.getByText('Leaderboard')).toBeInTheDocument();
+  });
+
+  // ── Game mode badges (variant slugs) ───────────────────────────────────────
+
+  it('should show base mode name + Extremo badge for hardcore slug', () => {
+    queryState.data = {
+      ...sampleRankings,
+      entries: [
+        { userId: 'user-1', username: 'player1', avatarUrl: null, score: 5000, rank: 1, gameModeSlug: 'capital-guess-hardcore' },
+      ],
+    };
+    render(<RankingsPage />);
+
+    // "Capital Guess" appears once as mode tab + once as badge = 2
+    expect(screen.getAllByText('Capital Guess')).toHaveLength(2);
+    // Hardcore badge should be present
+    expect(screen.getByText('Extremo 🔥')).toBeInTheDocument();
+  });
+
+  it('should show base mode name for unlimited slug', () => {
+    queryState.data = {
+      ...sampleRankings,
+      entries: [
+        { userId: 'user-1', username: 'player1', avatarUrl: null, score: 5000, rank: 1, gameModeSlug: 'flag-guess-unlimited' },
+      ],
+    };
+    render(<RankingsPage />);
+
+    // "Flag Guess" appears once as mode tab + once as badge = 2
+    expect(screen.getAllByText('Flag Guess')).toHaveLength(2);
+    expect(screen.getByText('Unlimited')).toBeInTheDocument();
   });
 
   // ── fetchRankings (lines 22-30) ──────────────────────────────────────────
