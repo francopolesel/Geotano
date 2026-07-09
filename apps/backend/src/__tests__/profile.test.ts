@@ -19,6 +19,9 @@ const mockDb = vi.hoisted(() => ({
   set: vi.fn(),
   delete: vi.fn(),
   onConflictDoNothing: vi.fn(),
+  groupBy: vi.fn(),
+  having: vi.fn(),
+  as: vi.fn(),
   then(resolve: (value: any) => void) {
     const data = waitData.shift();
     resolve(data !== undefined ? data : []);
@@ -60,6 +63,9 @@ function setupMockDbChain() {
   mockDb.set.mockReturnThis();
   mockDb.delete.mockReturnThis();
   mockDb.onConflictDoNothing.mockReturnThis();
+  mockDb.groupBy.mockReturnThis();
+  mockDb.having.mockReturnThis();
+  mockDb.as.mockReturnThis();
 }
 
 async function buildApp() {
@@ -128,12 +134,13 @@ describe('GET /api/users/:id/profile', () => {
 
   it('should return full profile with stats and recent games', async () => {
     // 6 DB queries + 1 external service call
-    waitData.push([PROFILE_USER]);         // Q1: user lookup → .limit(1)
-    waitData.push([SCORE_STATS]);           // Q2: score stats → .where()
-    waitData.push([FRIEND_COUNT]);           // Q3: friend count → .where()
-    waitData.push([{ count: 5 }]);           // Q4: perfect games → .where()
-    waitData.push([{ maxStreak: 12 }]);      // Q5: best streak → .where()
-    waitData.push(RECENT_GAMES);             // Q6: recent games → .limit(10)
+    waitData.push([PROFILE_USER]);           // Q1: user lookup → .limit(1)
+    waitData.push([SCORE_STATS]);             // Q2: score stats → .where()
+    waitData.push([{ count: 5 }]);             // Q3: global rank → .having()
+    waitData.push([FRIEND_COUNT]);             // Q4: friend count → .where()
+    waitData.push([{ count: 5 }]);             // Q5: perfect games → .where()
+    waitData.push([{ maxStreak: 12 }]);        // Q6: best streak → .where()
+    waitData.push(RECENT_GAMES);               // Q7: recent games → .limit(10)
     mockGetUserAchievements.mockResolvedValueOnce(ACHIEVEMENTS);
 
     const res = await app.inject({
@@ -209,10 +216,11 @@ describe('GET /api/users/:id/profile', () => {
   it('should handle zero friends', async () => {
     waitData.push([PROFILE_USER]);
     waitData.push([SCORE_STATS]);
-    waitData.push([{ count: 0 }]);    // Q3: friend count
-    waitData.push([{ count: 0 }]);    // Q4: perfect games
-    waitData.push([{ maxStreak: 0 }]); // Q5: best streak
-    waitData.push(RECENT_GAMES);        // Q6: recent games
+    waitData.push([{ count: 5 }]);     // Q3: global rank → .having()
+    waitData.push([{ count: 0 }]);     // Q4: friend count → .where()
+    waitData.push([{ count: 0 }]);     // Q5: perfect games → .where()
+    waitData.push([{ maxStreak: 0 }]); // Q6: best streak → .where()
+    waitData.push(RECENT_GAMES);        // Q7: recent games → .limit(10)
     mockGetUserAchievements.mockResolvedValueOnce([]);
 
     const res = await app.inject({
@@ -228,10 +236,11 @@ describe('GET /api/users/:id/profile', () => {
   it('should return empty recent games list', async () => {
     waitData.push([PROFILE_USER]);
     waitData.push([SCORE_STATS]);
+    waitData.push([{ count: 5 }]);     // Q3: global rank → .having()
     waitData.push([FRIEND_COUNT]);
-    waitData.push([{ count: 0 }]);    // Q4: perfect games
-    waitData.push([{ maxStreak: 0 }]); // Q5: best streak
-    waitData.push([]);                 // Q6: no recent games
+    waitData.push([{ count: 0 }]);     // Q5: perfect games → .where()
+    waitData.push([{ maxStreak: 0 }]); // Q6: best streak → .where()
+    waitData.push([]);                 // Q7: no recent games
     mockGetUserAchievements.mockResolvedValueOnce([]);
 
     const res = await app.inject({
