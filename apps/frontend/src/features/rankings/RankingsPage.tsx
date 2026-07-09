@@ -23,6 +23,20 @@ const MODE_SLUG_TO_KEY: Record<string, string> = Object.fromEntries(
   MODE_SLUGS.map((m) => [m.slug, m.key]),
 );
 
+type Variant = 'hardcore' | 'unlimited' | 'express';
+
+function parseModeSlug(slug: string): { base: string; variant?: Variant } {
+  const match = slug.match(/^(.+)-(hardcore|unlimited|express)$/);
+  if (match) return { base: match[1], variant: match[2] as Variant };
+  return { base: slug };
+}
+
+const VARIANT_LABEL_KEY: Record<Variant, string> = {
+  hardcore: 'modes.variantHardcore',
+  unlimited: 'modes.variantUnlimited',
+  express: 'modes.variantExpress',
+};
+
 export async function fetchRankings(
   scope: Scope,
   period: Period,
@@ -231,11 +245,34 @@ export function RankingsPage() {
                             <span className="font-mono text-sm font-semibold text-[var(--color-foreground)]">
                               {entry.score.toLocaleString()}
                             </span>
-                            {!mode && entry.gameModeSlug && (
-                              <span className="rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
-                                {t(MODE_SLUG_TO_KEY[entry.gameModeSlug] ?? entry.gameModeSlug)}
-                              </span>
-                            )}
+                            {!mode && entry.gameModeSlug && (() => {
+                              const { base, variant } = parseModeSlug(entry.gameModeSlug!);
+                              const baseKey = MODE_SLUG_TO_KEY[base];
+                              if (!baseKey) {
+                                return (
+                                  <span className="rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                    {entry.gameModeSlug}
+                                  </span>
+                                );
+                              }
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <span className="rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                    {t(baseKey)}
+                                  </span>
+                                  {variant === 'hardcore' && (
+                                    <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-medium text-white whitespace-nowrap">
+                                      {t('modes.variantHardcore')} 🔥
+                                    </span>
+                                  )}
+                                  {variant === 'unlimited' && (
+                                    <span className="rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                      {t('modes.variantUnlimited')}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                       </tr>
