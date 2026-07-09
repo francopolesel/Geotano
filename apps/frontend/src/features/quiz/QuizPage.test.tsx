@@ -95,11 +95,17 @@ const mockNavigate = vi.hoisted(() => vi.fn());
 const mockApiGet = vi.hoisted(() => vi.fn());
 const mockApiPost = vi.hoisted(() => vi.fn());
 
+const blockerState = vi.hoisted(() => ({
+  state: 'unblocked',
+  reset: vi.fn(),
+  proceed: vi.fn(),
+}));
+
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 vi.mock('react-router-dom', () => ({
   useSearchParams: () => [new URLSearchParams('mode=flag-guess')],
   useNavigate: () => mockNavigate,
-  useBlocker: () => ({ state: 'unblocked' as const, reset: vi.fn(), proceed: vi.fn() }),
+  useBlocker: () => blockerState,
 }));
 
 vi.mock('react-i18next', () => ({
@@ -158,6 +164,7 @@ describe('QuizPage', () => {
       question: sampleQuestion,
     });
     mockApiPost.mockRejectedValue(new Error('Not mocked'));
+    blockerState.state = 'unblocked';
   });
 
   // ── Loading state ────────────────────────────────────────────────────────
@@ -584,11 +591,12 @@ describe('QuizPage', () => {
     expect(quizContainer).toBeInTheDocument();
   });
 
-  it('should render timer bar with h-3 for thicker desktop bar', () => {
+  it('should render timer bar with responsive height (h-2 mobile, sm:h-3 desktop)', () => {
     render(<QuizPage />);
-    // The timer bar container should have h-3 (was h-2)
-    const timerContainer = document.querySelector('.h-3.w-full.overflow-hidden.rounded-full');
-    expect(timerContainer).toBeInTheDocument();
+    // Base mobile class is h-2; sm:h-3 applies on desktop via responsive prefix
+    const timerContainer = document.querySelector('.w-full.overflow-hidden.rounded-full');
+    expect(timerContainer).toHaveClass('h-2');
+    expect(timerContainer).toHaveClass('sm:h-3');
   });
 
   it('should render result screen with max-w-2xl (was max-w-md)', async () => {
@@ -632,5 +640,208 @@ describe('QuizPage', () => {
       // Should show "Best streak: 7" even on loss (was only "Streak: 7" on loss)
       expect(screen.getByText('Best streak: 7')).toBeInTheDocument();
     });
+  });
+
+  // ── Leave Modal ──────────────────────────────────────────────────────────
+
+  it('should show leave modal when blocker state is blocked', () => {
+    blockerState.state = 'blocked';
+    render(<QuizPage />);
+
+    expect(screen.getByText('Leave game?')).toBeInTheDocument();
+    expect(screen.getByText('Your progress will be lost.')).toBeInTheDocument();
+  });
+
+  it('should show score in leave modal', () => {
+    blockerState.state = 'blocked';
+    gameState.score = 500;
+    render(<QuizPage />);
+
+    const modal = document.querySelector('.fixed.inset-0');
+    expect(modal).toBeInTheDocument();
+    expect(modal!.textContent).toContain('Score: 500');
+  });
+
+  it('should show streak in leave modal when streak >= 5', () => {
+    blockerState.state = 'blocked';
+    gameState.streak = 5;
+    render(<QuizPage />);
+
+    const modal = document.querySelector('.fixed.inset-0');
+    expect(modal).toBeInTheDocument();
+    expect(modal!.textContent).toContain('🔥 5 streak');
+  });
+
+  it('should not show streak in leave modal when streak < 5', () => {
+    blockerState.state = 'blocked';
+    gameState.streak = 3;
+    render(<QuizPage />);
+
+    expect(screen.queryByText('🔥')).not.toBeInTheDocument();
+  });
+
+  it('should call blocker.reset when Stay is clicked', () => {
+    blockerState.state = 'blocked';
+    render(<QuizPage />);
+
+    fireEvent.click(screen.getByText('Stay'));
+    expect(blockerState.reset).toHaveBeenCalled();
+  });
+
+  it('should call blocker.proceed when Leave Anyway is clicked', () => {
+    blockerState.state = 'blocked';
+    render(<QuizPage />);
+
+    fireEvent.click(screen.getByText('Leave Anyway'));
+    expect(blockerState.proceed).toHaveBeenCalled();
+  });
+
+  it('should show leave modal during loading state', () => {
+    blockerState.state = 'blocked';
+    mutationState.isPending = true;
+    render(<QuizPage />);
+
+    expect(screen.getByText('Leave game?')).toBeInTheDocument();
+    // Loading spinner still visible alongside modal
+    expect(screen.getByAltText('Geotano')).toBeInTheDocument();
+  });
+
+  it('should show leave modal during error state', () => {
+    blockerState.state = 'blocked';
+    mutationState.isError = true;
+    render(<QuizPage />);
+
+    expect(screen.getByText('Leave game?')).toBeInTheDocument();
+    // Error message still visible alongside modal
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+  });
+
+  // ── Timer colors ─────────────────────────────────────────────────────────
+
+  it('should show green timer bar when fraction > 0.5', () => {
+    timerState.fraction = 1;
+    render(<QuizPage />);
+
+    const timerFill = document.querySelector('.h-full.rounded-full');
+    expect(timerFill).toBeInTheDocument();
+    expect(timerFill).toHaveClass('bg-emerald-500');
+  });
+
+  it('should show amber timer bar when fraction is between 0.25 and 0.5', () => {
+    timerState.fraction = 0.4;
+    render(<QuizPage />);
+
+    const timerFill = document.querySelector('.h-full.rounded-full');
+    expect(timerFill).toBeInTheDocument();
+    expect(timerFill).toHaveClass('bg-amber-500');
+  });
+
+  it('should show red timer bar when fraction <= 0.25', () => {
+    timerState.fraction = 0.1;
+    render(<QuizPage />);
+
+    const timerFill = document.querySelector('.h-full.rounded-full');
+    expect(timerFill).toBeInTheDocument();
+    expect(timerFill).toHaveClass('bg-red-500');
+  });
+
+  // ── Feedback styling ─────────────────────────────────────────────────────
+
+  it('should show correct feedback with green styling', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: true,
+      score: 500,
+      livesRemaining: 3,
+    });
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Paris')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Paris'));
+
+    await waitFor(() => {
+      const feedback = screen.getByText('Correct!');
+      expect(feedback).toBeInTheDocument();
+      expect(feedback.className).toContain('bg-emerald-50');
+      expect(feedback.className).toContain('text-emerald-800');
+    });
+  });
+
+  it('should show wrong feedback with red styling', async () => {
+    mockApiPost.mockResolvedValue({
+      correct: false,
+      score: 0,
+      livesRemaining: 3,
+      correctAnswer: 'Paris',
+    });
+    render(<QuizPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Berlin')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Berlin'));
+
+    await waitFor(() => {
+      const feedback = screen.getByText('Wrong!');
+      expect(feedback).toBeInTheDocument();
+      expect(feedback.className).toContain('bg-red-50');
+      expect(feedback.className).toContain('text-red-800');
+    });
+  });
+
+  // ── Question counter ─────────────────────────────────────────────────────
+
+  it('should show N/M question counter when totalQuestions is set', () => {
+    gameState.totalQuestions = 10;
+    render(<QuizPage />);
+
+    expect(screen.getByText('1/10')).toBeInTheDocument();
+  });
+
+  // ── Option letters ───────────────────────────────────────────────────────
+
+  it('should show A, B, C, D letters on option buttons', () => {
+    render(<QuizPage />);
+
+    expect(screen.getByText('A')).toBeInTheDocument();
+    expect(screen.getByText('B')).toBeInTheDocument();
+    expect(screen.getByText('C')).toBeInTheDocument();
+    expect(screen.getByText('D')).toBeInTheDocument();
+  });
+
+  // ── Lives ────────────────────────────────────────────────────────────────
+
+  it('should render correct number of hearts based on maxLives', () => {
+    render(<QuizPage />);
+
+    const hearts = document.querySelectorAll('span');
+    const allHearts = Array.from(hearts).filter((s) => s.textContent === '♥');
+    expect(allHearts).toHaveLength(3);
+  });
+
+  it('should dim hearts that are lost', () => {
+    gameState.lives = 1;
+    render(<QuizPage />);
+
+    const hearts = document.querySelectorAll('span');
+    const heartSpans = Array.from(hearts).filter((s) => s.textContent === '♥');
+
+    // First heart should be full opacity (i=0 < lives=1)
+    expect(heartSpans[0].className).toContain('opacity-100');
+    // Remaining hearts should be dimmed (i >= lives)
+    expect(heartSpans[1].className).toContain('opacity-20');
+    expect(heartSpans[2].className).toContain('opacity-20');
+  });
+
+  // ── Timer width ──────────────────────────────────────────────────────────
+
+  it('should render timer bar with width proportional to fraction', () => {
+    timerState.fraction = 0.6;
+    render(<QuizPage />);
+
+    const timerFill = document.querySelector('[style*="width"]') as HTMLElement;
+    expect(timerFill).toBeInTheDocument();
+    expect(timerFill.style.width).toBe('60%');
   });
 });

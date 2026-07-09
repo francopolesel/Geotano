@@ -29,7 +29,7 @@ function slugToModeKey(slug: string): string {
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
 const btnBase =
-  'w-full min-h-[52px] rounded-xl border-2 px-4 py-4 text-left text-base font-medium transition-all duration-200 outline-none';
+  'w-full min-h-[48px] rounded-xl border-2 px-3 py-3 text-left text-base font-medium transition-all duration-200 outline-none sm:min-h-[52px] sm:px-4 sm:py-4';
 
 function getOptionBtnStyle(
   index: number,
@@ -417,10 +417,10 @@ export function QuizPage() {
   // ── Quiz screen ───────────────────────────────────────────────────────────
   return (
     <>
-    <div className="mx-auto max-w-4xl py-4">
+    <div className="mx-auto max-w-4xl py-3 sm:py-4">
       {/* Top bar: progress, lives, streak, score */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:mb-6">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {/* Question progress — 3/30 for express modes, plain number otherwise */}
           {totalQuestions ? (
             <span className="rounded-md bg-[var(--color-muted)] px-2.5 py-0.5 text-base font-medium tabular-nums text-[var(--color-foreground)]">
@@ -455,13 +455,13 @@ export function QuizPage() {
         </div>
 
         {/* Score */}
-        <span className="text-2xl font-bold text-[var(--color-foreground)]">
+        <span className="text-xl font-bold text-[var(--color-foreground)] sm:text-2xl">
           {t('quiz.score')}: {score}
         </span>
       </div>
 
       {/* Timer bar */}
-      <div className="mb-6 h-3 w-full overflow-hidden rounded-full bg-[var(--color-muted)]">
+      <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-[var(--color-muted)] sm:mb-6 sm:h-3">
         <div
           className={`h-full rounded-full transition-all duration-100 ${timerColor}`}
           style={{ width: `${fraction * 100}%` }}
@@ -479,13 +479,13 @@ export function QuizPage() {
           <img
             src={currentQuestion.flagUrl}
             alt={t('quiz.flagAlt')}
-            className="h-40 rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-52"
+            className="h-32 max-h-[35vh] rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-52"
           />
         </div>
       )}
 
       {/* Answer options — keyed by question id to force remount on old Android browsers that otherwise reuse stale DOM */}
-      <div key={currentQuestion.id} className="grid gap-3 sm:grid-cols-2">
+      <div key={currentQuestion.id} className="grid gap-2 sm:gap-3 sm:grid-cols-2">
         {currentQuestion.options.map((option, index) => (
           <button
             key={`${currentQuestion.id}-${index}`}
