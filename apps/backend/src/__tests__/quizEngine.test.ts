@@ -1,33 +1,53 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// ─── Mock DB before importing quizEngine ────────────────────────────────────
-vi.mock('../db/index.js', () => ({
-  db: {
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    orderBy: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    innerJoin: vi.fn().mockReturnThis(),
-    groupBy: vi.fn().mockReturnThis(),
-    insert: vi.fn().mockReturnThis(),
-    values: vi.fn().mockReturnThis(),
-    returning: vi.fn().mockReturnThis(),
-    update: vi.fn().mockReturnThis(),
-    set: vi.fn().mockReturnThis(),
-    delete: vi.fn().mockReturnThis(),
+// ─── Thenable mockDb for controlled query returns ─────────────────────────────
+const waitData: any[] = [];
+
+const mockDb = vi.hoisted(() => ({
+  select: vi.fn(),
+  from: vi.fn(),
+  where: vi.fn(),
+  orderBy: vi.fn(),
+  limit: vi.fn(),
+  innerJoin: vi.fn(),
+  groupBy: vi.fn(),
+  insert: vi.fn(),
+  values: vi.fn(),
+  returning: vi.fn(),
+  update: vi.fn(),
+  set: vi.fn(),
+  delete: vi.fn(),
+  then(resolve: (value: any) => void) {
+    const data = waitData.shift();
+    resolve(data !== undefined ? data : []);
   },
+  catch() {},
 }));
 
-// Mock gameModes
+vi.mock('../db/index.js', () => ({ db: mockDb }));
+
+// Mock gameModes (supports multiple mode slugs)
 vi.mock('../services/gameModes.js', () => ({
-  getModeConfig: vi.fn().mockReturnValue({
-    slug: 'flag-guess',
-    questionTypes: ['flag-to-country'],
-    timerSeconds: 15,
-    lives: 3,
-    multiplier: 1.0,
-    description: 'See the flag, guess the country',
+  getModeConfig: vi.fn((slug: string) => {
+    const configs: Record<string, any> = {
+      'flag-guess': {
+        slug: 'flag-guess',
+        questionTypes: ['flag-to-country'],
+        timerSeconds: 15,
+        lives: 3,
+        multiplier: 1.0,
+        description: 'See the flag, guess the country',
+      },
+      'flag-guess-unlimited': {
+        slug: 'flag-guess-unlimited',
+        questionTypes: ['flag-to-country'],
+        timerSeconds: 15,
+        lives: 3,
+        multiplier: 1.0,
+        description: 'See the flag, guess the country (Unlimited)',
+      },
+    };
+    return configs[slug] ?? configs['flag-guess'];
   }),
   isValidModeSlug: vi.fn().mockReturnValue(true),
 }));
@@ -42,7 +62,43 @@ vi.mock('crypto', () => ({
   randomUUID: vi.fn().mockReturnValue(mockUUID),
 }));
 
-import { calculateScore, getQuestionText, getAnswerText } from '../services/quizEngine.js';
+import {
+  calculateScore,
+  getQuestionText,
+  getAnswerText,
+  startSession,
+  submitAnswer,
+  questionPool,
+  questionCache,
+} from '../services/quizEngine.js';
+
+// ─── Test helpers ─────────────────────────────────────────────────────────────
+function setupMockDb() {
+  mockDb.select.mockReturnThis();
+  mockDb.from.mockReturnThis();
+  mockDb.where.mockReturnThis();
+  mockDb.orderBy.mockReturnThis();
+  mockDb.limit.mockReturnThis();
+  mockDb.innerJoin.mockReturnThis();
+  mockDb.groupBy.mockReturnThis();
+  mockDb.insert.mockReturnThis();
+  mockDb.values.mockReturnThis();
+  mockDb.returning.mockReturnThis();
+  mockDb.update.mockReturnThis();
+  mockDb.set.mockReturnThis();
+  mockDb.delete.mockReturnThis();
+}
+
+const MOCK_COUNTRIES = [
+  { id: 'c1', nameEn: 'Argentina', nameEs: 'Argentina', capitalEn: 'Buenos Aires', capitalEs: 'Buenos Aires', continent: 'South America', flagSvgUrl: 'https://example.com/ar.svg' },
+  { id: 'c2', nameEn: 'Brazil', nameEs: 'Brasil', capitalEn: 'Brasília', capitalEs: 'Brasília', continent: 'South America', flagSvgUrl: 'https://example.com/br.svg' },
+  { id: 'c3', nameEn: 'Chile', nameEs: 'Chile', capitalEn: 'Santiago', capitalEs: 'Santiago', continent: 'South America', flagSvgUrl: 'https://example.com/cl.svg' },
+  { id: 'c4', nameEn: 'Uruguay', nameEs: 'Uruguay', capitalEn: 'Montevideo', capitalEs: 'Montevideo', continent: 'South America', flagSvgUrl: 'https://example.com/uy.svg' },
+  { id: 'c5', nameEn: 'Colombia', nameEs: 'Colombia', capitalEn: 'Bogotá', capitalEs: 'Bogotá', continent: 'South America', flagSvgUrl: 'https://example.com/co.svg' },
+  { id: 'c6', nameEn: 'Peru', nameEs: 'Perú', capitalEn: 'Lima', capitalEs: 'Lima', continent: 'South America', flagSvgUrl: 'https://example.com/pe.svg' },
+  { id: 'c7', nameEn: 'Ecuador', nameEs: 'Ecuador', capitalEn: 'Quito', capitalEs: 'Quito', continent: 'South America', flagSvgUrl: 'https://example.com/ec.svg' },
+  { id: 'c8', nameEn: 'Venezuela', nameEs: 'Venezuela', capitalEn: 'Caracas', capitalEs: 'Caracas', continent: 'South America', flagSvgUrl: 'https://example.com/ve.svg' },
+];
 
 // ─── calculateScore (pure function, no DB needed) ───────────────────────────
 
@@ -194,5 +250,273 @@ describe('getAnswerText', () => {
     const country = { nameEn: 'Brazil', nameEs: 'Brasil', continent: 'South America' };
     const text = getAnswerText(country, 'continent', 'en');
     expect(text).toBe('South America');
+  });
+});
+
+// ─── startSession: game mode insert path ──────────────────────────────────────
+
+describe('startSession — mode insert path', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockDb();
+    waitData.length = 0;
+    questionPool.clear();
+    questionCache.clear();
+  });
+
+  it('should insert game mode when mode is not in DB', async () => {
+    // 1. gameModes select → limit(1): empty → triggers insert
+    waitData.push([]);
+    // 2. insert gameModes → returning(): returns the inserted mode
+    waitData.push([{ id: 'mode-1' }]);
+    // 3. insert gameSessions → no returning, no limit
+    waitData.push(undefined);
+    // 4. gameSessions select → limit(1): returns session
+    waitData.push([{
+      id: 'session-1', gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0,
+      streakMax: 0, startedAt: new Date(), isActive: true,
+    }]);
+
+    // 5 POOL_INITIAL_SIZE=5 questions × 2 pickRandomCountries calls each
+    for (let i = 0; i < 5; i++) {
+      // correct country pick: limit(1)
+      waitData.push([MOCK_COUNTRIES[i]]);
+      // distractor picks: limit(3)
+      waitData.push(MOCK_COUNTRIES.slice(i + 1, i + 4));
+    }
+
+    const result = await startSession('user-1', 'flag-guess', 'en');
+
+    expect(result.sessionId).toBe('session-1');
+    expect(result.question).toBeDefined();
+    expect(result.question).not.toHaveProperty('correctAnswer');
+    expect(result.question.questionNumber).toBe(1);
+
+    // Verify that gameModes.insert was called
+    expect(mockDb.insert).toHaveBeenCalled();
+    // Verify that returning() was called (only on insert)
+    expect(mockDb.returning).toHaveBeenCalled();
+  });
+});
+
+// ─── startSession: error when no countries available ──────────────────────────
+
+describe('startSession — empty batch error', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockDb();
+    waitData.length = 0;
+    questionPool.clear();
+    questionCache.clear();
+  });
+
+  it('should throw when generateQuestionBatch returns empty', async () => {
+    // 1. gameModes select → mode found
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    // 2. insert gameSessions
+    waitData.push(undefined);
+    // 3. gameSessions select → returns session
+    waitData.push([{
+      id: 'session-1', gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0,
+      streakMax: 0, startedAt: new Date(), isActive: true,
+    }]);
+    // 4. generateQuestionBatch: first pickRandomCountries returns empty → generateQuestion throws
+    waitData.push([]);
+
+    await expect(
+      startSession('user-1', 'flag-guess', 'en'),
+    ).rejects.toThrow(/no countries available/i);
+  });
+});
+
+// ─── submitAnswer: country exhaustion treated as win in unlimited mode ─────────
+
+describe('submitAnswer — country exhaustion win', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockDb();
+    waitData.length = 0;
+    questionPool.clear();
+    questionCache.clear();
+  });
+
+  it('should return win:true when generateQuestion throws "No countries available" in pool fallback', async () => {
+    // ── startSession first ──────────────────────────────────────────────────
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-unlimited' }]);
+    waitData.push(undefined);
+    waitData.push([{
+      id: 'session-1', gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0,
+      streakMax: 0, startedAt: new Date(), isActive: true,
+    }]);
+
+    // 5 pool questions
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i]]);
+      waitData.push(MOCK_COUNTRIES.slice(i + 1, i + 4));
+    }
+
+    await startSession('user-1', 'flag-guess-unlimited', 'en');
+
+    // Pool should have 4 questions now (Q1 was the first, 4 remain)
+    // Q1 was cached, so pool has questions 2-5
+
+    // ── submitAnswer — correct answer, depletes pool by 1 ──────────────────
+    // Session select
+    waitData.push([{
+      id: 'session-1', gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0,
+      streakMax: 0, isActive: true,
+    }]);
+    // Mode select
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-unlimited' }]);
+    // Update session (correct answer, score=150)
+    waitData.push([{
+      id: 'session-1', score: 150, correctCount: 1, totalQuestions: 1,
+      streakMax: 1, livesRemaining: 3, isActive: true, completedAt: null,
+    }]);
+    // Insert gameAnswers
+    waitData.push(undefined);
+    // Pool refill triggered (pool had 4 → shift one → 3, threshold is 2, so 3 >= 2, no refill)
+    // Actually: pool was [Q2,Q3,Q4,Q5], shift gives Q2, pool=[Q3,Q4,Q5], length=3 >= 2 → no refill
+    // Next question is Q2 from pool, need to push its expected data:
+    // (no more DB calls needed for existing pool — it's already in questionPool)
+
+    const answer1 = await submitAnswer('session-1', 'user-1', 'Argentina', 5000, 'en');
+
+    expect(answer1.correct).toBe(true);
+    expect(answer1.score).toBeGreaterThan(0);
+    expect(answer1.nextQuestion).toBeDefined();
+    expect(answer1.result).toBeUndefined();
+
+    // ── Second answer — clear pool to force fallback path ──────────────────
+    questionPool.set('session-1', []);
+
+    // Session select
+    waitData.push([{
+      id: 'session-1', gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 150, correctCount: 1, totalQuestions: 1,
+      streakMax: 1, isActive: true,
+    }]);
+    // Mode select
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess-unlimited' }]);
+    // Update session (correct again, score=300)
+    waitData.push([{
+      id: 'session-1', score: 300, correctCount: 2, totalQuestions: 2,
+      streakMax: 2, livesRemaining: 3, isActive: true, completedAt: null,
+    }]);
+    // Insert answer
+    waitData.push(undefined);
+    // Pool is empty → fallback path: prevAnswers query
+    waitData.push([]); // prevAnswers returns empty
+    // Fallback generateQuestion: pickRandomCountries(1) returns empty → throws "No countries available"
+    waitData.push([]);
+
+    const answer2 = await submitAnswer('session-1', 'user-1', 'Argentina', 5000, 'en');
+
+    // Should be treated as win in unlimited mode
+    expect(answer2.win).toBe(true);
+    expect(answer2.result).toBeDefined();
+    expect(answer2.result!.totalScore).toBe(300);
+    expect(answer2.result!.totalQuestions).toBe(2);
+    expect(answer2.result!.gameModeSlug).toBe('flag-guess-unlimited');
+    expect(answer2.nextQuestion).toBeUndefined();
+    // Cache and pool should be cleaned up
+    expect(questionCache.has('session-1')).toBe(false);
+    expect(questionPool.has('session-1')).toBe(false);
+  });
+});
+
+// ─── refillPool: catch block silently logs errors ──────────────────────────────
+
+describe('refillPool — silent error handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockDb();
+    waitData.length = 0;
+    questionPool.clear();
+    questionCache.clear();
+  });
+
+  it('should not propagate when refillPool DB query throws', async () => {
+    // ── startSession ──────────────────────────────────────────────────
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    waitData.push(undefined);
+    waitData.push([{
+      id: 'session-1', gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0,
+      streakMax: 0, startedAt: new Date(), isActive: true,
+    }]);
+
+    for (let i = 0; i < 5; i++) {
+      waitData.push([MOCK_COUNTRIES[i]]);
+      waitData.push(MOCK_COUNTRIES.slice(i + 1, i + 4));
+    }
+
+    await startSession('user-1', 'flag-guess', 'en');
+
+    // Verify pool has 4 questions after startSession
+    expect(questionPool.get('session-1')!.length).toBe(4);
+
+    // Clear pool to trigger fallback (pool empty after shift)
+    // Actually: with pool of 4, shift 1 → 3, threshold is 2 → no refill
+    // We need POOL_REFILL_THRESHOLD check to trigger refill.
+    // Start with fewer pool questions: only put 1 question in pool
+    // so after shifting it, currentPool is empty (< threshold)
+    questionPool.set('session-1', []); // empty → triggers refill on next answer
+
+    // ── submitAnswer ────────────────────────────────────────────────────
+    // Session select
+    waitData.push([{
+      id: 'session-1', gameModeId: 'mode-1', userId: 'user-1',
+      livesRemaining: 3, score: 0, correctCount: 0, totalQuestions: 0,
+      streakMax: 0, isActive: true,
+    }]);
+    // Mode select
+    waitData.push([{ id: 'mode-1', slug: 'flag-guess' }]);
+    // Update session (correct)
+    waitData.push([{
+      id: 'session-1', score: 150, correctCount: 1, totalQuestions: 1,
+      streakMax: 1, livesRemaining: 3, isActive: true, completedAt: null,
+    }]);
+    // Insert answer
+    waitData.push(undefined);
+    // Fallback: prevAnswers
+    waitData.push([]);
+    // Fallback: generateQuestion → pickRandomCountries(1) returns a country
+    waitData.push([MOCK_COUNTRIES[0]]);
+    // Fallback: distractors
+    waitData.push(MOCK_COUNTRIES.slice(1, 4));
+
+    // After submitAnswer finishes the fallback path, it checks pool:
+    // Pool is empty (< threshold) → triggers fire-and-forget refillPool
+    // refillPool does: await db.select().from(gameAnswers).where(...)
+    // This calls mockDb.then → we push a rejected promise to waitData
+    // so that resolve(rejectedPromise) makes the outer await reject.
+    waitData.push(Promise.reject(new Error('DB connection lost')));
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const answer = await submitAnswer('session-1', 'user-1', 'Argentina', 5000, 'en');
+
+    // Should succeed despite refill failure
+    expect(answer.correct).toBe(true);
+    expect(answer.nextQuestion).toBeDefined();
+    expect(answer.nextQuestion!.questionNumber).toBe(2);
+
+    // Wait for microtask queue to drain (refillPool is fire-and-forget,
+    // its async body runs after submitAnswer's synchronous tail returns.
+    // The await inside refillPool schedules a microtask.)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // Verify the error was logged (refillPool caught and logged)
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[refillPool] Failed to refill question pool:',
+      expect.any(Error),
+    );
+
+    consoleSpy.mockRestore();
   });
 });

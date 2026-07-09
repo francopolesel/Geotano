@@ -95,7 +95,8 @@ export interface StartSessionResponse {
 // ─── In-memory State ────────────────────────────────────────────────────────
 // Stores dispatched question data for server-authoritative answer validation.
 // Reset on server restart — acceptable for MVP (per design decision).
-const questionCache = new Map<string, CachedQuestion>();
+/** @internal — exported for testing */
+export const questionCache = new Map<string, CachedQuestion>();
 
 /**
  * Pool of pre-generated questions keyed by sessionId.
