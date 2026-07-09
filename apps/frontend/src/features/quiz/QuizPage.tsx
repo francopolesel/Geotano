@@ -29,7 +29,7 @@ function slugToModeKey(slug: string): string {
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
 const btnBase =
-  'w-full min-h-[44px] rounded-xl border-2 px-2.5 py-2 text-left text-sm font-medium transition-all duration-200 outline-none sm:min-h-[52px] sm:px-4 sm:py-4 sm:text-base';
+  'w-full min-h-[46px] rounded-xl border-2 px-3 py-2.5 text-left text-[15px] font-medium transition-all duration-200 outline-none sm:min-h-[52px] sm:px-4 sm:py-4 sm:text-base';
 
 function getOptionBtnStyle(
   index: number,
@@ -417,9 +417,9 @@ export function QuizPage() {
   // ── Quiz screen ───────────────────────────────────────────────────────────
   return (
     <>
-    <div className="mx-auto max-w-4xl px-3 py-2 sm:px-0 sm:py-4">
+    <div className="mx-auto max-w-4xl px-4 py-3 sm:px-0 sm:py-4">
       {/* Top bar: progress, lives, streak, score */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-1 sm:mb-6 sm:gap-2">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-1.5 sm:mb-6 sm:gap-2">
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {/* Question progress — 3/30 for express modes, plain number otherwise */}
           {totalQuestions ? (
@@ -437,7 +437,7 @@ export function QuizPage() {
             {Array.from({ length: maxLives }, (_, i) => (
               <span
                 key={i}
-                className={`text-lg leading-none transition-opacity sm:text-2xl ${
+                className={`text-xl leading-none transition-opacity sm:text-2xl ${
                   i < lives ? 'opacity-100' : 'opacity-20'
                 }`}
               >
@@ -448,20 +448,20 @@ export function QuizPage() {
 
           {/* Streak — show fire icon after 5 consecutive correct answers */}
           {streak >= 5 && (
-            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 sm:px-2.5 sm:text-sm">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 sm:px-2.5 sm:text-sm">
               {t('quiz.streakWithCount', { count: streak })}
             </span>
           )}
         </div>
 
         {/* Score */}
-        <span className="text-base font-bold text-[var(--color-foreground)] sm:text-2xl">
+        <span className="text-lg font-bold text-[var(--color-foreground)] sm:text-2xl">
           {t('quiz.score')}: {score}
         </span>
       </div>
 
       {/* Timer bar */}
-      <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-muted)] sm:mb-6 sm:h-3">
+      <div className="mb-2.5 h-2 w-full overflow-hidden rounded-full bg-[var(--color-muted)] sm:mb-6 sm:h-3">
         <div
           className={`h-full rounded-full transition-all duration-100 ${timerColor}`}
           style={{ width: `${fraction * 100}%` }}
@@ -469,23 +469,23 @@ export function QuizPage() {
       </div>
 
       {/* Question text */}
-      <h2 className="mb-3 text-lg font-semibold text-[var(--color-foreground)] sm:mb-6 sm:text-3xl">
+      <h2 className="mb-3.5 text-xl font-semibold text-[var(--color-foreground)] sm:mb-6 sm:text-3xl">
         {currentQuestion.questionText}
       </h2>
 
       {/* Flag image */}
       {currentQuestion.flagUrl && (
-        <div className="mb-3 flex justify-center sm:mb-6">
+        <div className="mb-3.5 flex justify-center sm:mb-6">
           <img
             src={currentQuestion.flagUrl}
             alt={t('quiz.flagAlt')}
-            className="h-24 max-h-[30vh] rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-52"
+            className="h-28 max-h-[33vh] rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-52"
           />
         </div>
       )}
 
       {/* Answer options — keyed by question id to force remount on old Android browsers that otherwise reuse stale DOM */}
-      <div key={currentQuestion.id} className="grid gap-1.5 sm:gap-3 sm:grid-cols-2">
+      <div key={currentQuestion.id} className="grid gap-2 sm:gap-3 sm:grid-cols-2">
         {currentQuestion.options.map((option, index) => (
           <button
             key={`${currentQuestion.id}-${index}`}
@@ -493,7 +493,7 @@ export function QuizPage() {
             disabled={answerState !== 'idle'}
             className={getOptionBtnStyle(index, selectedIndex, correctIndex, answerState)}
           >
-            <span className="mr-1.5 inline-block h-5 w-5 rounded-full bg-[var(--color-muted)] text-center text-[10px] leading-5 font-bold text-[var(--color-muted-foreground)] sm:mr-2 sm:h-6 sm:w-6 sm:text-xs sm:leading-6">
+            <span className="mr-1.5 inline-block h-[22px] w-[22px] rounded-full bg-[var(--color-muted)] text-center text-[11px] leading-[22px] font-bold text-[var(--color-muted-foreground)] sm:mr-2 sm:h-6 sm:w-6 sm:text-xs sm:leading-6">
               {String.fromCharCode(65 + index)}
             </span>
             {option}
@@ -504,7 +504,7 @@ export function QuizPage() {
       {/* Feedback */}
       {feedbackText && (
         <div
-          className={`mt-2 rounded-lg px-3 py-2 text-xs font-medium sm:mt-4 sm:px-4 sm:py-3 sm:text-sm ${
+          className={`mt-2.5 rounded-lg px-3 py-2 text-sm font-medium sm:mt-4 sm:px-4 sm:py-3 sm:text-sm ${
             answerState === 'correct'
               ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
               : 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200'
