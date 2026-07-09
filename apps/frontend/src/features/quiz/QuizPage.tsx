@@ -29,7 +29,7 @@ function slugToModeKey(slug: string): string {
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
 const btnBase =
-  'w-full min-h-[46px] rounded-xl border-2 px-3 py-2.5 text-left text-[15px] font-medium transition-all duration-200 outline-none sm:min-h-[52px] sm:px-4 sm:py-4 sm:text-base';
+  'w-full min-h-[48px] rounded-xl border-2 px-3 py-2.5 text-left text-base font-medium transition-all duration-200 outline-none sm:min-h-[52px] sm:px-4 sm:py-4 sm:text-base';
 
 function getOptionBtnStyle(
   index: number,
@@ -485,7 +485,7 @@ export function QuizPage() {
       )}
 
       {/* Answer options — keyed by question id to force remount on old Android browsers that otherwise reuse stale DOM */}
-      <div key={currentQuestion.id} className="grid gap-2 sm:gap-3 sm:grid-cols-2">
+      <div key={currentQuestion.id} className="grid gap-2.5 sm:gap-3 sm:grid-cols-2">
         {currentQuestion.options.map((option, index) => (
           <button
             key={`${currentQuestion.id}-${index}`}
