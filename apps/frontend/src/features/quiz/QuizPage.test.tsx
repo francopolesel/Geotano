@@ -793,7 +793,7 @@ describe('QuizPage', () => {
   // ── Question counter ─────────────────────────────────────────────────────
 
   it('should show N/M question counter when totalQuestions is set', () => {
-    gameState.totalQuestions = 10;
+    (gameState as any).totalQuestions = 10;
     render(<QuizPage />);
 
     expect(screen.getByText('1/10')).toBeInTheDocument();
