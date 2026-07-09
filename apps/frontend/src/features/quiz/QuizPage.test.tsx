@@ -591,11 +591,11 @@ describe('QuizPage', () => {
     expect(quizContainer).toBeInTheDocument();
   });
 
-  it('should render timer bar with responsive height (h-2 mobile, sm:h-3 desktop)', () => {
+  it('should render timer bar with responsive height (h-1.5 mobile, sm:h-3 desktop)', () => {
     render(<QuizPage />);
-    // Base mobile class is h-2; sm:h-3 applies on desktop via responsive prefix
+    // Base mobile class is h-1.5; sm:h-3 applies on desktop via responsive prefix
     const timerContainer = document.querySelector('.w-full.overflow-hidden.rounded-full');
-    expect(timerContainer).toHaveClass('h-2');
+    expect(timerContainer).toHaveClass('h-1.5');
     expect(timerContainer).toHaveClass('sm:h-3');
   });
 
