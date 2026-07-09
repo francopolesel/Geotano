@@ -197,17 +197,18 @@ export function HomePage() {
               <div className={`mb-4 rounded-lg border-2 px-4 py-3 text-center ${
                 (stats as any).globalRank === 1
                   ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20 shadow-[0_0_15px_rgba(234,179,8,0.3)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-card)]'
+                  : (stats as any).globalRank === 2
+                    ? 'border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/20'
+                    : 'border-amber-700/50 bg-amber-50/50 dark:border-amber-600/50 dark:bg-amber-950/20'
               }`}>
-                <p className={`font-bold ${
+                <p className={`font-bold text-xl ${
                   (stats as any).globalRank === 1
-                    ? 'text-3xl text-yellow-600 dark:text-yellow-400'
-                    : 'text-lg text-[var(--color-foreground)]'
+                    ? 'text-yellow-600 dark:text-yellow-400'
+                    : (stats as any).globalRank === 2
+                      ? 'text-gray-400 dark:text-gray-300'
+                      : 'text-amber-700 dark:text-amber-500'
                 }`}>
-                  {(stats as any).globalRank === 1 ? '👑 #1' : `#${(stats as any).globalRank}`}
-                </p>
-                <p className="text-xs text-[var(--color-muted-foreground)]">
-                  {t('profile.bestPlayer', { position: (stats as any).globalRank })}
+                  {(stats as any).globalRank === 1 ? '👑 ' : ''}{t('profile.bestPlayer', { position: (stats as any).globalRank })}
                 </p>
               </div>
             )}

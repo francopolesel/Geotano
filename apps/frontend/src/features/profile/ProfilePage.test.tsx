@@ -221,8 +221,7 @@ describe('ProfilePage', () => {
     };
     render(<ProfilePage />);
 
-    expect(screen.getByText('Best Player #1')).toBeInTheDocument();
-    expect(screen.getByText('👑 #1')).toBeInTheDocument();
+    expect(screen.getByText('👑 Best Player #1')).toBeInTheDocument();
   });
 
   it('should show Best Player #2 stat without crown when globalRank is 2', () => {
