@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+import { useSoundStore } from '../../store/soundStore';
 import { api } from '../../lib/api';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -115,6 +116,7 @@ function PasswordSection() {
 function PreferencesSection() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useThemeStore();
+  const { soundEnabled, toggle: toggleSound } = useSoundStore();
 
   const changeLanguage = (lang: string) => {
     i18n.changeLanguage(lang);
@@ -151,7 +153,7 @@ function PreferencesSection() {
       </div>
 
       {/* Language */}
-      <div>
+      <div className="mb-4">
         <label className="block text-sm font-medium text-[var(--color-foreground)]">
           {t('settings.language')}
         </label>
@@ -176,6 +178,30 @@ function PreferencesSection() {
           >
             {t('settings.spanish')}
           </button>
+        </div>
+      </div>
+
+      {/* Sound Effects */}
+      <div>
+        <label className="block text-sm font-medium text-[var(--color-foreground)]">
+          {t('settings.soundEffects')}
+        </label>
+        <div className="mt-2 flex gap-2">
+          {([true, false] as const).map((on) => (
+            <button
+              key={String(on)}
+              onClick={() => {
+                if (soundEnabled !== on) toggleSound();
+              }}
+              className={`rounded-lg px-4 py-2 min-h-[44px] text-sm font-medium transition-colors ${
+                soundEnabled === on
+                  ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]'
+                  : 'border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-muted)]'
+              }`}
+            >
+              {on ? t('settings.soundOn') : t('settings.soundOff')}
+            </button>
+          ))}
         </div>
       </div>
     </section>

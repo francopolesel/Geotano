@@ -3,3 +3,4 @@ export { useGameStore } from './gameStore';
 export { useThemeStore } from './themeStore';
 export { useFriendsStore } from './friendsStore';
 export { useNotificationStore } from './notificationStore';
+export { useSoundStore } from './soundStore';

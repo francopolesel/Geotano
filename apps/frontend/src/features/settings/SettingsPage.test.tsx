@@ -18,6 +18,9 @@ const T = (key: string) => {
     'settings.language': 'Language',
     'settings.light': 'Light',
     'settings.dark': 'Dark',
+    'settings.soundEffects': 'Sound Effects',
+    'settings.soundOn': 'On',
+    'settings.soundOff': 'Off',
     'settings.english': 'English',
     'settings.spanish': 'Español',
     'auth.validation.passwordMin': 'Password must be at least 8 characters',
@@ -48,6 +51,8 @@ const mockPatch = vi.hoisted(() => vi.fn());
 const mockPost = vi.hoisted(() => vi.fn());
 const mockChangeLanguage = vi.hoisted(() => vi.fn());
 const mockTheme = vi.hoisted(() => ({ current: 'light' }));
+const mockSoundEnabled = vi.hoisted(() => ({ current: true }));
+const mockToggleSound = vi.hoisted(() => vi.fn());
 const mockSetSearchParams = vi.hoisted(() => vi.fn());
 const mockSearchParams = vi.hoisted(() => ({ current: new URLSearchParams('') }));
 
@@ -81,6 +86,13 @@ vi.mock('../../store/authStore', () => ({
 vi.mock('../../store/themeStore', () => ({
   useThemeStore: (selector?: (s: any) => any) => {
     const store = { theme: mockTheme.current, setTheme: mockSetTheme };
+    return selector ? selector(store) : store;
+  },
+}));
+
+vi.mock('../../store/soundStore', () => ({
+  useSoundStore: (selector?: (s: any) => any) => {
+    const store = { soundEnabled: mockSoundEnabled.current, toggle: mockToggleSound };
     return selector ? selector(store) : store;
   },
 }));
@@ -228,6 +240,17 @@ describe('SettingsPage', () => {
       renderWithPreferencesTab();
       fireEvent.click(screen.getByText('Español'));
       expect(mockChangeLanguage).toHaveBeenCalledWith('es');
+    });
+
+    it('should render sound effects toggle and call toggle on click', () => {
+      renderWithPreferencesTab();
+      // Both buttons visible — "On" is active by default
+      expect(screen.getByText('Sound Effects')).toBeInTheDocument();
+      expect(screen.getByText('On')).toBeInTheDocument();
+      expect(screen.getByText('Off')).toBeInTheDocument();
+      // Click "Off" to toggle
+      fireEvent.click(screen.getByText('Off'));
+      expect(mockToggleSound).toHaveBeenCalledTimes(1);
     });
   });
 });

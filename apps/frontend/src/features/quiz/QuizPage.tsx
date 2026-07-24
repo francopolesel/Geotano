@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useGameStore } from '../../store/gameStore';
 import { useTimer } from '../../hooks/useTimer';
+import { playCorrect, playWrong, playGameOver, playGameWin } from '../../lib/sounds';
 import logo from '../../assets/logo.png';
 import type {
   QuizQuestion,
@@ -154,6 +155,11 @@ export function QuizPage() {
       if (data.result) {
         setGameResult(data.result);
         endGame();
+        if (data.win) {
+          playGameWin();
+        } else {
+          playGameOver();
+        }
       } else if (data.nextQuestion) {
         // Delay before showing next question
         setTimeout(() => {
@@ -197,6 +203,7 @@ export function QuizPage() {
     setCorrectIndex(currentQuestion.correctIndex);
     setAnswerState('wrong');
     setFeedbackText(t('quiz.wrong'));
+    playWrong();
 
     // Submit empty answer to backend for scoring/validation.
     // If the mutation fails (server cold-start, network blip), onError will
@@ -246,6 +253,7 @@ export function QuizPage() {
     const isCorrect = index === currentQuestion.correctIndex;
     setAnswerState(isCorrect ? 'correct' : 'wrong');
     setFeedbackText(t(isCorrect ? 'quiz.correct' : 'quiz.wrong'));
+    (isCorrect ? playCorrect : playWrong)();
 
     // Send answer to backend in background for scoring/validation
     const answerText = currentQuestion.options[index];
