@@ -5,6 +5,11 @@ import { useMultiplayerStore } from '../store/multiplayerStore';
 import type { ChallengeInvitePayload, MatchStartPayload, ChatMessage, Notification } from '@geotano/shared';
 
 let socket: Socket | null = null;
+let navigateFn: ((path: string) => void) | null = null;
+
+export function setNavigateFn(fn: (path: string) => void) {
+  navigateFn = fn;
+}
 
 type ChatMessageHandler = (message: ChatMessage) => void;
 type UserStatusHandler = (payload: { userId: string }) => void;
@@ -77,17 +82,13 @@ export function connectSocket(token: string): Socket {
     useMultiplayerStore.getState().showChallengeNotification(data);
   });
 
-  socket.on('challenge:accepted', (data: { challengeId: string; matchId: string }) => {
-    window.location.href = `/multiplayer/${data.matchId}`;
-  });
-
-  // Global match:start listener — handles navigation for the accepter
+  // Global match:start listener — handles navigation for both challenger and accepter
   // and pre-populates store state before MultiplayerPage mounts
   socket.on('match:start', (payload: MatchStartPayload) => {
     useMultiplayerStore.getState().startMatch(payload);
-    // Only navigate if not already on the match page
-    if (!window.location.pathname.startsWith(`/multiplayer/${payload.matchId}`)) {
-      window.location.href = `/multiplayer/${payload.matchId}`;
+    const target = `/multiplayer/${payload.matchId}`;
+    if (window.location.pathname !== target) {
+      navigateFn?.(target);
     }
   });
 

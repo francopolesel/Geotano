@@ -162,16 +162,17 @@ describe('multiplayer socket handlers', () => {
   // ── 3.1 challenge:send ──────────────────────────────────────────────────
 
   describe('challenge:send', () => {
-    it('should emit challenge:error when receiver is not online', async () => {
-      const { socket, handlers } = await connectUser('user-a');
+    it('should create challenge even when receiver is not online', async () => {
+      const { handlers } = await connectUser('user-a');
 
+      waitData.push([{ id: 'user-a', username: 'user_a', email: 'a@t.com', language: 'en', joinCode: 'AAA', createdAt: new Date('2024-01-01') }]);
       const challengeSend = handlers.get('challenge:send')!;
       await challengeSend({ receiverId: 'user-b' });
 
-      expect(socket.emit).toHaveBeenCalledWith(
-        'challenge:error',
-        expect.objectContaining({ message: 'User is not online' }),
-      );
+      const challenge = Array.from(matchService.challenges.values())
+        .find(c => c.challengerId === 'user-a');
+      expect(challenge).toBeDefined();
+      expect(challenge!.receiverId).toBe('user-b');
     });
 
     it('should emit challenge:error when sender already has pending challenge', async () => {

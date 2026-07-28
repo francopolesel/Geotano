@@ -259,33 +259,31 @@ export function FriendsPage() {
                   @{friend.username}
                 </p>
               </button>
-                <div className="flex shrink-0 gap-1">
-                  {onlineUsers.has(friend.friendId) && (
-                    <button
-                      onClick={() => handleChallenge(friend.friendId)}
-                      disabled={challengeSentTo === friend.friendId}
-                      className="rounded-md min-h-[44px] min-w-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-muted)] disabled:opacity-50"
-                      title={challengeSentTo === friend.friendId ? t('multiplayer.challengeSent') : t('multiplayer.challenge')}
-                    >
-                      ⚔️
-                    </button>
-                  )}
+                <div className="flex flex-wrap justify-end gap-1 sm:shrink-0 sm:flex-nowrap">
+                  <button
+                    onClick={() => handleChallenge(friend.friendId)}
+                    disabled={challengeSentTo === friend.friendId}
+                    className="rounded-md min-h-[36px] min-w-[36px] border border-[var(--color-border)] px-1.5 py-1 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-muted)] disabled:opacity-50 sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-1.5"
+                    title={challengeSentTo === friend.friendId ? t('multiplayer.challengeSent') : t('multiplayer.challenge')}
+                  >
+                    ⚔️
+                  </button>
                   <button
                     onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
-                    className="rounded-md min-h-[44px] min-w-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
+                    className="rounded-md min-h-[36px] min-w-[36px] border border-[var(--color-border)] px-1.5 py-1 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] sm:min-h-[44px] sm:min-w-[44px] sm:px-2 sm:py-1.5"
                     title={t('friends.chat')}
                   >
                     💬
                   </button>
                   <button
                     onClick={() => setConfirmAction({ type: 'remove', userId: friend.friendId, username: friend.username, displayName: friend.displayName })}
-                    className="rounded-md min-h-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)]"
+                    className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)] min-h-[36px] sm:min-h-[44px] sm:px-2.5 sm:py-1.5"
                   >
                     {t('friends.remove')}
                   </button>
                   <button
                     onClick={() => setConfirmAction({ type: 'block', userId: friend.friendId, username: friend.username, displayName: friend.displayName })}
-                    className="rounded-md min-h-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
+                    className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] min-h-[36px] sm:min-h-[44px] sm:px-2.5 sm:py-1.5"
                   >
                     {t('friends.block')}
                   </button>

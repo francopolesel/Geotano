@@ -17,13 +17,13 @@ vi.mock('socket.io-client', () => ({
   io: mockIo,
 }));
 
-describe('challenge:accepted listener', () => {
-  it('should register challenge:accepted listener on connect', async () => {
+describe('match:start listener', () => {
+  it('should register match:start listener on connect', async () => {
     const { connectSocket } = await import('../lib/socket');
     connectSocket('test-token');
 
     const callback = mockSocket.on.mock.calls.find(
-      (call: any[]) => call[0] === 'challenge:accepted',
+      (call: any[]) => call[0] === 'match:start',
     );
 
     expect(callback).toBeDefined();

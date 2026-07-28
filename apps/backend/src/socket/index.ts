@@ -131,12 +131,6 @@ export function initSocket(app: FastifyInstance) {
     socket.on('challenge:send', async (payload: { receiverId: string }) => {
       const { receiverId } = payload;
 
-      // Check receiver is online
-      if (!userSockets.has(receiverId)) {
-        socket.emit('challenge:error', { message: 'User is not online' });
-        return;
-      }
-
       // Check sender doesn't already have a pending challenge (prevent spam)
       for (const [, ch] of matchService.challenges) {
         if (ch.challengerId === userId) {
