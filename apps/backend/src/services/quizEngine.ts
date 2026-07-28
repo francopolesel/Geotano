@@ -305,7 +305,7 @@ async function generateQuestion(
  * Generate a batch of questions sequentially, each excluding countries
  * from all previous questions in the batch (plus the global exclude set).
  */
-async function generateQuestionBatch(
+export async function generateQuestionBatch(
   modeSlug: GameModeSlug,
   startNumber: number,
   excludeCountryIds: string[],

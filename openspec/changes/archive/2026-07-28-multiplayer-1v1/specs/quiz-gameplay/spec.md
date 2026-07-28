@@ -1,10 +1,17 @@
-# Quiz Gameplay Specification
+# Delta for quiz-gameplay
 
-## Purpose
+## ADDED Requirements
 
-Question engine with timer, lives, streaks, scoring, and explicit end conditions for every scenario.
+### Requirement: Race mode variant
 
-## Requirements
+The system MUST support a race mode for 1v1 multiplayer with the following parameters: shared 3-minute timer, no lives, no per-question timeout, and unlimited questions served within the match duration.
+
+- **Shared timer**: GIVEN a race mode match, WHEN players answer questions, THEN the same remaining duration is displayed and enforced for both.
+- **No lives**: GIVEN a race mode match, WHEN a player answers incorrectly, THEN no life is deducted and the game continues.
+- **No per-question timeout**: GIVEN a question is presented in race mode, WHEN the player answers after any duration within match time, THEN the answer is accepted without timeout penalty.
+- **Unlimited questions**: GIVEN a race mode match in progress, WHEN questions remain in the pool, THEN the next question is served until the 3-minute timer expires.
+
+## MODIFIED Requirements
 
 ### Requirement: Questions
 
@@ -39,26 +46,3 @@ Every quiz session MUST end under one of these scenarios and MUST NOT hang, cras
 - **Limit reached** → win: GIVEN Standard variant where `answeredCount = totalQuestions`, WHEN question answered, THEN session ends as win.
 - **Pool exhausted** → win: GIVEN Unlimited or Hardcore variant, WHEN no unused questions remain for the selected mode, THEN session ends as win.
 - **Timer expired** → end: GIVEN race mode match, WHEN the shared 3-minute timer reaches zero, THEN the match ends and results are displayed.
-
-### Requirement: Race mode variant
-
-The system MUST support a race mode for 1v1 multiplayer with the following parameters: shared 3-minute timer, no lives, no per-question timeout, and unlimited questions served within the match duration.
-
-- **Shared timer**: GIVEN a race mode match, WHEN players answer questions, THEN the same remaining duration is displayed and enforced for both.
-- **No lives**: GIVEN a race mode match, WHEN a player answers incorrectly, THEN no life is deducted and the game continues.
-- **No per-question timeout**: GIVEN a question is presented in race mode, WHEN the player answers after any duration within match time, THEN the answer is accepted without timeout penalty.
-- **Unlimited questions**: GIVEN a race mode match in progress, WHEN questions remain in the pool, THEN the next question is served until the 3-minute timer expires.
-
-### Requirement: Scoring
-
-MUST calculate base points + streak multiplier (3+ consecutive correct).
-
-- **Streak**: GIVEN 3 correct in a row, WHEN 4th correct, THEN streak bonus applied to score.
-
-### Requirement: Localized questions
-
-Quiz questions MUST use `nameEs`/`capitalEs` fields when `?lang=es` query param is sent, and English templates with `nameEn`/`capitalEn` by default.
-
-- **Spanish**: GIVEN quiz endpoint called with `?lang=es`, WHEN generating a question, THEN `nameEs` and `capitalEs` fields are used.
-- **Default English**: GIVEN quiz endpoint called without `?lang`, WHEN generating, THEN `nameEn`/`capitalEn` are used.
-- **Invalid lang fallback**: GIVEN quiz endpoint with `?lang=fr`, WHEN generating, THEN fall back to English (`nameEn`/`capitalEn`).
