@@ -66,7 +66,12 @@ async function seedModes() {
   ];
 
   // Build variant rows: unlimited (null) + hardcore (null, lives=1) for each base
-  const modes: (typeof baseModes[number] & { totalQuestions?: number | null })[] = [
+  const modes: {
+    slug: string; nameEn: string; nameEs: string;
+    descriptionEn: string; descriptionEs: string;
+    timerSeconds: number; lives: number; multiplier: number;
+    totalQuestions: number | null;
+  }[] = [
     ...baseModes,
     ...baseModes.flatMap((base) => [
       {
