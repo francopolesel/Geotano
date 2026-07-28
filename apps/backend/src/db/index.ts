@@ -43,17 +43,23 @@ export async function runMigrations(): Promise<void> {
       "created_at" timestamp DEFAULT now() NOT NULL
     );
 
+    -- Drop match_answers if it has wrong columns from an earlier migration
+    DROP TABLE IF EXISTS "match_answers" CASCADE;
+
     CREATE TABLE IF NOT EXISTS "match_answers" (
       "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
       "match_id" uuid NOT NULL REFERENCES "public"."match_games"("id"),
-      "player_id" uuid NOT NULL REFERENCES "public"."users"("id"),
+      "user_id" uuid NOT NULL REFERENCES "public"."users"("id"),
       "question_index" integer NOT NULL,
-      "selected_option" integer NOT NULL,
+      "option_index" integer NOT NULL,
       "was_correct" boolean NOT NULL,
-      "streak_at_question" integer DEFAULT 0 NOT NULL,
-      "answered_at" timestamp DEFAULT now() NOT NULL
+      "score_earned" integer NOT NULL,
+      "streak_at_answer" integer DEFAULT 0 NOT NULL,
+      "created_at" timestamp DEFAULT now() NOT NULL
     );
 
+    CREATE INDEX IF NOT EXISTS "match_answers_match_user_idx" ON "match_answers" ("match_id", "user_id");
+    CREATE INDEX IF NOT EXISTS "match_answers_match_idx" ON "match_answers" ("match_id");
     CREATE INDEX IF NOT EXISTS "match_games_player1_status_idx" ON "match_games" ("player1_id", "status");
     CREATE INDEX IF NOT EXISTS "match_games_player2_status_idx" ON "match_games" ("player2_id", "status");
     CREATE INDEX IF NOT EXISTS "match_challenges_challenger_created_idx" ON "match_challenges" ("challenger_id", "created_at");

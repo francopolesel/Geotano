@@ -17,7 +17,8 @@ const BASE_SCORE = 100;
 const STREAK_THRESHOLD = 3;
 const STREAK_MULTIPLIER = 1.5;
 const MATCH_DURATION_MS = 180_000;
-const POOL_SIZE = 50;
+// 20 questions is enough for a 3-min race and avoids 30s+ generation delay
+const POOL_SIZE = 20;
 
 // ─── Scoring ────────────────────────────────────────────────────────────────
 
