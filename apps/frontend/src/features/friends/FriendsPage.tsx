@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
-import { connectSocket, disconnectSocket } from '../../lib/socket';
+import { connectSocket, disconnectSocket, sendChallenge } from '../../lib/socket';
 
 type Tab = 'friends' | 'requests' | 'search' | 'blocked';
 
@@ -47,6 +47,7 @@ export function FriendsPage() {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
+  const [challengeSentTo, setChallengeSentTo] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
     type: 'remove' | 'block';
     userId: string;
@@ -111,6 +112,14 @@ export function FriendsPage() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleChallenge = (friendId: string) => {
+    if (challengeSentTo === friendId) return;
+    sendChallenge(friendId);
+    setChallengeSentTo(friendId);
+    // Clear sent state after 3s so user can re-challenge
+    setTimeout(() => setChallengeSentTo((prev) => (prev === friendId ? null : prev)), 3000);
   };
 
   const handleCopyInvite = async () => {
@@ -251,6 +260,16 @@ export function FriendsPage() {
                 </p>
               </button>
                 <div className="flex shrink-0 gap-1">
+                  {onlineUsers.has(friend.friendId) && (
+                    <button
+                      onClick={() => handleChallenge(friend.friendId)}
+                      disabled={challengeSentTo === friend.friendId}
+                      className="rounded-md min-h-[44px] min-w-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-muted)] disabled:opacity-50"
+                      title={challengeSentTo === friend.friendId ? t('multiplayer.challengeSent') : t('multiplayer.challenge')}
+                    >
+                      ⚔️
+                    </button>
+                  )}
                   <button
                     onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
                     className="rounded-md min-h-[44px] min-w-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"

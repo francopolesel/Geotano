@@ -12,6 +12,7 @@ import { RankingsPage } from '../features/rankings/RankingsPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { MyProfilePage } from '../features/profile/MyProfilePage';
 import { ProfilePage } from '../features/profile/ProfilePage';
+import { MultiplayerPage } from '../features/multiplayer/MultiplayerPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +43,7 @@ const router = createBrowserRouter([
           { path: 'rankings', element: <RankingsPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'my-profile', element: <MyProfilePage /> },
+          { path: 'multiplayer/:matchId', element: <MultiplayerPage /> },
         ],
       },
     ],
