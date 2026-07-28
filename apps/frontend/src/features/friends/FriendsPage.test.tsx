@@ -276,10 +276,10 @@ describe('FriendsPage', () => {
   it('should call removeFriend after confirming modal', async () => {
     storeState.removeFriend.mockResolvedValueOnce(undefined);
     render(<FriendsPage />);
-    // Click Remove button → modal opens
-    fireEvent.click(screen.getByText('Remove'));
-    // Click confirm button inside modal (the second Remove)
-    fireEvent.click(screen.getAllByText('Remove')[1]);
+    // Click first Remove button (desktop group) → modal opens
+    fireEvent.click(screen.getAllByText('Remove')[0]);
+    // Click confirm button inside modal (now the third Remove: desktop + mobile + modal)
+    fireEvent.click(screen.getAllByText('Remove')[2]);
     await waitFor(() => {
       expect(storeState.removeFriend).toHaveBeenCalledWith('friend-1');
     });
@@ -288,10 +288,10 @@ describe('FriendsPage', () => {
   it('should call blockUser after confirming modal', async () => {
     storeState.blockUser.mockResolvedValueOnce(undefined);
     render(<FriendsPage />);
-    // Click Block button → modal opens
-    fireEvent.click(screen.getByText('Block'));
-    // Click confirm button inside modal (the second Block)
-    fireEvent.click(screen.getAllByText('Block')[1]);
+    // Click first Block button (desktop group) → modal opens
+    fireEvent.click(screen.getAllByText('Block')[0]);
+    // Click confirm button inside modal (now the third Block: desktop + mobile + modal)
+    fireEvent.click(screen.getAllByText('Block')[2]);
     await waitFor(() => {
       expect(storeState.blockUser).toHaveBeenCalledWith('friend-1');
     });

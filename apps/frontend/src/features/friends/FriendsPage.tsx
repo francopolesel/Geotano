@@ -49,7 +49,7 @@ export function FriendsPage() {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
-  const [challengeSentTo, setChallengeSentTo] = useState<string | null>(null);
+  const [challengeState, setChallengeState] = useState<Record<string, 'sending' | 'waiting'>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerFriendId, setPickerFriendId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
@@ -119,7 +119,7 @@ export function FriendsPage() {
   };
 
   const handleChallenge = (friendId: string) => {
-    if (challengeSentTo === friendId) return;
+    if (challengeState[friendId]) return;
     setPickerFriendId(friendId);
     setPickerOpen(true);
   };
@@ -128,17 +128,21 @@ export function FriendsPage() {
     const friendId = pickerFriendId;
     if (!friendId) return;
 
-    setChallengeSentTo(friendId);
+    setPickerOpen(false);
+    setChallengeState((prev) => ({ ...prev, [friendId]: 'sending' }));
     try {
       await api.post('/matches/challenge', {
         receiverId: friendId,
         gameModeSlug: slug,
       });
+      setChallengeState((prev) => ({ ...prev, [friendId]: 'waiting' }));
     } catch {
-      setChallengeSentTo(null);
+      setChallengeState((prev) => {
+        const next = { ...prev };
+        delete next[friendId];
+        return next;
+      });
     }
-    // Clear sent state after 3s so user can re-challenge
-    setTimeout(() => setChallengeSentTo((prev) => (prev === friendId ? null : prev)), 3000);
   };
 
   const handleCopyInvite = async () => {
@@ -251,69 +255,107 @@ export function FriendsPage() {
                   {onlineUsers.size > 0 && t('friends.onlineCount', { count: onlineUsers.size })}
                 </p>
               </div>
-            {friends.map((friend) => (
+            {friends.map((friend) => {
+              const cs = challengeState[friend.friendId];
+              return (
               <div
                 key={friend.id}
-                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3"
+                className="flex flex-col gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 w-full"
               >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="relative shrink-0">
-                  <UserAvatar
-                    avatarUrl={friend.avatarUrl}
-                    username={friend.username}
-                    displayName={friend.displayName}
-                    className="h-10 w-10 text-sm"
-                  />
-                  {onlineUsers.has(friend.friendId) && (
-                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-card)] bg-green-500" />
-                  )}
+                {/* Row 1: avatar + name + desktop actions */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative shrink-0">
+                    <UserAvatar
+                      avatarUrl={friend.avatarUrl}
+                      username={friend.username}
+                      displayName={friend.displayName}
+                      className="h-10 w-10 text-sm"
+                    />
+                    {onlineUsers.has(friend.friendId) && (
+                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--color-card)] bg-green-500" />
+                    )}
+                  </div>
+                  <button
+                    onClick={() => navigate(`/profile/${friend.friendId}`)}
+                    className="min-w-0 flex-1 text-left min-h-[44px]"
+                  >
+                    <p className="text-sm font-medium text-[var(--color-foreground)]">
+                      {friend.displayName ?? friend.username}
+                    </p>
+                    <p className="text-xs text-[var(--color-muted-foreground)]">
+                      @{friend.username}
+                    </p>
+                  </button>
+                  {/* Desktop actions */}
+                  <div className="hidden sm:flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleChallenge(friend.friendId)}
+                      disabled={!!cs}
+                      className="rounded-md min-h-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-muted)] disabled:opacity-50"
+                      title={t('multiplayer.challenge')}
+                    >
+                      {cs === 'waiting' ? (
+                        <span className="flex items-center gap-1 text-[var(--color-muted-foreground)]">⏳ {t('multiplayer.waitingResponse')}</span>
+                      ) : cs === 'sending' ? (
+                        <span className="flex items-center gap-1 text-[var(--color-muted-foreground)]">⏳</span>
+                      ) : '⚔️'}
+                    </button>
+                    <button
+                      onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
+                      className="rounded-md min-h-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
+                      title={t('friends.chat')}
+                    >
+                      💬
+                    </button>
+                    <button
+                      onClick={() => setConfirmAction({ type: 'remove', userId: friend.friendId, username: friend.username, displayName: friend.displayName })}
+                      className="rounded-md border border-[var(--color-border)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)] min-h-[44px]"
+                    >
+                      {t('friends.remove')}
+                    </button>
+                    <button
+                      onClick={() => setConfirmAction({ type: 'block', userId: friend.friendId, username: friend.username, displayName: friend.displayName })}
+                      className="rounded-md border border-[var(--color-border)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] min-h-[44px]"
+                    >
+                      {t('friends.block')}
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => navigate(`/profile/${friend.friendId}`)}
-                  className="min-w-0 flex-1 text-left min-h-[44px]"
-                >
-                  <p className="text-sm font-medium text-[var(--color-foreground)]">
-                    {friend.displayName ?? friend.username}
-                  </p>
-                  <p className="text-xs text-[var(--color-muted-foreground)]">
-                    @{friend.username}
-                  </p>
-                </button>
-              </div>
-                <div className="flex flex-wrap gap-1 sm:flex-nowrap sm:shrink-0 sm:justify-end">
+                {/* Mobile actions */}
+                <div className="flex sm:hidden items-center gap-2">
                   <button
                     onClick={() => handleChallenge(friend.friendId)}
-                    disabled={challengeSentTo === friend.friendId}
-                    className="rounded-md min-h-[36px] border border-[var(--color-border)] px-1.5 py-1 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-muted)] disabled:opacity-50 sm:min-h-[44px] sm:px-2 sm:py-1.5"
-                    title={challengeSentTo === friend.friendId ? t('multiplayer.challengeSent') : t('multiplayer.challenge')}
+                    disabled={!!cs}
+                    className="flex-1 rounded-md min-h-[44px] border border-[var(--color-border)] px-1.5 py-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-muted)] disabled:opacity-50"
                   >
-                    {challengeSentTo === friend.friendId
-                      ? <span className="flex items-center gap-1">✓ {t('multiplayer.challengeSent')}</span>
-                      : '⚔️'
-                    }
+                    {cs === 'waiting' ? (
+                      <span className="flex items-center justify-center gap-1">⏳ {t('multiplayer.waitingResponse')}</span>
+                    ) : cs === 'sending' ? (
+                      <span className="flex items-center justify-center gap-1">⏳</span>
+                    ) : '⚔️'}
                   </button>
                   <button
                     onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
-                    className="rounded-md min-h-[36px] border border-[var(--color-border)] px-1.5 py-1 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] sm:min-h-[44px] sm:px-2 sm:py-1.5"
-                    title={t('friends.chat')}
+                    className="flex-1 rounded-md min-h-[44px] border border-[var(--color-border)] px-1.5 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]"
                   >
                     💬
                   </button>
                   <button
                     onClick={() => setConfirmAction({ type: 'remove', userId: friend.friendId, username: friend.username, displayName: friend.displayName })}
-                    className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)] min-h-[36px] sm:min-h-[44px] sm:px-2.5 sm:py-1.5"
+                    className="flex-1 rounded-md border border-[var(--color-border)] px-1.5 py-1.5 text-xs font-medium text-[var(--color-destructive)] hover:bg-[var(--color-muted)] min-h-[44px]"
                   >
                     {t('friends.remove')}
                   </button>
                   <button
                     onClick={() => setConfirmAction({ type: 'block', userId: friend.friendId, username: friend.username, displayName: friend.displayName })}
-                    className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] min-h-[36px] sm:min-h-[44px] sm:px-2.5 sm:py-1.5"
+                    className="flex-1 rounded-md border border-[var(--color-border)] px-1.5 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] min-h-[44px]"
                   >
                     {t('friends.block')}
                   </button>
                 </div>
               </div>
-            ))}
+            );
+            })}
             </>
           )}
         </div>

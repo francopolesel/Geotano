@@ -279,6 +279,7 @@
 
   "multiplayer.challenge": "Challenge",
   "multiplayer.challengeSent": "Challenge sent!",
+  "multiplayer.waitingResponse": "Waiting for response…",
   "multiplayer.challengeFrom": "{{username}} wants to duel!",
   "multiplayer.accept": "Accept",
   "multiplayer.decline": "Decline",

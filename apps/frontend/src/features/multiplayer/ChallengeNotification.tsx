@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMultiplayerStore } from '../../store/multiplayerStore';
 import { api } from '../../lib/api';
 
 export function ChallengeNotification() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const notification = useMultiplayerStore((s) => s.challengeNotification);
   const dismiss = useMultiplayerStore((s) => s.dismissChallengeNotification);
@@ -14,16 +16,20 @@ export function ChallengeNotification() {
   const handleAccept = async () => {
     setLoading(true);
     try {
-      await api.post('/matches/accept', { challengeId: notification.challengeId });
+      const res = await api.post<{ matchId: string }>('/matches/accept', {
+        challengeId: notification.challengeId,
+      });
+      dismiss();
+      navigate(`/multiplayer/${res.matchId}`);
     } catch {
       // error handling — notification stays visible
     } finally {
       setLoading(false);
-      dismiss();
     }
   };
 
   const handleDecline = async () => {
+    dismiss();
     setLoading(true);
     try {
       await api.post('/matches/decline', { challengeId: notification.challengeId });
@@ -31,7 +37,6 @@ export function ChallengeNotification() {
       // silently fail
     } finally {
       setLoading(false);
-      dismiss();
     }
   };
 

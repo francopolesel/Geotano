@@ -4,6 +4,7 @@ import { users, matchChallenges, matchGames, friends } from '../db/schema/index.
 import { authGuard } from '../auth/index.js';
 import { eq, and, or } from 'drizzle-orm';
 import * as matchService from '../services/matchService.js';
+import { createNotification } from '../services/notifications.js';
 import { getIO, getUserSocketIds } from '../socket/index.js';
 
 export async function matchRoutes(app: FastifyInstance) {
@@ -98,6 +99,17 @@ export async function matchRoutes(app: FastifyInstance) {
         });
       }
 
+      // DB notification as offline fallback
+      createNotification({
+        userId: receiverId,
+        type: 'challenge_invite',
+        fromUserId: userId,
+        metadata: {
+          challengerUsername: challengerUser?.username,
+          gameModeSlug,
+        },
+      }).catch(() => {});
+
       return { challengeId };
     },
   );
@@ -122,6 +134,16 @@ export async function matchRoutes(app: FastifyInstance) {
         return reply.status(404).send({
           errorCode: 'CHALLENGE_NOT_FOUND',
           message: 'Challenge not found or no longer pending',
+        });
+      }
+
+      // Notify challenger that challenge was accepted
+      const io = getIO();
+      const challengerSids = getUserSocketIds(result.challenge.challengerId);
+      for (const sid of challengerSids) {
+        io.to(sid).emit('challenge:accepted', {
+          matchId: result.matchId,
+          challengeId,
         });
       }
 

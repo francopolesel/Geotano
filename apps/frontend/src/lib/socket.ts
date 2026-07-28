@@ -82,6 +82,13 @@ export function connectSocket(token: string): Socket {
     useMultiplayerStore.getState().showChallengeNotification(data);
   });
 
+  socket.on('challenge:accepted', (data: { matchId: string }) => {
+    useMultiplayerStore.getState().dismissChallengeNotification();
+    if (navigateFn) {
+      navigateFn(`/multiplayer/${data.matchId}`);
+    }
+  });
+
   return socket;
 }
 
