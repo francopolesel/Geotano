@@ -46,21 +46,19 @@ describe('GameModePicker', () => {
   });
 
   describe('content', () => {
-    it('should render mode group titles', () => {
+    it('should render all 5 mode titles', () => {
       renderPicker();
-      // title appears in <h3>, description also mentions it — use getAllByText
-      const continentElements = screen.getAllByText(/continent/i);
-      expect(continentElements.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText(/flag → country/i)).toBeDefined();
       expect(screen.getByText(/capital → country/i)).toBeDefined();
       expect(screen.getByText(/country → flag/i)).toBeDefined();
+      const continentElements = screen.getAllByText(/continent/i);
+      expect(continentElements.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText(/free mix/i)).toBeDefined();
     });
 
-    it('should render variant buttons for each group', () => {
+    it('should render the mode picker hint', () => {
       renderPicker();
-      const standardButtons = screen.getAllByText('Standard');
-      expect(standardButtons.length).toBeGreaterThanOrEqual(5);
+      expect(screen.getByText(/3-minute/i)).toBeDefined();
     });
 
     it('should render the cancel button', () => {
@@ -70,12 +68,15 @@ describe('GameModePicker', () => {
   });
 
   describe('interactions', () => {
-    it('should call onSelect and onClose when a variant is clicked', () => {
+    it('should call onSelect and onClose when a mode card is clicked', () => {
       const { onSelect, onClose } = renderPicker();
-      const standardButtons = screen.getAllByText('Standard');
-      fireEvent.click(standardButtons[0]);
+      const modeCards = screen.getAllByRole('button').filter(
+        (b) => b.textContent && !b.textContent.includes('Cancel'),
+      );
+      fireEvent.click(modeCards[0]);
 
       expect(onSelect).toHaveBeenCalledOnce();
+      expect(onSelect).toHaveBeenCalledWith('flag-guess');
       expect(onClose).toHaveBeenCalledOnce();
     });
 
@@ -91,7 +92,7 @@ describe('GameModePicker', () => {
 
     it('should NOT call onClose when clicking inside the modal card', () => {
       const { onClose } = renderPicker();
-      const card = document.querySelector('.max-w-2xl');
+      const card = document.querySelector('.max-w-lg');
       expect(card).not.toBeNull();
       if (card) {
         fireEvent.click(card);
@@ -105,13 +106,28 @@ describe('GameModePicker', () => {
       expect(onClose).toHaveBeenCalledOnce();
     });
 
-    it('should pass the correct slug when a variant is selected', () => {
-      const { onSelect, onClose } = renderPicker();
-      const unlimitedButtons = screen.getAllByText('Unlimited');
-      fireEvent.click(unlimitedButtons[0]);
+    it('should pass the correct slug for each mode card', () => {
+      const { onSelect } = renderPicker();
+      const modeCards = screen.getAllByRole('button').filter(
+        (b) => b.textContent && !b.textContent.includes('Cancel') && !b.textContent.includes('3-minute'),
+      );
 
-      expect(onSelect).toHaveBeenCalledWith('flag-guess-unlimited');
-      expect(onClose).toHaveBeenCalledOnce();
+      expect(modeCards.length).toBe(5);
+
+      fireEvent.click(modeCards[0]);
+      expect(onSelect).toHaveBeenLastCalledWith('flag-guess');
+
+      fireEvent.click(modeCards[1]);
+      expect(onSelect).toHaveBeenLastCalledWith('capital-guess');
+
+      fireEvent.click(modeCards[2]);
+      expect(onSelect).toHaveBeenLastCalledWith('country-by-flag');
+
+      fireEvent.click(modeCards[3]);
+      expect(onSelect).toHaveBeenLastCalledWith('continent');
+
+      fireEvent.click(modeCards[4]);
+      expect(onSelect).toHaveBeenLastCalledWith('free');
     });
   });
 });

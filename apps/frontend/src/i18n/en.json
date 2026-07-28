@@ -308,6 +308,7 @@
   "multiplayer.youFinished": "You finished!",
   "multiplayer.waitingOpponent": "Waiting for your opponent to finish...",
   "multiplayer.selectMode": "Select a game mode",
+  "multiplayer.modePickerHint": "3-minute challenge — most correct answers wins. Wrong answers lose points!",
   "multiplayer.matchHistory": "Match History",
   "multiplayer.noMatches": "No matches yet",
   "multiplayer.inProgress": "In progress",
