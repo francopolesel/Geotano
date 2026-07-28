@@ -6,6 +6,7 @@ import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, disconnectSocket } from '../../lib/socket';
 import { api } from '../../lib/api';
+import { GameModePicker } from '../multiplayer/GameModePicker';
 
 type Tab = 'friends' | 'requests' | 'search' | 'blocked';
 
@@ -49,6 +50,8 @@ export function FriendsPage() {
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
   const [challengeSentTo, setChallengeSentTo] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerFriendId, setPickerFriendId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
     type: 'remove' | 'block';
     userId: string;
@@ -115,13 +118,21 @@ export function FriendsPage() {
     }
   };
 
-  const handleChallenge = async (friendId: string) => {
+  const handleChallenge = (friendId: string) => {
     if (challengeSentTo === friendId) return;
+    setPickerFriendId(friendId);
+    setPickerOpen(true);
+  };
+
+  const handleModeSelect = async (slug: string) => {
+    const friendId = pickerFriendId;
+    if (!friendId) return;
+
     setChallengeSentTo(friendId);
     try {
       await api.post('/matches/challenge', {
         receiverId: friendId,
-        gameModeSlug: 'flag-guess', // TODO: game mode picker Phase 5
+        gameModeSlug: slug,
       });
     } catch {
       setChallengeSentTo(null);
@@ -631,6 +642,13 @@ export function FriendsPage() {
           </div>
         </div>
       )}
+
+      {/* Game mode picker modal */}
+      <GameModePicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleModeSelect}
+      />
     </>
   );
 }

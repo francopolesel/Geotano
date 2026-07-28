@@ -1,15 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n/i18n';
-import { useMultiplayerStore } from '../store/multiplayerStore';
 import { useAuthStore } from '../store/authStore';
-import type { UserProfile, QuizQuestion, MatchResult, PlayerStats } from '@geotano/shared';
 
-// Mock api for authStore
+// Mock api — use vi.hoisted to avoid hoisting issues
+const { mockGet, mockPost } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockPost: vi.fn(),
+}));
+
 vi.mock('../lib/api', () => ({
-  api: { post: vi.fn(), get: vi.fn(), patch: vi.fn() },
+  api: { get: mockGet, post: mockPost, patch: vi.fn() },
   ApiError: class ApiError extends Error {
     status: number;
     constructor(message: string, status: number) {
@@ -19,40 +22,68 @@ vi.mock('../lib/api', () => ({
   },
 }));
 
-// Mock the socket hook
-vi.mock('../features/multiplayer/useMultiplayerSocket', () => ({
-  useMultiplayerSocket: vi.fn(),
-}));
-
-// Mock the socket lib
-vi.mock('../lib/socket', () => ({
-  getSocket: vi.fn(() => null),
-  submitMatchAnswer: vi.fn(),
-}));
-
 import { MultiplayerPage } from '../features/multiplayer/MultiplayerPage';
 
-function renderWithRouter(element: React.ReactElement) {
+// ─── Fixtures ──────────────────────────────────────────────────────────────
+
+const MOCK_MATCH = {
+  id: 'match-1',
+  challengeId: 'ch-1',
+  player1Id: 'user-1',
+  player2Id: 'user-2',
+  gameModeSlug: 'flag-guess',
+  player1Score: 0,
+  player2Score: 0,
+  player1Finished: false,
+  player2Finished: false,
+  player1StartedAt: null,
+  player2StartedAt: null,
+  winnerId: null,
+  status: 'pending' as const,
+  createdAt: new Date().toISOString(),
+  player1: { id: 'user-1', username: 'current_user', displayName: null, avatarUrl: null },
+  player2: { id: 'user-2', username: 'opponent', displayName: 'Opponent', avatarUrl: null },
+};
+
+const MOCK_QUESTION = {
+  id: 'q-1',
+  questionText: 'What is the capital of France?',
+  options: ['Paris', 'London', 'Berlin', 'Madrid'],
+  correctIndex: 0,
+  flagUrl: undefined,
+};
+
+const MOCK_ANSWER_OK = {
+  correct: true,
+  scoreEarned: 100,
+  streak: 1,
+  nextQuestion: {
+    id: 'q-2',
+    questionText: 'Second question?',
+    options: ['A1', 'B2', 'C3', 'D4'],
+    correctIndex: 2,
+  },
+  finished: false,
+  matchEnded: false,
+};
+
+// ─── Helper ────────────────────────────────────────────────────────────────
+
+function renderWithRouter() {
   return render(
     <I18nextProvider i18n={i18n}>
       <MemoryRouter initialEntries={['/multiplayer/match-1']}>
         <Routes>
-          <Route path="/multiplayer/:matchId" element={element} />
+          <Route path="/multiplayer/:matchId" element={<MultiplayerPage />} />
         </Routes>
       </MemoryRouter>
     </I18nextProvider>,
   );
 }
 
-describe('MultiplayerPage', () => {
+describe('MultiplayerPage (async)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useMultiplayerStore.setState({
-      matchId: null, screen: 'lobby', opponent: null, question: null,
-      score: 0, streak: 0, opponentAnswered: false, remainingMs: 180_000,
-      result: null, challengeNotification: null,
-    });
-    // Set authenticated user
     useAuthStore.setState({
       user: { id: 'user-1', username: 'current_user', email: 'test@test.com', language: 'en', joinCode: '', createdAt: '' },
       token: 'test-token',
@@ -66,208 +97,190 @@ describe('MultiplayerPage', () => {
     cleanup();
   });
 
-  describe('lobby screen', () => {
-    it('should show waiting text when in lobby with opponent', () => {
-      const opponent: UserProfile = {
-        id: 'user-2', username: 'alice', displayName: 'Alice',
-        email: '', language: 'en', joinCode: '', createdAt: '',
-      };
-      useMultiplayerStore.setState({ screen: 'lobby', opponent });
+  // ── Start screen ────────────────────────────────────────────────────────
+  describe('start screen', () => {
+    it('should show start screen when match is pending and user has not started', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
 
-      renderWithRouter(<MultiplayerPage />);
+      renderWithRouter();
 
-      expect(screen.getByText(/waiting/i)).toBeTruthy();
-      expect(screen.getByText(/alice/i)).toBeTruthy();
+      expect(await screen.findByText(/start playing/i)).toBeDefined();
+      expect(screen.getByText(/opponent/i)).toBeDefined();
     });
 
-    it('should show default waiting text when no opponent', () => {
-      useMultiplayerStore.setState({ screen: 'lobby', opponent: null });
+    it('should show challenge from opponent name', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
 
-      renderWithRouter(<MultiplayerPage />);
+      renderWithRouter();
 
-      expect(screen.getByText(/waiting/i)).toBeTruthy();
-    });
-
-    it('should show a cancel button in lobby', () => {
-      const opponent: UserProfile = {
-        id: 'user-2', username: 'bob',
-        email: '', language: 'en', joinCode: '', createdAt: '',
-      };
-      useMultiplayerStore.setState({ screen: 'lobby', opponent });
-
-      renderWithRouter(<MultiplayerPage />);
-
-      const cancelBtn = screen.getByRole('button');
-      expect(cancelBtn).toBeDefined();
+      expect(await screen.findByText(/opponent/i)).toBeDefined();
     });
   });
 
+  // ── Playing screen ──────────────────────────────────────────────────────
   describe('playing screen', () => {
-    const opponent: UserProfile = {
-      id: 'user-2', username: 'charlie', displayName: 'Charlie',
-      email: '', language: 'en', joinCode: '', createdAt: '',
-    };
-    const question: QuizQuestion = {
-      id: 'q-1', countryId: 'c-1', questionType: 'free',
-      questionText: 'What is the capital of France?',
-      options: ['Paris', 'London', 'Berlin', 'Madrid'],
-      correctIndex: 0, timeLimitMs: 3000, questionNumber: 1,
-    };
+    it('should transition to playing when start is clicked', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
+      mockPost.mockResolvedValueOnce({ question: MOCK_QUESTION, remainingMs: 180_000 });
 
-    beforeEach(() => {
-      useMultiplayerStore.setState({
-        screen: 'playing',
-        matchId: 'match-1',
-        opponent,
-        question,
-        score: 300,
-        streak: 3,
-        remainingMs: 120_000,
-      });
-    });
+      renderWithRouter();
 
-    it('should show the question text', () => {
-      renderWithRouter(<MultiplayerPage />);
+      // Wait for start screen
+      const startBtn = await screen.findByText(/start playing/i);
+      fireEvent.click(startBtn);
 
-      expect(screen.getByText('What is the capital of France?')).toBeDefined();
-    });
-
-    it('should show the score', () => {
-      renderWithRouter(<MultiplayerPage />);
-
-      expect(screen.getByText('300')).toBeDefined();
-    });
-
-    it('should show the timer bar', () => {
-      renderWithRouter(<MultiplayerPage />);
-
-      // Timer bar should be present
-      const timerContainer = document.querySelector('.overflow-hidden.rounded-full');
-      expect(timerContainer).toBeDefined();
-    });
-
-    it('should show answer options', () => {
-      renderWithRouter(<MultiplayerPage />);
-
+      // Should show question
+      expect(await screen.findByText('What is the capital of France?')).toBeDefined();
       expect(screen.getByText('Paris')).toBeDefined();
       expect(screen.getByText('London')).toBeDefined();
       expect(screen.getByText('Berlin')).toBeDefined();
       expect(screen.getByText('Madrid')).toBeDefined();
     });
 
-    it('should show opponent indicator when opponent answered', () => {
-      useMultiplayerStore.setState({ opponentAnswered: true });
+    it('should show score of 0 at start', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
+      mockPost.mockResolvedValueOnce({ question: MOCK_QUESTION, remainingMs: 180_000 });
 
-      renderWithRouter(<MultiplayerPage />);
+      renderWithRouter();
 
-      expect(screen.getByText(/opponent answered/i)).toBeDefined();
+      const startBtn = await screen.findByText(/start playing/i);
+      fireEvent.click(startBtn);
+
+      expect(await screen.findByText('0')).toBeDefined();
     });
 
-    it('should not show opponent indicator when opponent has not answered', () => {
-      useMultiplayerStore.setState({ opponentAnswered: false });
+    it('should show correct feedback on right answer', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
+      mockPost.mockResolvedValueOnce({ question: MOCK_QUESTION, remainingMs: 180_000 });
+      mockPost.mockResolvedValueOnce(MOCK_ANSWER_OK);
 
-      renderWithRouter(<MultiplayerPage />);
+      renderWithRouter();
 
-      expect(screen.queryByText(/opponent answered/i)).toBeNull();
+      const startBtn = await screen.findByText(/start playing/i);
+      fireEvent.click(startBtn);
+
+      // Wait for question, then click correct answer (Paris = index 0)
+      const parisBtn = await screen.findByText('Paris');
+      fireEvent.click(parisBtn);
+
+      expect(await screen.findByText(/correct!/i)).toBeDefined();
     });
 
-    it('should show streak fire when streak >= 5', () => {
-      useMultiplayerStore.setState({ streak: 5 });
+    it('should resume from in-progress match on mount', async () => {
+      const startedMatch = {
+        ...MOCK_MATCH,
+        player1StartedAt: new Date().toISOString(),
+        status: 'in_progress' as const,
+      };
+      mockGet.mockResolvedValueOnce(startedMatch);
+      mockPost.mockResolvedValueOnce({ question: MOCK_QUESTION, remainingMs: 150_000 });
 
-      renderWithRouter(<MultiplayerPage />);
+      renderWithRouter();
 
-      expect(screen.getByText(/streak/i)).toBeDefined();
+      expect(await screen.findByText('What is the capital of France?')).toBeDefined();
     });
   });
 
-  describe('ended screen', () => {
-    const playerA: PlayerStats = {
-      userId: 'user-1', username: 'current_user', displayName: 'You',
-      score: 800, correctCount: 8, totalAnswered: 10, maxStreak: 5,
-    };
-    const playerB: PlayerStats = {
-      userId: 'user-2', username: 'opponent_user', displayName: 'Opponent',
-      score: 600, correctCount: 6, totalAnswered: 10, maxStreak: 4,
-    };
-    const opponent: UserProfile = {
-      id: 'user-2', username: 'opponent_user', displayName: 'Opponent',
-      email: '', language: 'en', joinCode: '', createdAt: '',
-    };
+  // ── Finished waiting screen ─────────────────────────────────────────────
+  describe('finished waiting screen', () => {
+    it('should show waiting for opponent when user finished but match not ended', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
+      mockPost.mockResolvedValueOnce({ question: MOCK_QUESTION, remainingMs: 180_000 });
 
-    it('should show winner message when current user won', () => {
-      const result: MatchResult = {
-        matchId: 'match-1', winnerId: 'user-1',
-        reason: 'timer_expired', players: [playerA, playerB],
+      const finalAnswer = {
+        correct: true,
+        scoreEarned: 100,
+        streak: 1,
+        nextQuestion: null,
+        finished: true,
+        matchEnded: false,
       };
-      useMultiplayerStore.setState({
-        screen: 'ended', result, matchId: 'match-1', opponent,
-      });
+      mockPost.mockResolvedValueOnce(finalAnswer);
 
-      renderWithRouter(<MultiplayerPage />);
+      renderWithRouter();
 
-      expect(screen.getByText(/won/i)).toBeDefined();
+      const startBtn = await screen.findByText(/start playing/i);
+      fireEvent.click(startBtn);
+
+      const parisBtn = await screen.findByText('Paris');
+      fireEvent.click(parisBtn);
+
+      expect(await screen.findByText(/you finished!/i, {}, { timeout: 3000 })).toBeDefined();
     });
+  });
 
-    it('should show loser message when opponent won', () => {
-      const result: MatchResult = {
-        matchId: 'match-1', winnerId: 'user-2',
-        reason: 'both_finished', players: [playerA, playerB],
+  // ── Result screen ───────────────────────────────────────────────────────
+  describe('result screen', () => {
+    it('should show winner when match is complete and current user won', async () => {
+      const completedMatch = {
+        ...MOCK_MATCH,
+        player1Score: 800,
+        player2Score: 600,
+        player1Finished: true,
+        player2Finished: true,
+        player1StartedAt: new Date().toISOString(),
+        player2StartedAt: new Date().toISOString(),
+        winnerId: 'user-1', // current user wins
+        status: 'completed' as const,
       };
-      useMultiplayerStore.setState({
-        screen: 'ended', result, matchId: 'match-1', opponent,
-      });
+      mockGet.mockResolvedValueOnce(completedMatch);
 
-      renderWithRouter(<MultiplayerPage />);
+      renderWithRouter();
 
-      expect(screen.getByText(/lost/i)).toBeDefined();
-    });
-
-    it('should show tie message when winnerId is null', () => {
-      const result: MatchResult = {
-        matchId: 'match-1', winnerId: null,
-        reason: 'both_finished', players: [playerA, playerB],
-      };
-      useMultiplayerStore.setState({
-        screen: 'ended', result, matchId: 'match-1', opponent,
-      });
-
-      renderWithRouter(<MultiplayerPage />);
-
-      expect(screen.getByText(/tie/i)).toBeDefined();
-    });
-
-    it('should show scores and stats for both players', () => {
-      const result: MatchResult = {
-        matchId: 'match-1', winnerId: 'user-1',
-        reason: 'both_finished', players: [playerA, playerB],
-      };
-      useMultiplayerStore.setState({
-        screen: 'ended', result, matchId: 'match-1', opponent,
-      });
-
-      renderWithRouter(<MultiplayerPage />);
-
-      // Both scores should appear (exact match on numbers)
+      expect(await screen.findByText(/won/i)).toBeDefined();
+      // Scores should appear
       expect(screen.getByText('800')).toBeDefined();
       expect(screen.getByText('600')).toBeDefined();
-      // Correct count labels
-      expect(screen.getByText('Correct: 8')).toBeDefined();
-      expect(screen.getByText('Correct: 6')).toBeDefined();
     });
 
-    it('should show back to home button', () => {
-      const result: MatchResult = {
-        matchId: 'match-1', winnerId: null,
-        reason: 'opponent_disconnected', players: [playerA, playerB],
+    it('should show loser when opponent won', async () => {
+      const completedMatch = {
+        ...MOCK_MATCH,
+        player1Score: 400,
+        player2Score: 700,
+        player1Finished: true,
+        player2Finished: true,
+        player1StartedAt: new Date().toISOString(),
+        player2StartedAt: new Date().toISOString(),
+        winnerId: 'user-2',
+        status: 'completed' as const,
       };
-      useMultiplayerStore.setState({
-        screen: 'ended', result, matchId: 'match-1', opponent,
-      });
+      mockGet.mockResolvedValueOnce(completedMatch);
 
-      renderWithRouter(<MultiplayerPage />);
+      renderWithRouter();
 
-      // Using the exact text from i18n key
-      expect(screen.getByText('Back to Home')).toBeDefined();
+      expect(await screen.findByText(/lost/i)).toBeDefined();
+    });
+
+    it('should show tie when winnerId is null', async () => {
+      const tieMatch = {
+        ...MOCK_MATCH,
+        player1Score: 500,
+        player2Score: 500,
+        player1Finished: true,
+        player2Finished: true,
+        player1StartedAt: new Date().toISOString(),
+        player2StartedAt: new Date().toISOString(),
+        winnerId: null,
+        status: 'completed' as const,
+      };
+      mockGet.mockResolvedValueOnce(tieMatch);
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/tie/i)).toBeDefined();
+    });
+  });
+
+  // ── Error screen ────────────────────────────────────────────────────────
+  describe('error screen', () => {
+    it('should show error when match is not found', async () => {
+      mockGet.mockRejectedValueOnce(new Error('Not found'));
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/match not found/i)).toBeDefined();
+      expect(screen.getByText(/back to home/i)).toBeDefined();
     });
   });
 });

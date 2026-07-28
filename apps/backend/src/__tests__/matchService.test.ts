@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// ─── Mock questions for pool override ───────────────────────────────────────
+// ─── Mock questions ─────────────────────────────────────────────
 
 function makeMockQuestions(count: number) {
   const qs: any[] = [];
@@ -11,49 +11,181 @@ function makeMockQuestions(count: number) {
       questionType: 'free',
       questionText: `Question ${i + 1}`,
       options: ['A', 'B', 'C', 'D'],
-      correctIndex: 0, // always index 0 is correct
+      correctIndex: 0,
       correctAnswer: 'A',
       flagUrl: undefined,
       timeLimitMs: 15000,
       questionNumber: i + 1,
-      optionsCountryIds: [`c-${i}`, `c2-${i}`, `c3-${i}`, `c4-${i}`],
+      optionsCountryIds: [`c-${i}`, `c2-${i}`, `c4-${i}`, `c4-${i}`],
     });
   }
   return qs;
 }
 
 const POOL_50 = makeMockQuestions(50);
+const POOL_5 = makeMockQuestions(5);
+
+// ─── Hoisted mocks ──────────────────────────────────────────────
+
+const pendingResults: any[] = [];
+
+const mockDb = vi.hoisted(() => {
+  function makeChainable() {
+    const chain: any = () => chain;
+    chain.select = vi.fn(() => chain);
+    chain.from = vi.fn(() => chain);
+    chain.where = vi.fn(() => chain);
+    chain.limit = vi.fn(() => chain);
+    chain.orderBy = vi.fn(() => chain);
+    chain.insert = vi.fn(() => chain);
+    chain.values = vi.fn(() => chain);
+    chain.returning = vi.fn(() => chain);
+    chain.update = vi.fn(() => chain);
+    chain.set = vi.fn(() => chain);
+    chain.delete = vi.fn(() => chain);
+    chain.then = vi.fn((resolve: any) => {
+      const data = pendingResults.shift();
+      resolve(data !== undefined ? data : []);
+    });
+    chain.catch = vi.fn();
+    return chain;
+  }
+  return makeChainable();
+});
+
+vi.mock('../db/index.js', () => ({ db: mockDb }));
+
+const mockGenerateQuestionBatch = vi.hoisted(() => vi.fn());
+vi.mock('../services/quizEngine.js', () => ({
+  generateQuestionBatch: mockGenerateQuestionBatch,
+}));
+
+// ─── Imports ────────────────────────────────────────────────────
 
 import {
   calculateRaceScore,
   createChallenge,
   acceptChallenge,
   declineChallenge,
-  cancelChallenge,
-  getChallenge,
-  generateMatch,
+  getMatchState,
+  getPlayerMatchHistory,
+  startMatchPlay,
   submitAnswer,
-  handleDisconnect,
-  rejoinMatch,
-  startMatchTimer,
-  setChallengeTimeoutCallback,
-  setForfeitCallback,
-  setMatchTimerEndCallback,
-  __resetForTesting,
-  matches,
-  challenges,
-  userMatchMap,
 } from '../services/matchService.js';
 
-// ─── Test setup ──────────────────────────────────────────────────────────────
+// ─── Fixtures ───────────────────────────────────────────────────
 
-afterEach(() => {
-  __resetForTesting();
-  vi.useRealTimers();
-  vi.restoreAllMocks();
+const USER1_PROFILE = { id: 'user-1', username: 'player1', displayName: null, avatarUrl: null };
+const USER2_PROFILE = { id: 'user-2', username: 'player2', displayName: null, avatarUrl: null };
+
+function createMockMatch(overrides: Record<string, any> = {}) {
+  return {
+    id: 'm-1',
+    challengeId: 'ch-1',
+    player1Id: 'user-1',
+    player2Id: 'user-2',
+    gameModeSlug: 'classic',
+    player1Score: 0,
+    player2Score: 0,
+    player1Finished: false,
+    player2Finished: false,
+    player1StartedAt: null,
+    player2StartedAt: null,
+    winnerId: null,
+    status: 'in_progress',
+    createdAt: new Date('2026-01-01'),
+    questionPool: POOL_50,
+    playerAOrder: Array.from({ length: 50 }, (_, i) => i),
+    playerBOrder: Array.from({ length: 50 }, (_, i) => i),
+    ...overrides,
+  };
+}
+
+function pushProfiles() {
+  pendingResults.push([USER1_PROFILE]);
+  pendingResults.push([USER2_PROFILE]);
+}
+
+/**
+ * Push all pendingResults entries for a single submitAnswer() call.
+ *
+ * submitAnswer internally calls, in order:
+ *   1. getFullMatch → db.select().from(matchGames).where(...).limit(1)
+ *   2. db.select().from(matchAnswers).where(...).orderBy(...)
+ *   3. db.insert(matchAnswers).values(...)
+ *   4. db.update(matchGames).set(...).where(...)
+ *   5. getMatchState → getFullMatch → db.select().from(matchGames).where(...).limit(1)
+ *   6. db.select().from(users).where(...).limit(1)  [profile 1]
+ *   7. db.select().from(users).where(...).limit(1)  [profile 2]
+ *   8. if bothFinished → db.update(matchGames).set({status,winnerId}).where(...)
+ */
+function pushSubmitAnswerMocks(
+  correctSoFar: number,
+  isCorrect: boolean,
+  playerScoreBefore: number,
+  isPlayer1: boolean,
+  totalQuestions: number,
+  bothFinished: boolean,
+  otherScore = 0,
+  otherFinished = false,
+) {
+  const orderArr = Array.from({ length: totalQuestions }, (_, i) => i);
+  // 1. getFullMatch
+  pendingResults.push([createMockMatch({
+    player1Score: isPlayer1 ? playerScoreBefore : otherScore,
+    player2Score: isPlayer1 ? otherScore : playerScoreBefore,
+    player1Finished: isPlayer1 ? false : otherFinished,
+    player2Finished: isPlayer1 ? otherFinished : false,
+    playerAOrder: orderArr,
+    playerBOrder: orderArr,
+  })]);
+
+  // 2. prev answers
+  const prev: any[] = [];
+  for (let j = 0; j < correctSoFar; j++) {
+    prev.push({
+      streakAtAnswer: j + 1,
+      wasCorrect: true,
+      scoreEarned: j >= 2 ? 150 : 100,
+    });
+  }
+  pendingResults.push(prev);
+
+  // 3. insert answer
+  pendingResults.push(undefined);
+
+  // 4. update match
+  pendingResults.push(undefined);
+
+  // 5. getMatchState → getFullMatch
+  const afterScore = playerScoreBefore + (isCorrect ? (correctSoFar >= 2 ? 150 : 100) : 0);
+  const thisFinished = correctSoFar + 1 >= totalQuestions;
+  pendingResults.push([createMockMatch({
+    player1Score: isPlayer1 ? afterScore : otherScore,
+    player2Score: isPlayer1 ? otherScore : afterScore,
+    player1Finished: isPlayer1 ? thisFinished : otherFinished,
+    player2Finished: isPlayer1 ? otherFinished : thisFinished,
+    playerAOrder: orderArr,
+    playerBOrder: orderArr,
+  })]);
+
+  // 6–7. profiles
+  pushProfiles();
+
+  // 8. bothFinished update
+  if (bothFinished) {
+    pendingResults.push(undefined);
+  }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  pendingResults.length = 0;
 });
 
-// ─── calculateRaceScore (pure function) ─────────────────────────────────────
+// ===================================================================
+//  calculateRaceScore (pure function)
+// ===================================================================
 
 describe('calculateRaceScore', () => {
   it('should return 100 for correct answer with no streak', () => {
@@ -78,138 +210,280 @@ describe('calculateRaceScore', () => {
   });
 });
 
-// ─── Challenge Lifecycle ────────────────────────────────────────────────────
+// ===================================================================
+//  createChallenge
+// ===================================================================
 
-describe('challenge lifecycle', () => {
-  it('should create a challenge and return its id', () => {
-    const id = createChallenge('user-1', 'user-2');
+describe('createChallenge', () => {
+  it('should insert a challenge row and return its id', async () => {
+    pendingResults.push(undefined); // db.insert().values()
+
+    const id = await createChallenge('user-1', 'user-2', 'classic');
+
     expect(id).toBeDefined();
-    expect(id).toBeTypeOf('string');
-    expect(challenges.has(id)).toBe(true);
+    expect(typeof id).toBe('string');
+    expect(mockDb.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        challengerId: 'user-1',
+        receiverId: 'user-2',
+        gameModeSlug: 'classic',
+        status: 'pending',
+      }),
+    );
   });
+});
 
-  it('should accept a valid challenge and return it', () => {
-    const id = createChallenge('user-1', 'user-2');
-    const result = acceptChallenge(id);
+// ===================================================================
+//  acceptChallenge
+// ===================================================================
+
+describe('acceptChallenge', () => {
+  it('should accept a pending challenge, generate questions, create match, and return result', async () => {
+    const challengeRow = {
+      id: 'ch-1',
+      challengerId: 'user-1',
+      receiverId: 'user-2',
+      gameModeSlug: 'classic',
+      status: 'pending',
+    };
+    pendingResults.push([challengeRow]); // select challenge
+    mockGenerateQuestionBatch.mockResolvedValueOnce(POOL_5 as any);
+    pendingResults.push(undefined);        // insert match
+    pendingResults.push(undefined);        // update challenge status
+
+    const result = await acceptChallenge('ch-1', 'user-2');
+
     expect(result).not.toBeNull();
-    expect(result!.challengerId).toBe('user-1');
-    expect(result!.receiverId).toBe('user-2');
-    expect(challenges.has(id)).toBe(false);
+    expect(result!.matchId).toBeDefined();
+    expect(typeof result!.matchId).toBe('string');
+    expect(result!.challenge.challengerId).toBe('user-1');
+    expect(result!.challenge.receiverId).toBe('user-2');
+    expect(mockDb.update).toHaveBeenCalled();
   });
 
-  it('should return null when accepting an unknown challenge', () => {
-    expect(acceptChallenge('nonexistent')).toBeNull();
+  it('should return null for unknown challenge', async () => {
+    pendingResults.push([]);
+
+    const result = await acceptChallenge('nonexistent', 'user-2');
+
+    expect(result).toBeNull();
   });
 
-  it('should decline a valid challenge and remove it', () => {
-    const id = createChallenge('user-1', 'user-2');
-    const result = declineChallenge(id);
-    expect(result).toBe(true);
-    expect(challenges.has(id)).toBe(false);
+  it('should return null when userId is not the receiver', async () => {
+    pendingResults.push([{
+      id: 'ch-1',
+      challengerId: 'user-1',
+      receiverId: 'user-2',
+      status: 'pending',
+    }]);
+
+    const result = await acceptChallenge('ch-1', 'user-1');
+
+    expect(result).toBeNull();
   });
 
-  it('should return false when declining an unknown challenge', () => {
-    expect(declineChallenge('nonexistent')).toBe(false);
-  });
+  it('should return null when challenge is not pending', async () => {
+    pendingResults.push([{
+      id: 'ch-1',
+      challengerId: 'user-1',
+      receiverId: 'user-2',
+      status: 'accepted',
+    }]);
 
-  it('should cancel a valid challenge and remove it', () => {
-    const id = createChallenge('user-1', 'user-2');
-    const result = cancelChallenge(id);
-    expect(result).toBe(true);
-    expect(challenges.has(id)).toBe(false);
-  });
+    const result = await acceptChallenge('ch-1', 'user-2');
 
-  it('should return false when cancelling an unknown challenge', () => {
-    expect(cancelChallenge('nonexistent')).toBe(false);
-  });
-
-  it('should fire challenge timeout callback after 30s', () => {
-    vi.useFakeTimers();
-    const cb = vi.fn();
-    setChallengeTimeoutCallback(cb);
-
-    const id = createChallenge('user-1', 'user-2');
-    expect(challenges.has(id)).toBe(true);
-
-    vi.advanceTimersByTime(29_000);
-    expect(cb).not.toHaveBeenCalled();
-    expect(challenges.has(id)).toBe(true);
-
-    vi.advanceTimersByTime(2_000);
-    expect(cb).toHaveBeenCalledTimes(1);
-    expect(cb).toHaveBeenCalledWith(id, 'user-1');
-    expect(challenges.has(id)).toBe(false);
-  });
-
-  it('should NOT fire timeout callback after challenge is accepted', () => {
-    vi.useFakeTimers();
-    const cb = vi.fn();
-    setChallengeTimeoutCallback(cb);
-
-    const id = createChallenge('user-1', 'user-2');
-    acceptChallenge(id);
-    vi.advanceTimersByTime(60_000);
-    expect(cb).not.toHaveBeenCalled();
-  });
-
-  it('should get a challenge by id', () => {
-    const id = createChallenge('user-1', 'user-2');
-    const c = getChallenge(id);
-    expect(c).toBeDefined();
-    expect(c!.challengerId).toBe('user-1');
-  });
-
-  it('should return undefined for unknown challenge', () => {
-    expect(getChallenge('nonexistent')).toBeUndefined();
+    expect(result).toBeNull();
   });
 });
 
-// ─── generateMatch ──────────────────────────────────────────────────────────
+// ===================================================================
+//  declineChallenge
+// ===================================================================
 
-describe('generateMatch', () => {
-  it('should create a match with 50 questions and per-player orders', async () => {
-    const state = await generateMatch('user-1', 'user-2', 'en', POOL_50);
+describe('declineChallenge', () => {
+  it('should decline a valid pending challenge and return true', async () => {
+    pendingResults.push([{
+      id: 'ch-1',
+      challengerId: 'user-1',
+      receiverId: 'user-2',
+      status: 'pending',
+    }]);
+    pendingResults.push(undefined);
 
-    expect(state.id).toBeTypeOf('string');
-    expect(state.status).toBe('active');
-    expect(state.playerA.userId).toBe('user-1');
-    expect(state.playerB.userId).toBe('user-2');
-    expect(state.questionPool).toHaveLength(50);
-    expect(state.playerAOrder).toHaveLength(50);
-    expect(state.playerBOrder).toHaveLength(50);
-    expect(state.timerDurationMs).toBe(180_000);
-    expect(state.timerStartedAt).toBeGreaterThan(0);
-    expect(state.disconnectedAt).toBeInstanceOf(Map);
-    expect(state.winnerId).toBeNull();
+    const result = await declineChallenge('ch-1', 'user-2');
 
-    // Verify player orders are shuffled (astronomically low chance of identical)
-    const aStr = state.playerAOrder.join(',');
-    const bStr = state.playerBOrder.join(',');
-    expect(aStr).not.toBe(bStr);
+    expect(result).toBe(true);
+  });
 
-    // Verify userMatchMap entries
-    expect(userMatchMap.get('user-1')).toBe(state.id);
-    expect(userMatchMap.get('user-2')).toBe(state.id);
+  it('should return false for unknown challenge', async () => {
+    pendingResults.push([]);
+
+    const result = await declineChallenge('nonexistent', 'user-2');
+
+    expect(result).toBe(false);
+  });
+
+  it('should return false when userId is not the receiver', async () => {
+    pendingResults.push([{
+      id: 'ch-1',
+      challengerId: 'user-1',
+      receiverId: 'user-2',
+      status: 'pending',
+    }]);
+
+    const result = await declineChallenge('ch-1', 'user-1');
+
+    expect(result).toBe(false);
+  });
+
+  it('should return false when challenge is not pending', async () => {
+    pendingResults.push([{
+      id: 'ch-1',
+      challengerId: 'user-1',
+      receiverId: 'user-2',
+      status: 'declined',
+    }]);
+
+    const result = await declineChallenge('ch-1', 'user-2');
+
+    expect(result).toBe(false);
   });
 });
 
-// ─── submitAnswer ───────────────────────────────────────────────────────────
+// ===================================================================
+//  getMatchState
+// ===================================================================
+
+describe('getMatchState', () => {
+  it('should return match state with player profiles', async () => {
+    pendingResults.push([createMockMatch()]); // getFullMatch
+    pushProfiles();
+
+    const result = await getMatchState('m-1');
+
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe('m-1');
+    expect(result!.player1Id).toBe('user-1');
+    expect(result!.player2Id).toBe('user-2');
+    expect(result!.status).toBe('in_progress');
+    expect(result!.player1).toEqual(USER1_PROFILE);
+    expect(result!.player2).toEqual(USER2_PROFILE);
+  });
+
+  it('should return null for unknown match', async () => {
+    pendingResults.push([]);
+
+    const result = await getMatchState('nonexistent');
+
+    expect(result).toBeNull();
+  });
+});
+
+// ===================================================================
+//  getPlayerMatchHistory
+// ===================================================================
+
+describe('getPlayerMatchHistory', () => {
+  it('should return matches where user is player1 or player2', async () => {
+    const rows = [
+      createMockMatch({ id: 'm-1' }),
+      createMockMatch({ id: 'm-2', player1Id: 'user-1', player2Id: 'user-3' }),
+    ];
+    pendingResults.push(rows);
+
+    const result = await getPlayerMatchHistory('user-1');
+
+    expect(result).toHaveLength(2);
+  });
+
+  it('should return empty array for user with no matches', async () => {
+    pendingResults.push([]);
+
+    const result = await getPlayerMatchHistory('user-42');
+
+    expect(result).toEqual([]);
+  });
+});
+
+// ===================================================================
+//  startMatchPlay
+// ===================================================================
+
+describe('startMatchPlay', () => {
+  it('should return the first question and remaining time for a new player', async () => {
+    pendingResults.push([createMockMatch({ status: 'pending' })]); // getFullMatch
+    pendingResults.push([{ count: 0 }]);                            // count answers
+    pendingResults.push(undefined);                                // update startedAt
+    pendingResults.push(undefined);                                // update status → in_progress
+
+    const result = await startMatchPlay('m-1', 'user-1');
+
+    expect(result).not.toBeNull();
+    expect(result!.question).toBeDefined();
+    expect(result!.question.questionNumber).toBe(1);
+    expect(result!.remainingMs).toBeGreaterThan(170_000);
+    expect(result!.remainingMs).toBeLessThanOrEqual(180_000);
+  });
+
+  it('should return null for unknown match', async () => {
+    pendingResults.push([]);
+
+    const result = await startMatchPlay('nonexistent', 'user-1');
+
+    expect(result).toBeNull();
+  });
+
+  it('should return null when player has exhausted all questions', async () => {
+    pendingResults.push([createMockMatch()]);
+    pendingResults.push([{ count: 50 }]);
+
+    const result = await startMatchPlay('m-1', 'user-1');
+
+    expect(result).toBeNull();
+  });
+
+  it('should skip startedAt update when player already started', async () => {
+    pendingResults.push([createMockMatch({
+      status: 'in_progress',
+      player1StartedAt: new Date('2026-01-01T00:00:00Z'),
+    })]);
+    pendingResults.push([{ count: 1 }]);
+
+    const result = await startMatchPlay('m-1', 'user-1');
+
+    expect(result).not.toBeNull();
+    expect(result!.question).toBeDefined();
+    // Should NOT have called update for startedAt or status
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+});
+
+// ===================================================================
+//  submitAnswer
+// ===================================================================
 
 describe('submitAnswer', () => {
-  let matchId: string;
+  it('should return null for unknown match', async () => {
+    pendingResults.push([]);
 
-  beforeEach(async () => {
-    const state = await generateMatch('user-1', 'user-2', 'en', POOL_50);
-    matchId = state.id;
+    const result = await submitAnswer('nonexistent', 'user-1', 0);
+
+    expect(result).toBeNull();
   });
 
-  it('should return null for unknown match', () => {
-    expect(submitAnswer('nonexistent', 'user-1', 0)).toBeNull();
+  it('should return null for completed match', async () => {
+    pendingResults.push([createMockMatch({ status: 'completed' })]);
+
+    const result = await submitAnswer('m-1', 'user-1', 0);
+
+    expect(result).toBeNull();
   });
 
-  it('should mark correct answer and award base score', () => {
-    const result = submitAnswer(matchId, 'user-1', 0);
-    // All mock questions have correctIndex = 0
+  it('should mark correct answer and award base score', async () => {
+    pushSubmitAnswerMocks(0, true, 0, true, 50, false);
+
+    const result = await submitAnswer('m-1', 'user-1', 0);
+
     expect(result).not.toBeNull();
     expect(result!.correct).toBe(true);
     expect(result!.scoreEarned).toBe(100);
@@ -219,187 +493,118 @@ describe('submitAnswer', () => {
     expect(result!.nextQuestion).not.toBeNull();
   });
 
-  it('should mark wrong answer with 0 score and reset streak', () => {
-    submitAnswer(matchId, 'user-1', 0); // correct → streak 1
-    const result = submitAnswer(matchId, 'user-1', 1); // wrong
+  it('should mark wrong answer with 0 score and reset streak', async () => {
+    // First answer correct
+    pushSubmitAnswerMocks(0, true, 0, true, 50, false);
+    await submitAnswer('m-1', 'user-1', 0);
+
+    // Second answer wrong
+    pushSubmitAnswerMocks(1, false, 100, true, 50, false);
+
+    const result = await submitAnswer('m-1', 'user-1', 1);
+
     expect(result).not.toBeNull();
     expect(result!.correct).toBe(false);
     expect(result!.scoreEarned).toBe(0);
     expect(result!.streak).toBe(0);
   });
 
-  it('should apply streak multiplier at 3+ consecutive correct', () => {
-    submitAnswer(matchId, 'user-1', 0); // streak 0→1, score 100
-    submitAnswer(matchId, 'user-1', 0); // streak 1→2, score 100
-    const result = submitAnswer(matchId, 'user-1', 0); // streak 2→3, streakBefore=2 < 3
-    expect(result!.correct).toBe(true);
-    expect(result!.scoreEarned).toBe(100);
-    expect(result!.streak).toBe(3);
+  it('should apply streak multiplier at 3+ consecutive correct', async () => {
+    // Answer 1: correct, streak 1
+    pushSubmitAnswerMocks(0, true, 0, true, 50, false);
+    await submitAnswer('m-1', 'user-1', 0);
 
-    // Now streakBefore = 3 → should get 150
-    const result2 = submitAnswer(matchId, 'user-1', 0);
-    expect(result2!.correct).toBe(true);
-    expect(result2!.scoreEarned).toBe(150);
-    expect(result2!.streak).toBe(4);
+    // Answer 2: correct, streak 2
+    pushSubmitAnswerMocks(1, true, 100, true, 50, false);
+    await submitAnswer('m-1', 'user-1', 0);
+
+    // Answer 3: correct, streak 3 → streakBefore = 2 (below threshold) → score 100
+    pushSubmitAnswerMocks(2, true, 200, true, 50, false);
+    const r3 = await submitAnswer('m-1', 'user-1', 0);
+    expect(r3!.scoreEarned).toBe(100);
+    expect(r3!.streak).toBe(3);
+
+    // Answer 4: correct, streak 4 → streakBefore = 3 (>= threshold) → score 150
+    pushSubmitAnswerMocks(3, true, 300, true, 50, false);
+    const r4 = await submitAnswer('m-1', 'user-1', 0);
+    expect(r4!.scoreEarned).toBe(150);
+    expect(r4!.streak).toBe(4);
   });
 
-  it('should set finished and matchEnded when both players exhaust questions', () => {
-    // Player A answers all 50 questions
-    for (let i = 0; i < 50; i++) {
-      const r = submitAnswer(matchId, 'user-1', 0);
-      if (i < 49) expect(r!.finished).toBe(false);
+  it('should finish the match and set matchEnded when both players finish', async () => {
+    // Player A answers all 3 correctly
+    // Player B answers 2 correctly, then 3rd → bothFinished = true
+    for (let i = 0; i < 3; i++) {
+      pushSubmitAnswerMocks(i, true, i * 100, true, 3, false, 0, false);
+    }
+    for (let i = 0; i < 2; i++) {
+      pushSubmitAnswerMocks(i, true, i * 100, false, 3, false, 300, true);
+    }
+    // Player B last answer → bothFinished = true
+    pushSubmitAnswerMocks(2, true, 200, false, 3, true, 300, true);
+
+    for (let i = 0; i < 3; i++) {
+      await submitAnswer('m-1', 'user-1', 0);
+    }
+    let lastResult: any = null;
+    for (let i = 0; i < 3; i++) {
+      lastResult = await submitAnswer('m-1', 'user-2', 0);
     }
 
-    // Player A has no more questions
-    expect(submitAnswer(matchId, 'user-1', 0)).toBeNull();
-    expect(matches.get(matchId)!.status).toBe('active');
-    expect(matches.get(matchId)!.winnerId).toBeNull();
-
-    // Player B answers all 50 questions
-    for (let i = 0; i < 49; i++) {
-      const r = submitAnswer(matchId, 'user-2', 0);
-      expect(r!.matchEnded).toBe(false);
-    }
-    const lastB = submitAnswer(matchId, 'user-2', 0);
-    expect(lastB!.finished).toBe(true);
-    expect(lastB!.matchEnded).toBe(true);
-    expect(matches.get(matchId)!.status).toBe('finished');
-    // Both all-correct → tie → winnerId null
-    expect(matches.get(matchId)!.winnerId).toBeNull();
-    expect(lastB!.nextQuestion).toBeNull();
-  });
-
-  it('should determine winner based on score', async () => {
-    // Player A: 3 correct, then 2 wrong (to avoid streak multiplier)
-    submitAnswer(matchId, 'user-1', 0); // correct, streak=1, score=100
-    submitAnswer(matchId, 'user-1', 0); // correct, streak=2, score=100
-    submitAnswer(matchId, 'user-1', 1); // wrong, streak=0, score=0
-    submitAnswer(matchId, 'user-1', 0); // correct, streak=1, score=100
-    submitAnswer(matchId, 'user-1', 0); // correct, streak=2, score=100
-    // Total for A: 400
-
-    // Player B: 3 correct = 300
-    for (let i = 0; i < 3; i++) submitAnswer(matchId, 'user-2', 0);
-
-    const m = matches.get(matchId)!;
-    expect(m.playerA.score).toBe(400);
-    expect(m.playerB.score).toBe(300);
+    expect(lastResult).not.toBeNull();
+    expect(lastResult!.finished).toBe(true);
+    expect(lastResult!.matchEnded).toBe(true);
+    expect(lastResult!.nextQuestion).toBeNull();
   });
 });
 
-// ─── Timer ──────────────────────────────────────────────────────────────────
+// ===================================================================
+//  Edge cases
+// ===================================================================
 
-describe('match timer', () => {
-  it('should end match when timer expires', async () => {
-    vi.useFakeTimers();
-    const state = await generateMatch('user-1', 'user-2', 'en', POOL_50);
-    const cb = vi.fn();
-    setMatchTimerEndCallback(cb);
+describe('edge cases', () => {
+  it('should return null for getMatchState on non-existent match', async () => {
+    pendingResults.push([]);
 
-    startMatchTimer(state.id);
-    expect(matches.get(state.id)!.status).toBe('active');
+    const result = await getMatchState('no-such-match');
 
-    vi.advanceTimersByTime(180_001);
-
-    expect(matches.get(state.id)!.status).toBe('finished');
-    expect(cb).toHaveBeenCalledWith(state.id);
-  });
-});
-
-// ─── Disconnect / Rejoin ────────────────────────────────────────────────────
-
-describe('disconnect and rejoin', () => {
-  let matchId: string;
-
-  beforeEach(async () => {
-    const state = await generateMatch('user-1', 'user-2', 'en', POOL_50);
-    matchId = state.id;
+    expect(result).toBeNull();
   });
 
-  it('should record disconnect timestamp', () => {
-    handleDisconnect('user-1');
-    const m = matches.get(matchId)!;
-    expect(m.disconnectedAt.has('user-1')).toBe(true);
-    expect(m.disconnectedAt.get('user-1')).toBeGreaterThan(0);
+  it('should return false when declining already-declined challenge', async () => {
+    pendingResults.push([{
+      id: 'ch-1',
+      challengerId: 'user-1',
+      receiverId: 'user-2',
+      status: 'declined',
+    }]);
+
+    const result = await declineChallenge('ch-1', 'user-2');
+
+    expect(result).toBe(false);
   });
 
-  it('should return matchId on disconnect', () => {
-    const result = handleDisconnect('user-1');
-    expect(result).toBe(matchId);
-  });
+  it('should generate separate shuffled orders on acceptChallenge', async () => {
+    const challengeRow = {
+      id: 'ch-1',
+      challengerId: 'user-1',
+      receiverId: 'user-2',
+      gameModeSlug: 'classic',
+      status: 'pending',
+    };
+    pendingResults.push([challengeRow]);
+    mockGenerateQuestionBatch.mockResolvedValueOnce(POOL_5 as any);
+    pendingResults.push(undefined);
+    pendingResults.push(undefined);
 
-  it('should return null for unknown user', () => {
-    expect(handleDisconnect('unknown')).toBeNull();
-  });
+    const result = await acceptChallenge('ch-1', 'user-2');
 
-  it('should allow rejoin within grace period', () => {
-    handleDisconnect('user-1');
-    const rejoined = rejoinMatch(matchId, 'user-1');
-
-    expect(rejoined).not.toBeNull();
-    expect(rejoined!.remainingMs).toBeGreaterThan(0);
-    expect(rejoined!.question).toBeDefined();
-    expect(rejoined!.opponentScore).toBe(0);
-    expect(rejoined!.opponentCorrectCount).toBe(0);
-
-    // Disconnect record should be cleared
-    expect(matches.get(matchId)!.disconnectedAt.has('user-1')).toBe(false);
-  });
-
-  it('should return null for rejoin after grace period expires', () => {
-    vi.useFakeTimers();
-    handleDisconnect('user-1');
-    vi.advanceTimersByTime(60_001);
-
-    expect(rejoinMatch(matchId, 'user-1')).toBeNull();
-  });
-
-  it('should return null for rejoin with no prior disconnect', () => {
-    expect(rejoinMatch(matchId, 'user-1')).toBeNull();
-  });
-
-  it('should return null for rejoin when match is finished', () => {
-    vi.useFakeTimers();
-    handleDisconnect('user-1');
-    vi.advanceTimersByTime(60_001);
-
-    expect(rejoinMatch(matchId, 'user-1')).toBeNull();
-  });
-
-  it('should forfeit disconnected player after grace period', () => {
-    vi.useFakeTimers();
-    const cb = vi.fn();
-    setForfeitCallback(cb);
-
-    handleDisconnect('user-1');
-    vi.advanceTimersByTime(60_001);
-
-    expect(cb).toHaveBeenCalledTimes(1);
-    expect(cb).toHaveBeenCalledWith(matchId, 'user-1');
-    expect(matches.get(matchId)!.status).toBe('finished');
-    expect(matches.get(matchId)!.winnerId).toBe('user-2');
-  });
-
-  it('should abandon match when both players disconnect', () => {
-    const cb = vi.fn();
-    setForfeitCallback(cb);
-
-    handleDisconnect('user-1');
-    handleDisconnect('user-2');
-
-    expect(cb).toHaveBeenCalledTimes(1);
-    expect(matches.get(matchId)!.status).toBe('finished');
-    expect(matches.get(matchId)!.winnerId).toBeNull();
-  });
-
-  it('should provide opponent stats on rejoin', () => {
-    submitAnswer(matchId, 'user-1', 0);
-    submitAnswer(matchId, 'user-1', 0);
-
-    handleDisconnect('user-2');
-    const rejoined = rejoinMatch(matchId, 'user-2');
-    expect(rejoined).not.toBeNull();
-    expect(rejoined!.opponentScore).toBeGreaterThan(0);
-    expect(rejoined!.opponentCorrectCount).toBeGreaterThan(0);
+    expect(result).not.toBeNull();
+    const insertCall = mockDb.values.mock.calls[0][0];
+    expect(insertCall.playerAOrder).toBeDefined();
+    expect(insertCall.playerBOrder).toBeDefined();
+    expect(insertCall.playerAOrder).toHaveLength(5);
+    expect(insertCall.playerBOrder).toHaveLength(5);
+    expect(insertCall.playerAOrder.join(',')).not.toBe(insertCall.playerBOrder.join(','));
   });
 });

@@ -7,7 +7,7 @@
 import crypto from 'crypto';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { matchChallenges, matchGames, matchAnswers } from '../db/schema/index.js';
+import { matchChallenges, matchGames, matchAnswers, users } from '../db/schema/index.js';
 import { generateQuestionBatch } from './quizEngine.js';
 import type { GeneratedQuestion } from './quizEngine.js';
 
@@ -137,15 +137,70 @@ export async function declineChallenge(
 
 // ─── Match State ────────────────────────────────────────────────────────────
 
-export async function getMatchState(matchId: string) {
+/** Internal: returns full match row including questionPool (for gameplay) */
+async function getFullMatch(matchId: string) {
   const [match] = await db
     .select()
     .from(matchGames)
     .where(eq(matchGames.id, matchId))
     .limit(1);
+  return match ?? null;
+}
 
+export async function getMatchState(matchId: string): Promise<MatchStateResponse | null> {
+  const match = await getFullMatch(matchId);
   if (!match) return null;
-  return match;
+
+  // Fetch player profiles for opponent display
+  const [player1] = await db
+    .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl })
+    .from(users)
+    .where(eq(users.id, match.player1Id))
+    .limit(1);
+
+  const [player2] = await db
+    .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl })
+    .from(users)
+    .where(eq(users.id, match.player2Id))
+    .limit(1);
+
+  return {
+    id: match.id,
+    challengeId: match.challengeId,
+    player1Id: match.player1Id,
+    player2Id: match.player2Id,
+    gameModeSlug: match.gameModeSlug,
+    player1Score: match.player1Score,
+    player2Score: match.player2Score,
+    player1Finished: match.player1Finished,
+    player2Finished: match.player2Finished,
+    player1StartedAt: match.player1StartedAt,
+    player2StartedAt: match.player2StartedAt,
+    winnerId: match.winnerId,
+    status: match.status,
+    createdAt: match.createdAt,
+    player1: player1 ?? null,
+    player2: player2 ?? null,
+  };
+}
+
+export interface MatchStateResponse {
+  id: string;
+  challengeId: string;
+  player1Id: string;
+  player2Id: string;
+  gameModeSlug: string;
+  player1Score: number;
+  player2Score: number;
+  player1Finished: boolean;
+  player2Finished: boolean;
+  player1StartedAt: Date | null;
+  player2StartedAt: Date | null;
+  winnerId: string | null;
+  status: string;
+  createdAt: Date;
+  player1: { id: string; username: string; displayName: string | null; avatarUrl: string | null } | null;
+  player2: { id: string; username: string; displayName: string | null; avatarUrl: string | null } | null;
 }
 
 export async function getPlayerMatchHistory(userId: string) {
@@ -170,7 +225,7 @@ export async function startMatchPlay(
   question: GeneratedQuestion;
   remainingMs: number;
 } | null> {
-  const match = await getMatchState(matchId);
+  const match = await getFullMatch(matchId);
   if (!match) return null;
 
   const isPlayer1 = match.player1Id === userId;
@@ -232,7 +287,7 @@ export async function submitAnswer(
   finished: boolean;
   matchEnded: boolean;
 } | null> {
-  const match = await getMatchState(matchId);
+  const match = await getFullMatch(matchId);
   if (!match || match.status === 'completed') return null;
 
   const isPlayer1 = match.player1Id === userId;

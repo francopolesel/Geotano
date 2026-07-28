@@ -33,11 +33,7 @@ describe('match:start listener', () => {
 describe('socket challenge:invite listener', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    useMultiplayerStore.setState({
-      matchId: null, screen: 'lobby', opponent: null, question: null,
-      score: 0, streak: 0, opponentAnswered: false, remainingMs: 180_000,
-      result: null, challengeNotification: null,
-    });
+    useMultiplayerStore.setState({ challengeNotification: null });
 
     // Reset socket state
     const { disconnectSocket } = await import('../lib/socket');

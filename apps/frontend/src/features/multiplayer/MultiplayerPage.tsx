@@ -1,10 +1,58 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useMultiplayerStore } from '../../store/multiplayerStore';
-import { useMultiplayerSocket } from './useMultiplayerSocket';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface PlayQuestion {
+  id: string;
+  questionText: string;
+  options: string[];
+  correctIndex: number;
+  flagUrl?: string;
+}
+
+interface MatchState {
+  id: string;
+  challengeId: string;
+  player1Id: string;
+  player2Id: string;
+  gameModeSlug: string;
+  player1Score: number;
+  player2Score: number;
+  player1Finished: boolean;
+  player2Finished: boolean;
+  player1StartedAt: string | null;
+  player2StartedAt: string | null;
+  winnerId: string | null;
+  status: 'pending' | 'in_progress' | 'completed';
+  createdAt: string;
+  player1: { id: string; username: string; displayName: string | null; avatarUrl: string | null } | null;
+  player2: { id: string; username: string; displayName: string | null; avatarUrl: string | null } | null;
+}
+
+interface PlayResponse {
+  question: PlayQuestion;
+  remainingMs: number;
+}
+
+interface AnswerResponse {
+  correct: boolean;
+  scoreEarned: number;
+  streak: number;
+  nextQuestion: PlayQuestion | null;
+  finished: boolean;
+  matchEnded: boolean;
+}
+
+type Screen = 'loading' | 'start' | 'playing' | 'my_finished' | 'result' | 'error';
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const FEEDBACK_DURATION_MS = 1200;
+const POLL_INTERVAL_MS = 10_000;
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
@@ -19,9 +67,8 @@ function getOptionBtnStyle(
 ): string {
   const isSelected = selected === optionIndex;
   const isCorrect = correctIndex === optionIndex;
-  const isIdle = answerState === 'idle';
 
-  if (isIdle) {
+  if (answerState === 'idle') {
     const colors = [
       'border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30',
       'border-emerald-200 dark:border-emerald-800 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30',
@@ -38,7 +85,6 @@ function getOptionBtnStyle(
     return `${btnBase} border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-muted-foreground)] opacity-50 cursor-default`;
   }
 
-  // answerState === 'wrong'
   if (isSelected && !isCorrect) {
     return `${btnBase} border-red-500 bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 cursor-default`;
   }
@@ -56,80 +102,354 @@ export function MultiplayerPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const currentUserId = useAuthStore((s) => s.user?.id);
 
-  const {
-    screen,
-    opponent,
-    question,
-    score,
-    streak,
-    opponentAnswered,
-    remainingMs,
-    result,
-    reset,
-  } = useMultiplayerStore();
+  // ── State ───────────────────────────────────────────────────────────────
+  const [screen, setScreen] = useState<Screen>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [match, setMatch] = useState<MatchState | null>(null);
+  const [question, setQuestion] = useState<PlayQuestion | null>(null);
+  const [score, setScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [remainingMs, setRemainingMs] = useState(180_000);
+  const [myFinished, setMyFinished] = useState(false);
+  const [matchEnded, setMatchEnded] = useState(false);
+  const [matchResult, setMatchResult] = useState<{
+    iWon: boolean;
+    tie: boolean;
+    myScore: number;
+    opponentScore: number;
+    myStats: { correctCount: number; totalAnswered: number; maxStreak: number };
+    opponentStats: { correctCount: number; totalAnswered: number; maxStreak: number };
+  } | null>(null);
 
-  useMultiplayerSocket(matchId ?? '');
-
-  // Local answer state (per question)
+  // Answer feedback state
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [answerState, setAnswerState] = useState<'idle' | 'correct' | 'wrong'>('idle');
-  const [feedbackText, setFeedbackText] = useState('');
-  const prevQuestionId = useRef<string | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Reset local state when question changes
+  // ── Derived ─────────────────────────────────────────────────────────────
+  const isPlayer1 = match ? match.player1Id === currentUserId : false;
+  const opponent = match
+    ? (isPlayer1 ? match.player2 : match.player1)
+    : null;
+  const opponentName = opponent?.displayName ?? opponent?.username ?? t('multiplayer.opponent');
+  const isMyTurn = match && !myFinished && !matchEnded;
+
+  // ── Fetch match on mount ────────────────────────────────────────────────
   useEffect(() => {
-    if (question && question.id !== prevQuestionId.current) {
-      prevQuestionId.current = question.id;
+    if (!matchId) return;
+
+    let cancelled = false;
+
+    api.get<MatchState>(`/matches/${matchId}`)
+      .then((data) => {
+        if (cancelled) return;
+        setMatch(data);
+
+        const myId = currentUserId;
+        const p1 = data.player1Id === myId;
+        const started = p1 ? data.player1StartedAt : data.player2StartedAt;
+        const finished = p1 ? data.player1Finished : data.player2Finished;
+        const ended = data.status === 'completed';
+
+        if (ended) {
+          // Match already complete — go straight to result
+          setMyFinished(true);
+          setMatchEnded(true);
+          setScreen('result');
+          buildResult(data);
+          return;
+        }
+
+        if (finished) {
+          // I already finished — waiting for opponent
+          setMyFinished(true);
+          setScore(p1 ? data.player1Score : data.player2Score);
+          setScreen('my_finished');
+          return;
+        }
+
+        if (started) {
+          // Already started but not finished — resume playing
+          resumePlay(data);
+        } else {
+          setScreen('start');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setErrorMsg(t('multiplayer.matchNotFound'));
+          setScreen('error');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [matchId]);
+
+  // ── Timer effect ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (screen !== 'playing') {
+      if (timerInterval.current) {
+        clearInterval(timerInterval.current);
+        timerInterval.current = null;
+      }
+      return;
+    }
+
+    timerInterval.current = setInterval(() => {
+      setRemainingMs((prev) => {
+        if (prev <= 0) return 0;
+        return prev - 1000;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerInterval.current) {
+        clearInterval(timerInterval.current);
+        timerInterval.current = null;
+      }
+    };
+  }, [screen]);
+
+  // ── Timer expiry ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (screen === 'playing' && remainingMs <= 0 && question) {
+      // Timer expired — submit last answer with -1 to signal timeout
+      submitAnswer(-1);
+    }
+  }, [remainingMs]);
+
+  // ── Poll for opponent finishing ─────────────────────────────────────────
+  useEffect(() => {
+    if (screen !== 'my_finished') {
+      if (pollTimer.current) {
+        clearInterval(pollTimer.current);
+        pollTimer.current = null;
+      }
+      return;
+    }
+
+    pollTimer.current = setInterval(async () => {
+      if (!matchId) return;
+      try {
+        const updated = await api.get<MatchState>(`/matches/${matchId}`);
+        if (updated.status === 'completed') {
+          setMatch(updated);
+          setMatchEnded(true);
+          setScreen('result');
+          buildResult(updated);
+          if (pollTimer.current) {
+            clearInterval(pollTimer.current);
+            pollTimer.current = null;
+          }
+        }
+      } catch {
+        // Silently retry
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      if (pollTimer.current) {
+        clearInterval(pollTimer.current);
+        pollTimer.current = null;
+      }
+    };
+  }, [screen, matchId]);
+
+  // ── Helper: resume play ─────────────────────────────────────────────────
+  const resumePlay = async (existingMatch?: MatchState) => {
+    if (!matchId) return;
+    try {
+      const data = await api.post<PlayResponse>(`/matches/${matchId}/play`, {});
+      if (existingMatch) {
+        setMatch(existingMatch);
+      }
+      setQuestion(data.question);
+      setRemainingMs(data.remainingMs);
+      setScreen('playing');
+    } catch {
+      setErrorMsg(t('multiplayer.errorResume'));
+      setScreen('error');
+    }
+  };
+
+  // ── Helper: build result ────────────────────────────────────────────────
+  const buildResult = (m: MatchState) => {
+    const isP1 = m.player1Id === currentUserId;
+    const myScore = isP1 ? m.player1Score : m.player2Score;
+    const oppScore = isP1 ? m.player2Score : m.player1Score;
+    const iWon = m.winnerId === currentUserId;
+    const tie = m.winnerId === null;
+
+    setMatchResult({
+      iWon,
+      tie,
+      myScore,
+      opponentScore: oppScore,
+      myStats: { correctCount: 0, totalAnswered: 0, maxStreak: 0 },
+      opponentStats: { correctCount: 0, totalAnswered: 0, maxStreak: 0 },
+    });
+  };
+
+  // ── Handle answer ───────────────────────────────────────────────────────
+  const submitAnswer = useCallback(async (optionIndex: number) => {
+    if (!matchId || answerState !== 'idle') return;
+
+    setSelectedIndex(optionIndex);
+
+    try {
+      const data = await api.post<AnswerResponse>(`/matches/${matchId}/answer`, { optionIndex });
+
+      setAnswerState(data.correct ? 'correct' : 'wrong');
+      setStreak(data.streak);
+      setScore((prev) => prev + data.scoreEarned);
+      setMyFinished(data.finished);
+      setMatchEnded(data.matchEnded);
+
+      if (data.matchEnded) {
+        // Both finished — refetch match to get final scores
+        const updated = await api.get<MatchState>(`/matches/${matchId}`);
+        setMatch(updated);
+        buildResult(updated);
+      }
+
+      // Show feedback briefly, then advance
+      feedbackTimer.current = setTimeout(() => {
+        setSelectedIndex(null);
+        setAnswerState('idle');
+
+        if (data.matchEnded) {
+          setScreen('result');
+        } else if (data.finished) {
+          setScreen('my_finished');
+        } else if (data.nextQuestion) {
+          setQuestion(data.nextQuestion);
+        }
+      }, FEEDBACK_DURATION_MS);
+    } catch {
+      // Allow retry
       setSelectedIndex(null);
       setAnswerState('idle');
-      setFeedbackText('');
     }
-  }, [question]);
+  }, [matchId, answerState]);
 
-  const handleAnswer = useCallback(
-    (optionIndex: number) => {
-      if (answerState !== 'idle' || !question || !matchId) return;
+  // Cleanup feedback timer on unmount
+  useEffect(() => {
+    return () => {
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    };
+  }, []);
 
-      const isCorrect = optionIndex === question.correctIndex;
-      setSelectedIndex(optionIndex);
-      setAnswerState(isCorrect ? 'correct' : 'wrong');
-      setFeedbackText(t(isCorrect ? 'multiplayer.correct' : 'multiplayer.wrong'));
+  // ── Start playing ───────────────────────────────────────────────────────
+  const handleStart = () => resumePlay();
 
-      // Submit answer via REST API
-      api.post(`/matches/${matchId}/answer`, { optionIndex }).catch(() => {});
-    },
-    [answerState, question, matchId, t],
-  );
-
+  // ── Go home ─────────────────────────────────────────────────────────────
   const handleGoHome = () => {
-    reset();
+    if (pollTimer.current) clearInterval(pollTimer.current);
+    if (timerInterval.current) clearInterval(timerInterval.current);
     navigate('/');
   };
 
-  // ── Ended screen ──────────────────────────────────────────────────────────
-  if (screen === 'ended' && result) {
-    const isWinner = currentUserId === result.winnerId;
-    const isTie = result.winnerId === null;
+  // ── Render: Error ───────────────────────────────────────────────────────
+  if (screen === 'error') {
+    return (
+      <div className="mx-auto max-w-md py-20">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
+          <p className="text-base text-[var(--color-muted-foreground)]">{errorMsg}</p>
+          <button
+            onClick={handleGoHome}
+            className="mt-6 w-full min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)]"
+          >
+            {t('multiplayer.backToHome')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-    // When currentUserId is unknown (e.g. guest), default to showing first player as "you"
-    const you = result.players.find((p) => p.userId === currentUserId) ?? result.players[0];
-    const them = result.players.find((p) => p.userId !== currentUserId) ?? result.players[1];
+  // ── Render: Loading ─────────────────────────────────────────────────────
+  if (screen === 'loading') {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+      </div>
+    );
+  }
 
-    const reasonLabel =
-      result.reason === 'timer_expired'
-        ? t('multiplayer.result.reason.timer')
-        : result.reason === 'both_finished'
-          ? t('multiplayer.result.reason.finished')
-          : t('multiplayer.result.reason.disconnected');
+  // ── Render: Start screen ────────────────────────────────────────────────
+  if (screen === 'start') {
+    return (
+      <div className="mx-auto max-w-md py-20">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
+          <h2 className="text-5xl">⚔️</h2>
+          <p className="mt-4 text-base text-[var(--color-foreground)] font-medium">
+            {t('multiplayer.challengeFrom', { username: opponentName })}
+          </p>
+          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+            {t('multiplayer.youHave', { minutes: 3 })}
+          </p>
+          <button
+            onClick={handleStart}
+            className="mt-8 w-full min-h-[52px] rounded-lg bg-[var(--color-primary)] px-4 py-3 text-base font-medium text-[var(--color-primary-foreground)] hover:opacity-90"
+          >
+            {t('multiplayer.startPlaying')}
+          </button>
+          <button
+            onClick={handleGoHome}
+            className="mt-3 w-full min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)]"
+          >
+            {t('multiplayer.backToHome')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
+  // ── Render: My finished (waiting for opponent) ──────────────────────────
+  if (screen === 'my_finished') {
+    return (
+      <div className="mx-auto max-w-md py-20">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
+          <h2 className="text-5xl">🏁</h2>
+          <p className="mt-4 text-xl font-bold text-[var(--color-foreground)]">
+            {t('multiplayer.youFinished')}
+          </p>
+          <p className="mt-2 text-3xl font-bold text-[var(--color-primary)]">
+            {score}
+          </p>
+          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+            {t('multiplayer.score', { score })}
+          </p>
+          <div className="mt-6 flex justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+          </div>
+          <p className="mt-4 text-sm text-[var(--color-muted-foreground)]">
+            {t('multiplayer.waitingOpponent')}
+          </p>
+          <button
+            onClick={handleGoHome}
+            className="mt-8 w-full min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)]"
+          >
+            {t('multiplayer.backToHome')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render: Result screen ───────────────────────────────────────────────
+  if (screen === 'result' && matchResult) {
     return (
       <div className="mx-auto max-w-2xl py-12">
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
-          {isTie ? (
+          {matchResult.tie ? (
             <h2 className="text-4xl font-bold text-[var(--color-foreground)]">
               {t('multiplayer.result.tie')}
             </h2>
-          ) : isWinner ? (
+          ) : matchResult.iWon ? (
             <h2 className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
               {t('multiplayer.result.youWon')}
             </h2>
@@ -140,95 +460,47 @@ export function MultiplayerPage() {
           )}
 
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-            {reasonLabel}
+            {t('multiplayer.result.reason.finished')}
           </p>
 
-          {/* Side-by-side stats */}
+          {/* Side-by-side scores */}
           <div className="mt-8 grid grid-cols-2 gap-4">
-            {/* Player (You) */}
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)] p-4">
               <p className="mb-3 text-sm font-semibold text-[var(--color-foreground)]">
                 {t('multiplayer.you')}
               </p>
               <p className="text-3xl font-bold text-[var(--color-primary)]">
-                {you?.score ?? 0}
+                {matchResult.myScore}
               </p>
               <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
-                {t('multiplayer.score', { score: you?.score ?? 0 })}
+                {t('multiplayer.score', { score: matchResult.myScore })}
               </p>
-              <div className="mt-4 space-y-1 text-sm">
-                <p className="text-[var(--color-foreground)]">
-                  {t('multiplayer.correctCount', { count: you?.correctCount ?? 0 })}
-                </p>
-                <p className="text-[var(--color-foreground)]">
-                  {t('multiplayer.maxStreak', { count: you?.maxStreak ?? 0 })}
-                </p>
-              </div>
             </div>
-
-            {/* Opponent */}
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)] p-4">
               <p className="mb-3 text-sm font-semibold text-[var(--color-foreground)]">
-                {them?.displayName ?? them?.username ?? t('multiplayer.opponent')}
+                {opponentName}
               </p>
               <p className="text-3xl font-bold text-[var(--color-foreground)]">
-                {them?.score ?? 0}
+                {matchResult.opponentScore}
               </p>
               <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
-                {t('multiplayer.score', { score: them?.score ?? 0 })}
+                {t('multiplayer.score', { score: matchResult.opponentScore })}
               </p>
-              <div className="mt-4 space-y-1 text-sm">
-                <p className="text-[var(--color-foreground)]">
-                  {t('multiplayer.correctCount', { count: them?.correctCount ?? 0 })}
-                </p>
-                <p className="text-[var(--color-foreground)]">
-                  {t('multiplayer.maxStreak', { count: them?.maxStreak ?? 0 })}
-                </p>
-              </div>
             </div>
           </div>
 
-          <div className="mt-8">
-            <button
-              onClick={handleGoHome}
-              className="w-full min-h-[52px] rounded-lg border border-[var(--color-border)] px-4 py-3 text-base font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
-            >
-              {t('multiplayer.backToHome')}
-            </button>
-          </div>
+          <button
+            onClick={handleGoHome}
+            className="mt-8 w-full min-h-[52px] rounded-lg border border-[var(--color-border)] px-4 py-3 text-base font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
+          >
+            {t('multiplayer.backToHome')}
+          </button>
         </div>
       </div>
     );
   }
 
-  // ── Lobby screen ──────────────────────────────────────────────────────────
-  if (screen === 'lobby') {
-    return (
-      <div className="mx-auto max-w-md py-20">
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
-          <h2 className="text-4xl">⚔️</h2>
-          <p className="mt-4 text-base text-[var(--color-muted-foreground)]">
-            {opponent
-              ? t('multiplayer.waiting', { username: opponent.displayName ?? opponent.username })
-              : t('multiplayer.waiting', { username: '' })}
-          </p>
-          <div className="mt-8 flex justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
-          </div>
-          <div className="mt-8">
-            <button
-              onClick={handleGoHome}
-              className="w-full min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)]"
-            >
-              {t('multiplayer.cancel')}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Playing screen ────────────────────────────────────────────────────────
+  // ── Render: Playing screen ──────────────────────────────────────────────
   if (!question) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -246,34 +518,20 @@ export function MultiplayerPage() {
         ? 'bg-amber-500'
         : 'bg-red-500';
 
-  const opponentName = opponent?.displayName ?? opponent?.username ?? '';
-
   return (
     <div className="mx-auto max-w-4xl px-4 py-3 sm:px-0 sm:py-4">
-      {/* Top bar: opponent name, streak, score */}
+      {/* Top bar */}
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-1.5 sm:mb-6 sm:gap-2">
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          {/* Opponent name + indicator */}
           <span className="text-sm font-medium text-[var(--color-muted-foreground)] sm:text-base">
             ⚔️ {opponentName}
           </span>
-
-          {/* Streak — show fire icon after 5 consecutive */}
           {streak >= 5 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 sm:px-2.5 sm:text-sm">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
               {t('multiplayer.streak', { count: streak })}
             </span>
           )}
-
-          {/* Opponent answered indicator */}
-          {opponentAnswered && (
-            <span className="animate-pulse rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-              {t('multiplayer.opponentAnswered')}
-            </span>
-          )}
         </div>
-
-        {/* Score */}
         <div className="text-right">
           <span className="text-lg font-bold text-[var(--color-foreground)] sm:text-2xl">
             {score}
@@ -281,7 +539,7 @@ export function MultiplayerPage() {
         </div>
       </div>
 
-      {/* Shared timer bar */}
+      {/* Timer bar */}
       <div className="mb-2.5 flex items-center gap-3 sm:mb-6">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-muted)] sm:h-3">
           <div
@@ -311,14 +569,11 @@ export function MultiplayerPage() {
       )}
 
       {/* Answer options */}
-      <div
-        key={question.id}
-        className="grid gap-2.5 sm:gap-3 sm:grid-cols-2"
-      >
-        {question.options.map((option, index) => (
+      <div key={question.id} className="grid gap-2.5 sm:gap-3 sm:grid-cols-2">
+        {question.options.map((option: string, index: number) => (
           <button
             key={`${question.id}-${index}`}
-            onClick={() => handleAnswer(index)}
+            onClick={() => submitAnswer(index)}
             disabled={answerState !== 'idle'}
             className={getOptionBtnStyle(
               index,
@@ -336,7 +591,7 @@ export function MultiplayerPage() {
       </div>
 
       {/* Feedback */}
-      {feedbackText && (
+      {answerState !== 'idle' && (
         <div
           className={`mt-2.5 rounded-lg px-3 py-2 text-sm font-medium sm:mt-4 sm:px-4 sm:py-3 sm:text-sm ${
             answerState === 'correct'
@@ -344,7 +599,7 @@ export function MultiplayerPage() {
               : 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200'
           }`}
         >
-          {feedbackText}
+          {answerState === 'correct' ? t('multiplayer.correct') : t('multiplayer.wrong')}
         </div>
       )}
     </div>
