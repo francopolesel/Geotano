@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import { env } from './config/index.js';
 import { registerCors } from './plugins/index.js';
 import { runMigrations } from './db/index.js';
-import { healthRoutes, authRoutes, quizRoutes, countriesRoutes, friendsRoutes, chatRoutes, rankingsRoutes, profileRoutes, notificationsRoutes } from './routes/index.js';
+import { healthRoutes, authRoutes, quizRoutes, countriesRoutes, friendsRoutes, chatRoutes, rankingsRoutes, profileRoutes, notificationsRoutes, matchRoutes } from './routes/index.js';
 import { initSocket } from './socket/index.js';
 
 async function buildApp() {
@@ -35,6 +35,7 @@ async function buildApp() {
   await app.register(rankingsRoutes);
   await app.register(profileRoutes);
   await app.register(notificationsRoutes);
+  await app.register(matchRoutes);
 
   return app;
 }

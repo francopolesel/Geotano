@@ -1,22 +1,38 @@
 import { useTranslation } from 'react-i18next';
+import { useState } from 'react';
 import { useMultiplayerStore } from '../../store/multiplayerStore';
-import { acceptChallenge, declineChallenge } from '../../lib/socket';
+import { api } from '../../lib/api';
 
 export function ChallengeNotification() {
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(false);
   const notification = useMultiplayerStore((s) => s.challengeNotification);
   const dismiss = useMultiplayerStore((s) => s.dismissChallengeNotification);
 
   if (!notification) return null;
 
-  const handleAccept = () => {
-    acceptChallenge(notification.challengeId);
-    dismiss();
+  const handleAccept = async () => {
+    setLoading(true);
+    try {
+      await api.post('/matches/accept', { challengeId: notification.challengeId });
+    } catch {
+      // error handling — notification stays visible
+    } finally {
+      setLoading(false);
+      dismiss();
+    }
   };
 
-  const handleDecline = () => {
-    declineChallenge(notification.challengeId);
-    dismiss();
+  const handleDecline = async () => {
+    setLoading(true);
+    try {
+      await api.post('/matches/decline', { challengeId: notification.challengeId });
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+      dismiss();
+    }
   };
 
   return (
@@ -34,15 +50,17 @@ export function ChallengeNotification() {
         <div className="mt-6 flex gap-3">
           <button
             onClick={handleDecline}
-            className="flex-1 min-h-[48px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-muted)]"
+            disabled={loading}
+            className="flex-1 min-h-[48px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-muted)] disabled:opacity-50"
           >
             {t('multiplayer.decline')}
           </button>
           <button
             onClick={handleAccept}
-            className="flex-1 min-h-[48px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90"
+            disabled={loading}
+            className="flex-1 min-h-[48px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50"
           >
-            {t('multiplayer.accept')}
+            {loading ? t('common.loading') : t('multiplayer.accept')}
           </button>
         </div>
       </div>

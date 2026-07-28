@@ -9,3 +9,6 @@ export { dailyRankings } from './dailyRankings.js';
 export { notifications } from './notifications.js';
 export { achievements } from './achievements.js';
 export { userAchievements } from './userAchievements.js';
+export { matchChallenges } from './matchChallenges.js';
+export { matchGames } from './matchGames.js';
+export { matchAnswers } from './matchAnswers.js';

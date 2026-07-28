@@ -7,3 +7,4 @@ export { chatRoutes } from './chat.js';
 export { rankingsRoutes } from './rankings.js';
 export { profileRoutes } from './profile.js';
 export { notificationsRoutes } from './notifications.js';
+export { matchRoutes } from './matches.js';

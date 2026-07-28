@@ -172,6 +172,22 @@ vi.mock('../../lib/socket', () => ({
   disconnectSocket: mockDisconnectSocket,
 }));
 
+vi.mock('../../lib/api', () => ({
+  api: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+      super(message);
+      this.status = status;
+    }
+  },
+}));
+
 vi.mock('../../components/ui/UserAvatar', () => ({
   UserAvatar: ({ username, displayName }: any) => (
     <div data-testid="friend-avatar">{displayName ?? username}</div>

@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
-import { connectSocket, disconnectSocket, sendChallenge } from '../../lib/socket';
+import { connectSocket, disconnectSocket } from '../../lib/socket';
+import { api } from '../../lib/api';
 
 type Tab = 'friends' | 'requests' | 'search' | 'blocked';
 
@@ -114,10 +115,17 @@ export function FriendsPage() {
     }
   };
 
-  const handleChallenge = (friendId: string) => {
+  const handleChallenge = async (friendId: string) => {
     if (challengeSentTo === friendId) return;
-    sendChallenge(friendId);
     setChallengeSentTo(friendId);
+    try {
+      await api.post('/matches/challenge', {
+        receiverId: friendId,
+        gameModeSlug: 'flag-guess', // TODO: game mode picker Phase 5
+      });
+    } catch {
+      setChallengeSentTo(null);
+    }
     // Clear sent state after 3s so user can re-challenge
     setTimeout(() => setChallengeSentTo((prev) => (prev === friendId ? null : prev)), 3000);
   };

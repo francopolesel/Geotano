@@ -18,7 +18,7 @@ vi.mock('socket.io-client', () => ({
 }));
 
 describe('match:start listener', () => {
-  it('should register match:start listener on connect', async () => {
+  it('should NOT register match:start listener on connect (async multiplayer)', async () => {
     const { connectSocket } = await import('../lib/socket');
     connectSocket('test-token');
 
@@ -26,7 +26,7 @@ describe('match:start listener', () => {
       (call: any[]) => call[0] === 'match:start',
     );
 
-    expect(callback).toBeDefined();
+    expect(callback).toBeUndefined();
   });
 });
 
@@ -104,76 +104,5 @@ describe('socket challenge:invite listener', () => {
         challenger: { id: 'u-6', username: 'test', email: '', language: 'en', joinCode: '', createdAt: '' },
       });
     }).not.toThrow();
-  });
-
-  describe('sendChallenge', () => {
-    it('should emit challenge:send when connected', async () => {
-      const { connectSocket, sendChallenge } = await import('../lib/socket');
-      connectSocket('test-token');
-
-      sendChallenge('user-2');
-
-      expect(mockSocket.emit).toHaveBeenCalledWith('challenge:send', { receiverId: 'user-2' });
-    });
-
-    it('should not emit when not connected', async () => {
-      const { sendChallenge } = await import('../lib/socket');
-
-      sendChallenge('user-2');
-
-      expect(mockSocket.emit).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('cancelChallenge', () => {
-    it('should emit challenge:cancel when connected', async () => {
-      const { connectSocket, cancelChallenge } = await import('../lib/socket');
-      connectSocket('test-token');
-
-      cancelChallenge();
-
-      expect(mockSocket.emit).toHaveBeenCalledWith('challenge:cancel', {});
-    });
-  });
-
-  describe('acceptChallenge', () => {
-    it('should emit challenge:accept when connected', async () => {
-      const { connectSocket, acceptChallenge } = await import('../lib/socket');
-      connectSocket('test-token');
-
-      acceptChallenge('ch-123');
-
-      expect(mockSocket.emit).toHaveBeenCalledWith('challenge:accept', { challengeId: 'ch-123' });
-    });
-  });
-
-  describe('declineChallenge', () => {
-    it('should emit challenge:decline when connected', async () => {
-      const { connectSocket, declineChallenge } = await import('../lib/socket');
-      connectSocket('test-token');
-
-      declineChallenge('ch-123');
-
-      expect(mockSocket.emit).toHaveBeenCalledWith('challenge:decline', { challengeId: 'ch-123' });
-    });
-  });
-
-  describe('submitMatchAnswer', () => {
-    it('should emit match:answer when connected', async () => {
-      const { connectSocket, submitMatchAnswer } = await import('../lib/socket');
-      connectSocket('test-token');
-
-      submitMatchAnswer('match-1', 2);
-
-      expect(mockSocket.emit).toHaveBeenCalledWith('match:answer', { matchId: 'match-1', optionIndex: 2 });
-    });
-
-    it('should not emit when not connected', async () => {
-      const { submitMatchAnswer } = await import('../lib/socket');
-
-      submitMatchAnswer('match-1', 0);
-
-      expect(mockSocket.emit).not.toHaveBeenCalled();
-    });
   });
 });

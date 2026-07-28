@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { useFriendsStore } from '../store/friendsStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useMultiplayerStore } from '../store/multiplayerStore';
-import type { ChallengeInvitePayload, MatchStartPayload, ChatMessage, Notification } from '@geotano/shared';
+import type { ChallengeInvitePayload, ChatMessage, Notification } from '@geotano/shared';
 
 let socket: Socket | null = null;
 let navigateFn: ((path: string) => void) | null = null;
@@ -82,16 +82,6 @@ export function connectSocket(token: string): Socket {
     useMultiplayerStore.getState().showChallengeNotification(data);
   });
 
-  // Global match:start listener — handles navigation for both challenger and accepter
-  // and pre-populates store state before MultiplayerPage mounts
-  socket.on('match:start', (payload: MatchStartPayload) => {
-    useMultiplayerStore.getState().startMatch(payload);
-    const target = `/multiplayer/${payload.matchId}`;
-    if (window.location.pathname !== target) {
-      navigateFn?.(target);
-    }
-  });
-
   return socket;
 }
 
@@ -124,34 +114,4 @@ export function setNotificationHandler(handler: NotificationHandler) {
   onNotification = handler;
 }
 
-// ── Multiplayer helpers ─────────────────────────────────────────────────────
 
-export function sendChallenge(receiverId: string) {
-  if (socket?.connected) {
-    socket.emit('challenge:send', { receiverId });
-  }
-}
-
-export function cancelChallenge() {
-  if (socket?.connected) {
-    socket.emit('challenge:cancel', {});
-  }
-}
-
-export function acceptChallenge(challengeId: string) {
-  if (socket?.connected) {
-    socket.emit('challenge:accept', { challengeId });
-  }
-}
-
-export function declineChallenge(challengeId: string) {
-  if (socket?.connected) {
-    socket.emit('challenge:decline', { challengeId });
-  }
-}
-
-export function submitMatchAnswer(matchId: string, optionIndex: number) {
-  if (socket?.connected) {
-    socket.emit('match:answer', { matchId, optionIndex });
-  }
-}

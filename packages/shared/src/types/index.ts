@@ -309,6 +309,14 @@ export interface NotificationPayload {
 // Multiplayer
 // ---------------------------------------------------------------------------
 
+export type {
+  MatchChallengeStatus,
+  MatchGameStatus,
+  MatchChallenge,
+  MatchGame,
+  MatchAnswer,
+} from './multiplayer.js';
+
 export interface ChallengeInvitePayload {
   challengeId: EntityId;
   challenger: UserProfile;

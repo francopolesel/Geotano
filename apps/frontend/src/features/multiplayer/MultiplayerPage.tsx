@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useMultiplayerStore } from '../../store/multiplayerStore';
 import { useMultiplayerSocket } from './useMultiplayerSocket';
 import { useAuthStore } from '../../store/authStore';
-import { submitMatchAnswer } from '../../lib/socket';
+import { api } from '../../lib/api';
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
@@ -95,8 +95,8 @@ export function MultiplayerPage() {
       setAnswerState(isCorrect ? 'correct' : 'wrong');
       setFeedbackText(t(isCorrect ? 'multiplayer.correct' : 'multiplayer.wrong'));
 
-      // Emit answer via socket
-      submitMatchAnswer(matchId, optionIndex);
+      // Submit answer via REST API
+      api.post(`/matches/${matchId}/answer`, { optionIndex }).catch(() => {});
     },
     [answerState, question, matchId, t],
   );
