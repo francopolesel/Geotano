@@ -12,6 +12,51 @@ export async function runMigrations(): Promise<void> {
   const sql = `
     -- 0004: Express + Unlimited game modes
     ALTER TABLE "game_modes" ADD COLUMN IF NOT EXISTS "total_questions" integer;
+
+    -- 0005: Match tables (challenges + games + answers)
+    CREATE TABLE IF NOT EXISTS "match_challenges" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "challenger_id" uuid NOT NULL REFERENCES "public"."users"("id"),
+      "receiver_id" uuid NOT NULL REFERENCES "public"."users"("id"),
+      "game_mode_slug" text NOT NULL,
+      "status" text DEFAULT 'pending' NOT NULL,
+      "created_at" timestamp DEFAULT now() NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS "match_games" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "challenge_id" uuid NOT NULL REFERENCES "public"."match_challenges"("id"),
+      "player1_id" uuid NOT NULL REFERENCES "public"."users"("id"),
+      "player2_id" uuid NOT NULL REFERENCES "public"."users"("id"),
+      "game_mode_slug" text NOT NULL,
+      "player1_score" integer DEFAULT 0 NOT NULL,
+      "player2_score" integer DEFAULT 0 NOT NULL,
+      "player1_finished" boolean DEFAULT false NOT NULL,
+      "player2_finished" boolean DEFAULT false NOT NULL,
+      "player1_started_at" timestamp,
+      "player2_started_at" timestamp,
+      "winner_id" uuid REFERENCES "public"."users"("id"),
+      "question_pool" jsonb NOT NULL,
+      "player_a_order" jsonb NOT NULL,
+      "player_b_order" jsonb NOT NULL,
+      "status" text DEFAULT 'pending' NOT NULL,
+      "created_at" timestamp DEFAULT now() NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS "match_answers" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "match_id" uuid NOT NULL REFERENCES "public"."match_games"("id"),
+      "player_id" uuid NOT NULL REFERENCES "public"."users"("id"),
+      "question_index" integer NOT NULL,
+      "selected_option" integer NOT NULL,
+      "was_correct" boolean NOT NULL,
+      "streak_at_question" integer DEFAULT 0 NOT NULL,
+      "answered_at" timestamp DEFAULT now() NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS "match_games_player1_status_idx" ON "match_games" ("player1_id", "status");
+    CREATE INDEX IF NOT EXISTS "match_games_player2_status_idx" ON "match_games" ("player2_id", "status");
+    CREATE INDEX IF NOT EXISTS "match_challenges_challenger_created_idx" ON "match_challenges" ("challenger_id", "created_at");
   `;
   await queryClient.unsafe(sql);
   console.log('[migrations] Applied pending migrations');
