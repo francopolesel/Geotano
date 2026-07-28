@@ -239,7 +239,8 @@ export interface RankingsResponse {
 export type NotificationType =
   | 'friend_request'
   | 'friend_request_accepted'
-  | 'new_message';
+  | 'new_message'
+  | 'challenge_invite';
 
 export interface Notification {
   id: EntityId;
@@ -302,6 +303,52 @@ export interface UserOfflinePayload {
 
 export interface NotificationPayload {
   notification: Notification;
+}
+
+// ---------------------------------------------------------------------------
+// Multiplayer
+// ---------------------------------------------------------------------------
+
+export interface ChallengeInvitePayload {
+  challengeId: EntityId;
+  challenger: UserProfile;
+}
+
+export interface MatchStartPayload {
+  matchId: EntityId;
+  opponent: UserProfile;
+  timeLimitMs: number;
+  question: QuizQuestion;
+}
+
+export interface MatchAnswerPayload {
+  matchId: EntityId;
+  optionIndex: number;
+}
+
+export interface PlayerStats {
+  userId: EntityId;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  score: number;
+  correctCount: number;
+  totalAnswered: number;
+  maxStreak: number;
+}
+
+export interface MatchResult {
+  matchId: EntityId;
+  winnerId: EntityId | null;
+  reason: 'timer_expired' | 'both_finished' | 'opponent_disconnected' | 'abandoned';
+  players: [PlayerStats, PlayerStats];
+}
+
+export interface RejoinState {
+  question: QuizQuestion;
+  remainingMs: number;
+  opponentScore: number;
+  opponentCorrectCount: number;
 }
 
 // ---------------------------------------------------------------------------
