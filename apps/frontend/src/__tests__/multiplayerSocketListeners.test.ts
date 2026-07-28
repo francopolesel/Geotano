@@ -23,7 +23,7 @@ describe('challenge:accepted listener', () => {
     connectSocket('test-token');
 
     const callback = mockSocket.on.mock.calls.find(
-      (call: [string, Function]) => call[0] === 'challenge:accepted',
+      (call: any[]) => call[0] === 'challenge:accepted',
     );
 
     expect(callback).toBeDefined();
@@ -53,7 +53,7 @@ describe('socket challenge:invite listener', () => {
     connectSocket('test-token');
 
     const challengeCallback = mockSocket.on.mock.calls.find(
-      (call: [string, Function]) => call[0] === 'challenge:invite',
+      (call: any[]) => call[0] === 'challenge:invite',
     );
 
     expect(challengeCallback).toBeDefined();
@@ -64,7 +64,7 @@ describe('socket challenge:invite listener', () => {
     connectSocket('test-token');
 
     const challengeCallback = mockSocket.on.mock.calls.find(
-      (call: [string, Function]) => call[0] === 'challenge:invite',
+      (call: any[]) => call[0] === 'challenge:invite',
     )![1];
 
     const payload = {
@@ -92,7 +92,7 @@ describe('socket challenge:invite listener', () => {
     connectSocket('test-token');
 
     const challengeCallback = mockSocket.on.mock.calls.find(
-      (call: [string, Function]) => call[0] === 'challenge:invite',
+      (call: any[]) => call[0] === 'challenge:invite',
     )![1];
 
     // Reset store to null first

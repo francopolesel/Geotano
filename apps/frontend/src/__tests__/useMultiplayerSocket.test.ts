@@ -82,7 +82,7 @@ describe('useMultiplayerSocket', () => {
       renderHook(() => useMultiplayerSocket('match-1'));
 
       const cb = mockSocket.on.mock.calls.find(
-        (call: [string, Function]) => call[0] === 'match:start',
+        (call: any[]) => call[0] === 'match:start',
       )![1];
 
       const payload = {
@@ -108,7 +108,7 @@ describe('useMultiplayerSocket', () => {
       renderHook(() => useMultiplayerSocket('match-1'));
 
       const questionCallback = mockSocket.on.mock.calls.find(
-        (call: [string, Function]) => call[0] === 'match:question',
+        (call: any[]) => call[0] === 'match:question',
       )![1];
 
       const question: QuizQuestion = {
@@ -135,7 +135,7 @@ describe('useMultiplayerSocket', () => {
       renderHook(() => useMultiplayerSocket('match-1'));
 
       const cb = mockSocket.on.mock.calls.find(
-        (call: [string, Function]) => call[0] === 'match:opponent_answered',
+        (call: any[]) => call[0] === 'match:opponent_answered',
       )![1];
 
       cb({ matchId: 'match-1' });
@@ -152,7 +152,7 @@ describe('useMultiplayerSocket', () => {
       renderHook(() => useMultiplayerSocket('match-1'));
 
       const cb = mockSocket.on.mock.calls.find(
-        (call: [string, Function]) => call[0] === 'match:opponent_answered',
+        (call: any[]) => call[0] === 'match:opponent_answered',
       )![1];
 
       cb({ matchId: 'match-1' });
@@ -170,7 +170,7 @@ describe('useMultiplayerSocket', () => {
       renderHook(() => useMultiplayerSocket('match-1'));
 
       const cb = mockSocket.on.mock.calls.find(
-        (call: [string, Function]) => call[0] === 'match:timer_tick',
+        (call: any[]) => call[0] === 'match:timer_tick',
       )![1];
 
       cb({ matchId: 'match-1', remainingMs: 120_000 });
@@ -186,7 +186,7 @@ describe('useMultiplayerSocket', () => {
       renderHook(() => useMultiplayerSocket('match-1'));
 
       const cb = mockSocket.on.mock.calls.find(
-        (call: [string, Function]) => call[0] === 'match:end',
+        (call: any[]) => call[0] === 'match:end',
       )![1];
 
       const result: MatchResult = {
