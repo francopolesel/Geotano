@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle } from './LanguageToggle';
 import { NotificationBell } from './NotificationBell';
+import { ChallengeNotification } from '../features/multiplayer/ChallengeNotification';
 // header_logo from /public — direct URL, no import needed
 
 const navItems = [
@@ -118,6 +119,8 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      {/* Global challenge notification overlay */}
+      <ChallengeNotification />
     </div>
   );
 }

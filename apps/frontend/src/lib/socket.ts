@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { useFriendsStore } from '../store/friendsStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useMultiplayerStore } from '../store/multiplayerStore';
-import type { ChallengeInvitePayload, ChatMessage, Notification } from '@geotano/shared';
+import type { ChallengeInvitePayload, MatchStartPayload, ChatMessage, Notification } from '@geotano/shared';
 
 let socket: Socket | null = null;
 
@@ -79,6 +79,16 @@ export function connectSocket(token: string): Socket {
 
   socket.on('challenge:accepted', (data: { challengeId: string; matchId: string }) => {
     window.location.href = `/multiplayer/${data.matchId}`;
+  });
+
+  // Global match:start listener — handles navigation for the accepter
+  // and pre-populates store state before MultiplayerPage mounts
+  socket.on('match:start', (payload: MatchStartPayload) => {
+    useMultiplayerStore.getState().startMatch(payload);
+    // Only navigate if not already on the match page
+    if (!window.location.pathname.startsWith(`/multiplayer/${payload.matchId}`)) {
+      window.location.href = `/multiplayer/${payload.matchId}`;
+    }
   });
 
   return socket;

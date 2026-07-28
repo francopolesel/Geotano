@@ -59,6 +59,10 @@ vi.mock('./NotificationBell', () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }));
 
+vi.mock('../features/multiplayer/ChallengeNotification', () => ({
+  ChallengeNotification: () => null,
+}));
+
 // No logo import needed — using /public header_logo.png directly
 
 import { AppShell } from './AppShell';
