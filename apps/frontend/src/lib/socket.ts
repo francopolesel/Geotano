@@ -1,7 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 import { useFriendsStore } from '../store/friendsStore';
 import { useNotificationStore } from '../store/notificationStore';
-import type { ChatMessage, Notification } from '@geotano/shared';
+import { useMultiplayerStore } from '../store/multiplayerStore';
+import type { ChallengeInvitePayload, ChatMessage, Notification } from '@geotano/shared';
 
 let socket: Socket | null = null;
 
@@ -72,6 +73,14 @@ export function connectSocket(token: string): Socket {
     }
   });
 
+  socket.on('challenge:invite', (data: ChallengeInvitePayload) => {
+    useMultiplayerStore.getState().showChallengeNotification(data);
+  });
+
+  socket.on('challenge:accepted', (data: { challengeId: string; matchId: string }) => {
+    window.location.href = `/multiplayer/${data.matchId}`;
+  });
+
   return socket;
 }
 
@@ -102,4 +111,36 @@ export function setUserOfflineHandler(handler: UserStatusHandler) {
 
 export function setNotificationHandler(handler: NotificationHandler) {
   onNotification = handler;
+}
+
+// ── Multiplayer helpers ─────────────────────────────────────────────────────
+
+export function sendChallenge(receiverId: string) {
+  if (socket?.connected) {
+    socket.emit('challenge:send', { receiverId });
+  }
+}
+
+export function cancelChallenge() {
+  if (socket?.connected) {
+    socket.emit('challenge:cancel', {});
+  }
+}
+
+export function acceptChallenge(challengeId: string) {
+  if (socket?.connected) {
+    socket.emit('challenge:accept', { challengeId });
+  }
+}
+
+export function declineChallenge(challengeId: string) {
+  if (socket?.connected) {
+    socket.emit('challenge:decline', { challengeId });
+  }
+}
+
+export function submitMatchAnswer(matchId: string, optionIndex: number) {
+  if (socket?.connected) {
+    socket.emit('match:answer', { matchId, optionIndex });
+  }
 }
