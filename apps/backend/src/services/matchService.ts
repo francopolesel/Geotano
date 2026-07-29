@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { matchChallenges, matchGames, matchAnswers, users } from '../db/schema/index.js';
-import { generateQuestionBatch } from './quizEngine.js';
+import { generateMatchQuestionPool } from './quizEngine.js';
 import type { GeneratedQuestion } from './quizEngine.js';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -17,8 +17,7 @@ const BASE_SCORE = 100;
 const STREAK_THRESHOLD = 3;
 const STREAK_MULTIPLIER = 1.5;
 const MATCH_DURATION_MS = 180_000;
-// 20 questions is enough for a 3-min race and avoids 30s+ generation delay
-const POOL_SIZE = 20;
+const POOL_SIZE = 120;
 
 // ─── Scoring ────────────────────────────────────────────────────────────────
 
@@ -81,12 +80,10 @@ export async function acceptChallenge(
   }
 
   // Generate questions
-  const pool = await generateQuestionBatch(
-    challenge.gameModeSlug as any,
-    1,
-    [],
-    POOL_SIZE,
-  );
+      const pool = await generateMatchQuestionPool(
+        challenge.gameModeSlug as any,
+        POOL_SIZE,
+      );
 
   const indices = Array.from({ length: pool.length }, (_, i) => i);
   const playerAOrder = shuffleArray([...indices]);

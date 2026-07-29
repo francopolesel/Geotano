@@ -11,6 +11,7 @@ const NOTIFICATION_LABELS: Record<string, string> = {
   friend_request: 'notifications.friendRequest',
   friend_request_accepted: 'notifications.friendRequestAccepted',
   new_message: 'notifications.newMessage',
+  challenge_invite: 'notifications.challengeInvite',
 };
 
 export function NotificationBell() {
@@ -77,6 +78,9 @@ export function NotificationBell() {
     }
     if (notification.type === 'friend_request_accepted') {
       return t('notifications.friendAccepted', { name: fromName });
+    }
+    if (notification.type === 'challenge_invite') {
+      return t('notifications.challengeInviteFrom', { name: fromName });
     }
     return t('notifications.descriptionFormat', { fromName, label });
   };

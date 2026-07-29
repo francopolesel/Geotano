@@ -325,6 +325,94 @@ export async function generateQuestionBatch(
 }
 
 /**
+ * Generate a match question pool by fetching ALL countries ONCE and
+ * generating questions in-memory. Replaces slow sequential ORDER BY RANDOM()
+ * queries with a single DB fetch + in-memory shuffle.
+ * Fast enough for 120+ questions.
+ */
+export async function generateMatchQuestionPool(
+  modeSlug: GameModeSlug,
+  count: number,
+  lang: string = 'en',
+): Promise<GeneratedQuestion[]> {
+  const config = getModeConfig(modeSlug);
+
+  // 1) Fetch ALL countries once — one DB query
+  const allCountries = await db.select().from(countries);
+
+  // 2) Shuffle all countries for random selection
+  const shuffled = shuffleArray([...allCountries]);
+  let idx = 0;
+
+  const pool: GeneratedQuestion[] = [];
+
+  for (let i = 0; i < count && idx < shuffled.length - 3; i++) {
+    const questionType: QuestionType =
+      config.questionTypes[Math.floor(Math.random() * config.questionTypes.length)];
+
+    // Pick correct country
+    let correctCountry = shuffled[idx++];
+
+    // Skip invalid countries for this question type
+    while (correctCountry && idx < shuffled.length) {
+      if (questionType === 'capital-to-country') {
+        const capital = correctCountry.capitalEn ?? correctCountry.capitalEs;
+        if (capital) break;
+      } else {
+        break;
+      }
+      correctCountry = shuffled[idx++];
+    }
+    if (!correctCountry || idx >= shuffled.length - 3) break;
+
+    // Pick 3 distractor countries
+    const distractors = shuffled.slice(idx, idx + 3);
+    idx += distractors.length;
+
+    const correctText = getAnswerText(correctCountry, questionType, lang);
+    const wrongTexts = distractors
+      .map((d) => getAnswerText(d, questionType, lang))
+      .filter((t) => t !== correctText);
+
+    // If we lost distractors due to duplicate text, fill from remaining pool
+    while (wrongTexts.length < 3 && idx < shuffled.length) {
+      const extra = shuffled[idx++];
+      const text = getAnswerText(extra, questionType, lang);
+      if (text !== correctText && !wrongTexts.includes(text)) {
+        wrongTexts.push(text);
+      }
+    }
+
+    const wrongCountryIds = distractors.map((d) => d.id);
+    const allTexts = [correctText, ...wrongTexts];
+    const allCountryIds = [correctCountry.id, ...wrongCountryIds.slice(0, wrongTexts.length)];
+    const indices = shuffleArray(allTexts.map((_, i) => i));
+    const options = indices.map((i) => allTexts[i]);
+    const optionsCountryIds = indices.map((i) => allCountryIds[i]);
+    const correctIndex = indices.indexOf(0);
+
+    pool.push({
+      id: crypto.randomUUID(),
+      countryId: correctCountry.id,
+      questionType,
+      questionText: getQuestionText(correctCountry, questionType, lang),
+      options,
+      correctIndex,
+      correctAnswer: correctText,
+      flagUrl:
+        questionType === 'flag-to-country' || questionType === 'country-to-flag'
+          ? correctCountry.flagSvgUrl
+          : undefined,
+      timeLimitMs: config.timerSeconds * 1000,
+      questionNumber: i + 1,
+      optionsCountryIds,
+    });
+  }
+
+  return pool;
+}
+
+/**
  * Refill the question pool in the background.
  * Queries the DB for the latest answered countries to avoid reusing them.
  */

@@ -255,6 +255,8 @@
   "notifications.friendRequest": "Friend request",
   "notifications.friendRequestAccepted": "Friend request accepted",
   "notifications.newMessage": "New message",
+  "notifications.challengeInvite": "Challenge",
+  "notifications.challengeInviteFrom": "{{name}} challenged you!",
   "notifications.friendRequestFrom": "{{name}} sent you a friend request",
   "notifications.friendAccepted": "{{name}} accepted your friend request",
   "notifications.someone": "Someone",

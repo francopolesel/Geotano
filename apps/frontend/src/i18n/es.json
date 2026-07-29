@@ -255,6 +255,8 @@
   "notifications.friendRequest": "Solicitud de amistad",
   "notifications.friendRequestAccepted": "Solicitud de amistad aceptada",
   "notifications.newMessage": "Nuevo mensaje",
+  "notifications.challengeInvite": "Desafío",
+  "notifications.challengeInviteFrom": "¡{{name}} te desafió!",
   "notifications.friendRequestFrom": "{{name}} te envió una solicitud de amistad",
   "notifications.friendAccepted": "{{name}} aceptó tu solicitud de amistad",
   "notifications.someone": "Alguien",
