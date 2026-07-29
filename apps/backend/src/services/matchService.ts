@@ -17,7 +17,6 @@ const BASE_SCORE = 100;
 const WRONG_PENALTY = -50;
 const STREAK_THRESHOLD = 3;
 const STREAK_MULTIPLIER = 1.5;
-const MATCH_DURATION_MS = 180_000;
 const POOL_SIZE = 120;
 
 // ─── Scoring ────────────────────────────────────────────────────────────────
@@ -54,6 +53,7 @@ export async function createChallenge(
   challengerId: string,
   receiverId: string,
   gameModeSlug: string,
+  durationMinutes: number = 3,
 ): Promise<string> {
   const id = crypto.randomUUID();
   await db.insert(matchChallenges).values({
@@ -61,6 +61,7 @@ export async function createChallenge(
     challengerId,
     receiverId,
     gameModeSlug,
+    durationMinutes,
     status: 'pending',
   });
   return id;
@@ -90,12 +91,15 @@ export async function acceptChallenge(
   const sharedOrder = shuffleArray([...indices]);
 
   const matchId = crypto.randomUUID();
+  const durationMinutes = challenge.durationMinutes ?? 3;
+
   await db.insert(matchGames).values({
     id: matchId,
     challengeId: challenge.id,
     player1Id: challenge.challengerId,
     player2Id: challenge.receiverId,
     gameModeSlug: challenge.gameModeSlug,
+    durationMinutes,
     status: 'pending',
     questionPool: pool,
     playerAOrder: sharedOrder,
@@ -168,6 +172,7 @@ export async function getMatchState(matchId: string): Promise<MatchStateResponse
     player1Id: match.player1Id,
     player2Id: match.player2Id,
     gameModeSlug: match.gameModeSlug,
+    durationMinutes: match.durationMinutes ?? 3,
     player1Score: match.player1Score,
     player2Score: match.player2Score,
     player1Finished: match.player1Finished,
@@ -188,6 +193,7 @@ export interface MatchStateResponse {
   player1Id: string;
   player2Id: string;
   gameModeSlug: string;
+  durationMinutes: number;
   player1Score: number;
   player2Score: number;
   player1Finished: boolean;
@@ -261,6 +267,8 @@ export async function startMatchPlay(
       .where(eq(matchGames.id, matchId));
   }
 
+  const durationMs = (match.durationMinutes ?? 3) * 60 * 1000;
+
   const question = pool[currentIdx];
   if (!question) return null;
 
@@ -268,7 +276,7 @@ export async function startMatchPlay(
     ? (match.player1StartedAt ?? new Date())
     : (match.player2StartedAt ?? new Date());
   const elapsed = Date.now() - new Date(startedAt).getTime();
-  const remainingMs = Math.max(0, MATCH_DURATION_MS - elapsed);
+  const remainingMs = Math.max(0, durationMs - elapsed);
 
   return { question, remainingMs };
 }

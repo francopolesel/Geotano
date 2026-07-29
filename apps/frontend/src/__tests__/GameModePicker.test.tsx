@@ -5,7 +5,7 @@ import i18n from '../i18n/i18n';
 import { GameModePicker } from '../features/multiplayer/GameModePicker';
 
 function renderPicker(
-  props: { open?: boolean; onClose?: () => void; onSelect?: (slug: string) => void } = {},
+  props: { open?: boolean; onClose?: () => void; onSelect?: (slug: string, durationMinutes: number) => void } = {},
 ) {
   const {
     open = true,
@@ -76,7 +76,7 @@ describe('GameModePicker', () => {
       fireEvent.click(modeCards[0]);
 
       expect(onSelect).toHaveBeenCalledOnce();
-      expect(onSelect).toHaveBeenCalledWith('flag-guess');
+      expect(onSelect).toHaveBeenCalledWith('flag-guess', 3);
       expect(onClose).toHaveBeenCalledOnce();
     });
 
@@ -106,28 +106,28 @@ describe('GameModePicker', () => {
       expect(onClose).toHaveBeenCalledOnce();
     });
 
-    it('should pass the correct slug for each mode card', () => {
+    it('should pass the correct slug and default duration for each mode card', () => {
       const { onSelect } = renderPicker();
       const modeCards = screen.getAllByRole('button').filter(
-        (b) => b.textContent && !b.textContent.includes('Cancel') && !b.textContent.includes('3-minute'),
+        (b) => b.textContent && !b.textContent.includes('Cancel') && !b.textContent.includes('3 min') && !b.textContent.includes('2 min') && !b.textContent.includes('1 min'),
       );
 
       expect(modeCards.length).toBe(5);
 
       fireEvent.click(modeCards[0]);
-      expect(onSelect).toHaveBeenLastCalledWith('flag-guess');
+      expect(onSelect).toHaveBeenLastCalledWith('flag-guess', 3);
 
       fireEvent.click(modeCards[1]);
-      expect(onSelect).toHaveBeenLastCalledWith('capital-guess');
+      expect(onSelect).toHaveBeenLastCalledWith('capital-guess', 3);
 
       fireEvent.click(modeCards[2]);
-      expect(onSelect).toHaveBeenLastCalledWith('country-by-flag');
+      expect(onSelect).toHaveBeenLastCalledWith('country-by-flag', 3);
 
       fireEvent.click(modeCards[3]);
-      expect(onSelect).toHaveBeenLastCalledWith('continent');
+      expect(onSelect).toHaveBeenLastCalledWith('continent', 3);
 
       fireEvent.click(modeCards[4]);
-      expect(onSelect).toHaveBeenLastCalledWith('free');
+      expect(onSelect).toHaveBeenLastCalledWith('free', 3);
     });
   });
 });

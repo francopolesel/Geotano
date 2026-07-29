@@ -14,9 +14,10 @@ export async function matchRoutes(app: FastifyInstance) {
     { preHandler: authGuard },
     async (request, reply) => {
       const { userId } = (request as any).user;
-      const { receiverId, gameModeSlug } = request.body as {
+      const { receiverId, gameModeSlug, durationMinutes } = request.body as {
         receiverId: string;
         gameModeSlug: string;
+        durationMinutes?: number;
       };
 
       if (!receiverId || !gameModeSlug) {
@@ -76,7 +77,7 @@ export async function matchRoutes(app: FastifyInstance) {
         });
       }
 
-      const challengeId = await matchService.createChallenge(userId, receiverId, gameModeSlug);
+      const challengeId = await matchService.createChallenge(userId, receiverId, gameModeSlug, durationMinutes ?? 3);
 
       // Notify receiver via Socket.IO if online
       const [challengerUser] = await db

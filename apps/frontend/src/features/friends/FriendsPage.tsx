@@ -124,7 +124,7 @@ export function FriendsPage() {
     setPickerOpen(true);
   };
 
-  const handleModeSelect = async (slug: string) => {
+  const handleModeSelect = async (slug: string, durationMinutes: number = 3) => {
     const friendId = pickerFriendId;
     if (!friendId) return;
 
@@ -134,6 +134,7 @@ export function FriendsPage() {
       await api.post('/matches/challenge', {
         receiverId: friendId,
         gameModeSlug: slug,
+        durationMinutes,
       });
       setChallengeState((prev) => ({ ...prev, [friendId]: 'waiting' }));
     } catch {

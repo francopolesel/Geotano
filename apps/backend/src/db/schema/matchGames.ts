@@ -25,6 +25,7 @@ export const matchGames = pgTable(
       .notNull()
       .references(() => users.id),
     gameModeSlug: text('game_mode_slug').notNull(),
+    durationMinutes: integer('duration_minutes').default(3).notNull(),
     player1Score: integer('player1_score').default(0).notNull(),
     player2Score: integer('player2_score').default(0).notNull(),
     player1Finished: boolean('player1_finished').default(false).notNull(),

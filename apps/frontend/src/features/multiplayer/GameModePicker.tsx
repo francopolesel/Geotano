@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GameModeSlug } from '@geotano/shared';
 
@@ -12,6 +13,8 @@ interface ModeOption {
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
+
+const DURATIONS = [1, 2, 3] as const;
 
 const MODES: ModeOption[] = [
   {
@@ -56,20 +59,24 @@ const MODES: ModeOption[] = [
 interface GameModePickerProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (slug: string) => void;
+  onSelect: (slug: string, durationMinutes: number) => void;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function GameModePicker({ open, onClose, onSelect }: GameModePickerProps) {
   const { t } = useTranslation();
+  const [selectedDuration, setSelectedDuration] = useState(3);
 
   if (!open) return null;
 
   const handleSelect = (slug: string) => {
-    onSelect(slug);
+    onSelect(slug, selectedDuration);
     onClose();
   };
+
+  const durationBtnBase =
+    'flex-1 min-h-[44px] rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all';
 
   return (
     <div
@@ -115,6 +122,28 @@ export function GameModePicker({ open, onClose, onSelect }: GameModePickerProps)
                 </div>
 
                 <span className="shrink-0 text-[var(--color-muted-foreground)]">→</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Duration selector */}
+        <div className="border-t border-[var(--color-border)] px-6 py-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+            {t('multiplayer.duration')}
+          </p>
+          <div className="flex gap-2">
+            {DURATIONS.map((d) => (
+              <button
+                key={d}
+                onClick={() => setSelectedDuration(d)}
+                className={`${durationBtnBase} ${
+                  selectedDuration === d
+                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)]'
+                    : 'border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-muted)]'
+                }`}
+              >
+                {t('multiplayer.durationValue', { minutes: d })}
               </button>
             ))}
           </div>

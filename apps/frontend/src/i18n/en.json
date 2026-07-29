@@ -314,6 +314,8 @@
   "multiplayer.modePickerHint": "3-minute challenge — most correct answers wins. Wrong answers lose points!",
   "multiplayer.matchHistory": "Match History",
   "multiplayer.noMatches": "No matches yet",
+  "multiplayer.duration": "Duration",
+  "multiplayer.durationValue": "{{minutes}} min",
   "multiplayer.inProgress": "In progress",
   "multiplayer.pending": "Pending",
   "multiplayer.leaveTitle": "Leave match?",

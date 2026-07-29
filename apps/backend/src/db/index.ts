@@ -19,6 +19,7 @@ export async function runMigrations(): Promise<void> {
       "challenger_id" uuid NOT NULL REFERENCES "public"."users"("id"),
       "receiver_id" uuid NOT NULL REFERENCES "public"."users"("id"),
       "game_mode_slug" text NOT NULL,
+      "duration_minutes" integer DEFAULT 3 NOT NULL,
       "status" text DEFAULT 'pending' NOT NULL,
       "created_at" timestamp DEFAULT now() NOT NULL
     );
@@ -29,6 +30,7 @@ export async function runMigrations(): Promise<void> {
       "player1_id" uuid NOT NULL REFERENCES "public"."users"("id"),
       "player2_id" uuid NOT NULL REFERENCES "public"."users"("id"),
       "game_mode_slug" text NOT NULL,
+      "duration_minutes" integer DEFAULT 3 NOT NULL,
       "player1_score" integer DEFAULT 0 NOT NULL,
       "player2_score" integer DEFAULT 0 NOT NULL,
       "player1_finished" boolean DEFAULT false NOT NULL,
@@ -63,6 +65,10 @@ export async function runMigrations(): Promise<void> {
     CREATE INDEX IF NOT EXISTS "match_games_player1_status_idx" ON "match_games" ("player1_id", "status");
     CREATE INDEX IF NOT EXISTS "match_games_player2_status_idx" ON "match_games" ("player2_id", "status");
     CREATE INDEX IF NOT EXISTS "match_challenges_challenger_created_idx" ON "match_challenges" ("challenger_id", "created_at");
+
+    -- 0006: Add duration_minutes column to match tables
+    ALTER TABLE "match_challenges" ADD COLUMN IF NOT EXISTS "duration_minutes" integer DEFAULT 3 NOT NULL;
+    ALTER TABLE "match_games" ADD COLUMN IF NOT EXISTS "duration_minutes" integer DEFAULT 3 NOT NULL;
   `;
   await queryClient.unsafe(sql);
   console.log('[migrations] Applied pending migrations');

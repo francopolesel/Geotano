@@ -2,6 +2,7 @@ import {
   pgTable,
   uuid,
   text,
+  integer,
   timestamp,
   index,
 } from 'drizzle-orm/pg-core';
@@ -18,6 +19,7 @@ export const matchChallenges = pgTable(
       .notNull()
       .references(() => users.id),
     gameModeSlug: text('game_mode_slug').notNull(),
+    durationMinutes: integer('duration_minutes').default(3).notNull(),
     status: text('status').default('pending').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },

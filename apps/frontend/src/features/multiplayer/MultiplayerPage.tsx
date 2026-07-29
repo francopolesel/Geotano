@@ -20,6 +20,7 @@ interface MatchState {
   player1Id: string;
   player2Id: string;
   gameModeSlug: string;
+  durationMinutes: number;
   player1Score: number;
   player2Score: number;
   player1Finished: boolean;
@@ -110,6 +111,7 @@ export function MultiplayerPage() {
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [remainingMs, setRemainingMs] = useState(180_000);
+  const totalMs = (match?.durationMinutes ?? 3) * 60 * 1000;
   const [myFinished, setMyFinished] = useState(false);
   const [matchEnded, setMatchEnded] = useState(false);
   const [matchResult, setMatchResult] = useState<{
@@ -526,7 +528,7 @@ export function MultiplayerPage() {
         </div>
       );
     } else {
-      const timerFraction = Math.max(0, remainingMs / 180_000);
+      const timerFraction = Math.max(0, remainingMs / totalMs);
       const timerSeconds = Math.ceil(remainingMs / 1000);
       const timerColor =
         timerFraction > 0.5

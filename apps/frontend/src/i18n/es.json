@@ -314,6 +314,8 @@
   "multiplayer.modePickerHint": "Duelo de 3 minutos — ganás con más respuestas correctas. ¡Las incorrectas restan puntos!",
   "multiplayer.matchHistory": "Historial de partidas",
   "multiplayer.noMatches": "Sin partidas aún",
+  "multiplayer.duration": "Duración",
+  "multiplayer.durationValue": "{{minutes}} min",
   "multiplayer.inProgress": "En curso",
   "multiplayer.pending": "Pendiente",
   "multiplayer.leaveTitle": "¿Salir de la partida?",
