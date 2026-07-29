@@ -418,7 +418,7 @@ export function MultiplayerPage() {
             {t('multiplayer.challengeFrom', { username: opponentName })}
           </p>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-            {t('multiplayer.youHave', { minutes: 3 })}
+            {t('multiplayer.youHave', { minutes: match?.durationMinutes ?? 3 })}
           </p>
           <button
             onClick={handleStart}
