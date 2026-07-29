@@ -51,7 +51,7 @@ type Screen = 'loading' | 'start' | 'playing' | 'my_finished' | 'result' | 'erro
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const FEEDBACK_DURATION_MS = 1200;
+const FEEDBACK_DURATION_MS = 400;
 const POLL_INTERVAL_MS = 10_000;
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
@@ -294,47 +294,62 @@ export function MultiplayerPage() {
     });
   };
 
-  // ── Handle answer ───────────────────────────────────────────────────────
-  const submitAnswer = useCallback(async (optionIndex: number) => {
-    if (!matchId || answerState !== 'idle') return;
+  // ── Handle answer (optimistic UI — same pattern as QuizPage) ────────────
+  // Shows feedback IMMEDIATELY from local question.correctIndex.
+  // Fire API in background; on error, reset to idle for retry.
+  const submitAnswer = useCallback((optionIndex: number) => {
+    if (!matchId || answerState !== 'idle' || !question) return;
 
+    // ── Show feedback INSTANTLY using local question data ──
     setSelectedIndex(optionIndex);
+    const wasCorrect = optionIndex === question.correctIndex;
+    setAnswerState(wasCorrect ? 'correct' : 'wrong');
 
-    try {
-      const data = await api.post<AnswerResponse>(`/matches/${matchId}/answer`, { optionIndex });
+    // Compute optimistic score locally (same formula as backend calculateRaceScore)
+    const streakBefore = wasCorrect ? streak : 0;
+    const optimisticEarned = wasCorrect
+      ? (streakBefore >= 3 ? 150 : 100)
+      : -50;
+    const newStreakVal = wasCorrect ? streak + 1 : 0;
+    setStreak(newStreakVal);
+    setScore((prev) => prev + optimisticEarned);
 
-      setAnswerState(data.correct ? 'correct' : 'wrong');
-      setStreak(data.streak);
-      setScore((prev) => prev + data.scoreEarned);
-      setMyFinished(data.finished);
-      setMatchEnded(data.matchEnded);
-
-      if (data.matchEnded) {
-        // Both finished — refetch match to get final scores
-        const updated = await api.get<MatchState>(`/matches/${matchId}`);
-        setMatch(updated);
-        buildResult(updated);
-      }
-
-      // Show feedback briefly, then advance
-      feedbackTimer.current = setTimeout(() => {
-        setSelectedIndex(null);
-        setAnswerState('idle');
+    // ── Fire API in background (async, non-blocking) ──
+    api.post<AnswerResponse>(`/matches/${matchId}/answer`, { optionIndex })
+      .then((data) => {
+        // Authoritative state from backend
+        setStreak(data.streak);
+        setMyFinished(data.finished);
+        setMatchEnded(data.matchEnded);
 
         if (data.matchEnded) {
-          setScreen('result');
-        } else if (data.finished) {
-          setScreen('my_finished');
-        } else if (data.nextQuestion) {
-          setQuestion(data.nextQuestion);
+          api.get<MatchState>(`/matches/${matchId}`).then((updated) => {
+            setMatch(updated);
+            buildResult(updated);
+          });
         }
-      }, FEEDBACK_DURATION_MS);
-    } catch {
-      // Allow retry
-      setSelectedIndex(null);
-      setAnswerState('idle');
-    }
-  }, [matchId, answerState]);
+
+        // Advance after a short time so user sees the feedback.
+        // Feedback stays visible until this timer fires (no intermediate blank state).
+        feedbackTimer.current = setTimeout(() => {
+          if (data.matchEnded) {
+            setScreen('result');
+          } else if (data.finished) {
+            setScreen('my_finished');
+          } else if (data.nextQuestion) {
+            setQuestion(data.nextQuestion);
+          }
+          // Reset answer state only when advancing away
+          setSelectedIndex(null);
+          setAnswerState('idle');
+        }, FEEDBACK_DURATION_MS);
+      })
+      .catch(() => {
+        // On error: reset so user can retry on the current question
+        setSelectedIndex(null);
+        setAnswerState('idle');
+      });
+  }, [matchId, answerState, question, streak]);
 
   // Cleanup feedback timer on unmount
   useEffect(() => {
