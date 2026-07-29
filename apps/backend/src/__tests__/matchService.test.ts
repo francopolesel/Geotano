@@ -111,13 +111,10 @@ function pushProfiles() {
  *
  * submitAnswer internally calls, in order:
  *   1. getFullMatch → db.select().from(matchGames).where(...).limit(1)
- *   2. db.select().from(matchAnswers).where(...).orderBy(...)
+ *   2. db.select({streakAtAnswer}).from(matchAnswers).where(...).orderBy(...)
  *   3. db.insert(matchAnswers).values(...)
  *   4. db.update(matchGames).set(...).where(...)
- *   5. getMatchState → getFullMatch → db.select().from(matchGames).where(...).limit(1)
- *   6. db.select().from(users).where(...).limit(1)  [profile 1]
- *   7. db.select().from(users).where(...).limit(1)  [profile 2]
- *   8. if bothFinished → db.update(matchGames).set({status,winnerId}).where(...)
+ *   5. if bothFinished → db.update(matchGames).set({status,winnerId}).where(...)
  */
 function pushSubmitAnswerMocks(
   correctSoFar: number,
@@ -140,14 +137,10 @@ function pushSubmitAnswerMocks(
     playerBOrder: orderArr,
   })]);
 
-  // 2. prev answers
+  // 2. prev answers (only streakAtAnswer column, matching the lighter select)
   const prev: any[] = [];
   for (let j = 0; j < correctSoFar; j++) {
-    prev.push({
-      streakAtAnswer: j + 1,
-      wasCorrect: true,
-      scoreEarned: j >= 2 ? 150 : 100,
-    });
+    prev.push({ streakAtAnswer: j + 1 });
   }
   pendingResults.push(prev);
 
@@ -157,22 +150,7 @@ function pushSubmitAnswerMocks(
   // 4. update match
   pendingResults.push(undefined);
 
-  // 5. getMatchState → getFullMatch
-  const afterScore = playerScoreBefore + (isCorrect ? (correctSoFar >= 2 ? 150 : 100) : 0);
-  const thisFinished = correctSoFar + 1 >= totalQuestions;
-  pendingResults.push([createMockMatch({
-    player1Score: isPlayer1 ? afterScore : otherScore,
-    player2Score: isPlayer1 ? otherScore : afterScore,
-    player1Finished: isPlayer1 ? thisFinished : otherFinished,
-    player2Finished: isPlayer1 ? otherFinished : thisFinished,
-    playerAOrder: orderArr,
-    playerBOrder: orderArr,
-  })]);
-
-  // 6–7. profiles
-  pushProfiles();
-
-  // 8. bothFinished update
+  // 5. bothFinished update (only if both finished)
   if (bothFinished) {
     pendingResults.push(undefined);
   }
@@ -203,10 +181,10 @@ describe('calculateRaceScore', () => {
     expect(calculateRaceScore(true, 10)).toBe(150);
   });
 
-  it('should return 0 for wrong answer regardless of streak', () => {
-    expect(calculateRaceScore(false, 0)).toBe(0);
-    expect(calculateRaceScore(false, 3)).toBe(0);
-    expect(calculateRaceScore(false, 10)).toBe(0);
+  it('should return -50 for wrong answer regardless of streak', () => {
+    expect(calculateRaceScore(false, 0)).toBe(-50);
+    expect(calculateRaceScore(false, 3)).toBe(-50);
+    expect(calculateRaceScore(false, 10)).toBe(-50);
   });
 });
 
@@ -493,7 +471,7 @@ describe('submitAnswer', () => {
     expect(result!.nextQuestion).not.toBeNull();
   });
 
-  it('should mark wrong answer with 0 score and reset streak', async () => {
+  it('should penalize wrong answer with -50 and reset streak', async () => {
     // First answer correct
     pushSubmitAnswerMocks(0, true, 0, true, 50, false);
     await submitAnswer('m-1', 'user-1', 0);
@@ -505,7 +483,7 @@ describe('submitAnswer', () => {
 
     expect(result).not.toBeNull();
     expect(result!.correct).toBe(false);
-    expect(result!.scoreEarned).toBe(0);
+    expect(result!.scoreEarned).toBe(-50);
     expect(result!.streak).toBe(0);
   });
 

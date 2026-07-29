@@ -14,6 +14,7 @@ import type { GeneratedQuestion } from './quizEngine.js';
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const BASE_SCORE = 100;
+const WRONG_PENALTY = -50;
 const STREAK_THRESHOLD = 3;
 const STREAK_MULTIPLIER = 1.5;
 const MATCH_DURATION_MS = 180_000;
@@ -22,7 +23,7 @@ const POOL_SIZE = 120;
 // ─── Scoring ────────────────────────────────────────────────────────────────
 
 export function calculateRaceScore(wasCorrect: boolean, streakBefore: number): number {
-  if (!wasCorrect) return 0;
+  if (!wasCorrect) return WRONG_PENALTY;
   let score = BASE_SCORE;
   if (streakBefore >= STREAK_THRESHOLD) {
     score = Math.floor(score * STREAK_MULTIPLIER);
@@ -288,13 +289,12 @@ export async function submitAnswer(
   if (!match || match.status === 'completed') return null;
 
   const isPlayer1 = match.player1Id === userId;
-  const player = isPlayer1 ? 'player1' : 'player2';
   const order = (isPlayer1 ? match.playerAOrder : match.playerBOrder) as number[];
   const pool = match.questionPool as GeneratedQuestion[];
 
-  // Get previous answers to calculate streak
+  // Lightweight: only fetch the streak column (less data than full rows)
   const prevAnswers = await db
-    .select()
+    .select({ streakAtAnswer: matchAnswers.streakAtAnswer })
     .from(matchAnswers)
     .where(
       and(eq(matchAnswers.matchId, matchId), eq(matchAnswers.userId, userId)),
@@ -309,7 +309,7 @@ export async function submitAnswer(
   if (!question) return null;
 
   const wasCorrect = optionIndex === question.correctIndex;
-  const lastStreak = prevAnswers.length > 0 ? prevAnswers[prevAnswers.length - 1].streakAtAnswer : 0;
+  const lastStreak = answeredCount > 0 ? prevAnswers[answeredCount - 1].streakAtAnswer : 0;
   const streakBefore = wasCorrect ? lastStreak : 0;
   const scoreEarned = calculateRaceScore(wasCorrect, streakBefore);
   const newStreak = wasCorrect ? lastStreak + 1 : 0;
@@ -327,37 +327,31 @@ export async function submitAnswer(
 
   const finished = answeredCount + 1 >= order.length;
   const currentScore = isPlayer1 ? match.player1Score : match.player2Score;
+  const newScore = currentScore + scoreEarned;
 
-  // Update match
+  // Update match score + finished flag (single UPDATE)
   await db
     .update(matchGames)
     .set({
-      [isPlayer1 ? 'player1Score' : 'player2Score']: currentScore + scoreEarned,
+      [isPlayer1 ? 'player1Score' : 'player2Score']: newScore,
       [isPlayer1 ? 'player1Finished' : 'player2Finished']: finished,
     })
     .where(eq(matchGames.id, matchId));
 
-  // Check if both finished
-  const updatedMatch = await getMatchState(matchId);
-  if (!updatedMatch) return null;
-
-  const bothFinished = updatedMatch.player1Finished && updatedMatch.player2Finished;
+  // Determine if both finished — uses data already fetched (no extra query)
+  const otherFinished = isPlayer1 ? match.player2Finished : match.player1Finished;
+  const bothFinished = finished && otherFinished;
   let matchEnded = false;
 
   if (bothFinished) {
-    const winner = determineWinner(
-      updatedMatch.player1Score,
-      updatedMatch.player2Score,
-    );
-    const winnerUserId = winner === 'player1' ? updatedMatch.player1Id
-      : winner === 'player2' ? updatedMatch.player2Id
+    const otherScore = isPlayer1 ? match.player2Score : match.player1Score;
+    const winner = determineWinner(newScore, otherScore);
+    const winnerUserId = winner === 'player1' ? match.player1Id
+      : winner === 'player2' ? match.player2Id
       : null;
     await db
       .update(matchGames)
-      .set({
-        status: 'completed',
-        winnerId: winnerUserId,
-      })
+      .set({ status: 'completed', winnerId: winnerUserId })
       .where(eq(matchGames.id, matchId));
     matchEnded = true;
   }
