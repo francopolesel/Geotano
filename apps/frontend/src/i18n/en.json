@@ -316,6 +316,10 @@
   "multiplayer.noMatches": "No matches yet",
   "multiplayer.inProgress": "In progress",
   "multiplayer.pending": "Pending",
+  "multiplayer.leaveTitle": "Leave match?",
+  "multiplayer.leaveWarning": "If you leave now, you will lose your progress!",
+  "multiplayer.leaveStay": "Stay — keep playing",
+  "multiplayer.leaveAnyway": "Leave anyway",
 
   "errors.common.sessionExpired": "Session expired. Please log in again.",
   "errors.common.loginFailed": "Login failed",

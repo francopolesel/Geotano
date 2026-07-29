@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
@@ -343,6 +343,22 @@ export function MultiplayerPage() {
     };
   }, []);
 
+  // ── Navigation guard ────────────────────────────────────────────────────
+  const shouldBlock = screen === 'playing';
+  const blocker = useBlocker(shouldBlock);
+
+  // Also warn about browser-level navigation (close tab, refresh)
+  useEffect(() => {
+    if (!shouldBlock) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [shouldBlock]);
+
   // ── Start playing ───────────────────────────────────────────────────────
   const handleStart = () => resumePlay();
 
@@ -353,9 +369,11 @@ export function MultiplayerPage() {
     navigate('/');
   };
 
-  // ── Render: Error ───────────────────────────────────────────────────────
+  // ── Screen content ─────────────────────────────────────────────────────
+  let content: React.ReactNode = null;
+
   if (screen === 'error') {
-    return (
+    content = (
       <div className="mx-auto max-w-md py-20">
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
           <p className="text-base text-[var(--color-muted-foreground)]">{errorMsg}</p>
@@ -368,20 +386,14 @@ export function MultiplayerPage() {
         </div>
       </div>
     );
-  }
-
-  // ── Render: Loading ─────────────────────────────────────────────────────
-  if (screen === 'loading') {
-    return (
+  } else if (screen === 'loading') {
+    content = (
       <div className="flex items-center justify-center py-32">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
       </div>
     );
-  }
-
-  // ── Render: Start screen ────────────────────────────────────────────────
-  if (screen === 'start') {
-    return (
+  } else if (screen === 'start') {
+    content = (
       <div className="mx-auto max-w-md py-20">
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
           <h2 className="text-5xl">⚔️</h2>
@@ -406,11 +418,8 @@ export function MultiplayerPage() {
         </div>
       </div>
     );
-  }
-
-  // ── Render: My finished (waiting for opponent) ──────────────────────────
-  if (screen === 'my_finished') {
-    return (
+  } else if (screen === 'my_finished') {
+    content = (
       <div className="mx-auto max-w-md py-20">
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
           <h2 className="text-5xl">🏁</h2>
@@ -438,11 +447,8 @@ export function MultiplayerPage() {
         </div>
       </div>
     );
-  }
-
-  // ── Render: Result screen ───────────────────────────────────────────────
-  if (screen === 'result' && matchResult) {
-    return (
+  } else if (screen === 'result' && matchResult) {
+    content = (
       <div className="mx-auto max-w-2xl py-12">
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
           {matchResult.tie ? (
@@ -463,7 +469,6 @@ export function MultiplayerPage() {
             {t('multiplayer.result.reason.finished')}
           </p>
 
-          {/* Side-by-side scores */}
           <div className="mt-8 grid grid-cols-2 gap-4">
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)] p-4">
               <p className="mb-3 text-sm font-semibold text-[var(--color-foreground)]">
@@ -498,110 +503,136 @@ export function MultiplayerPage() {
         </div>
       </div>
     );
-  }
+  } else if (screen === 'playing') {
+    if (!question) {
+      content = (
+        <div className="flex items-center justify-center py-32">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+        </div>
+      );
+    } else {
+      const timerFraction = Math.max(0, remainingMs / 180_000);
+      const timerSeconds = Math.ceil(remainingMs / 1000);
+      const timerColor =
+        timerFraction > 0.5
+          ? 'bg-emerald-500'
+          : timerFraction > 0.25
+            ? 'bg-amber-500'
+            : 'bg-red-500';
 
-  // ── Render: Playing screen ──────────────────────────────────────────────
-  if (!question) {
-    return (
-      <div className="flex items-center justify-center py-32">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-primary)]" />
-      </div>
-    );
-  }
+      content = (
+        <div className="mx-auto max-w-4xl px-4 py-3 sm:px-0 sm:py-4">
+          <div className="mb-2.5 flex flex-wrap items-center justify-between gap-1.5 sm:mb-6 sm:gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <span className="text-sm font-medium text-[var(--color-muted-foreground)] sm:text-base">
+                ⚔️ {opponentName}
+              </span>
+              {streak >= 5 && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+                  {t('multiplayer.streak', { count: streak })}
+                </span>
+              )}
+            </div>
+            <div className="text-right">
+              <span className="text-lg font-bold text-[var(--color-foreground)] sm:text-2xl">
+                {score}
+              </span>
+            </div>
+          </div>
 
-  const timerFraction = Math.max(0, remainingMs / 180_000);
-  const timerSeconds = Math.ceil(remainingMs / 1000);
-  const timerColor =
-    timerFraction > 0.5
-      ? 'bg-emerald-500'
-      : timerFraction > 0.25
-        ? 'bg-amber-500'
-        : 'bg-red-500';
-
-  return (
-    <div className="mx-auto max-w-4xl px-4 py-3 sm:px-0 sm:py-4">
-      {/* Top bar */}
-      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-1.5 sm:mb-6 sm:gap-2">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          <span className="text-sm font-medium text-[var(--color-muted-foreground)] sm:text-base">
-            ⚔️ {opponentName}
-          </span>
-          {streak >= 5 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
-              {t('multiplayer.streak', { count: streak })}
+          <div className="mb-2.5 flex items-center gap-3 sm:mb-6">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-muted)] sm:h-3">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${timerColor}`}
+                style={{ width: `${timerFraction * 100}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-sm font-medium tabular-nums text-[var(--color-muted-foreground)]">
+              {t('multiplayer.timeLeft', { seconds: timerSeconds })}
             </span>
+          </div>
+
+          <h2 className="mb-3.5 text-xl font-semibold text-[var(--color-foreground)] sm:mb-6 sm:text-3xl">
+            {question.questionText}
+          </h2>
+
+          {question.flagUrl && (
+            <div className="mb-3.5 flex justify-center sm:mb-6">
+              <img
+                src={question.flagUrl}
+                alt=""
+                className="h-28 max-h-[33vh] rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-52"
+              />
+            </div>
+          )}
+
+          <div key={question.id} className="grid gap-2.5 sm:gap-3 sm:grid-cols-2">
+            {question.options.map((option: string, index: number) => (
+              <button
+                key={`${question.id}-${index}`}
+                onClick={() => submitAnswer(index)}
+                disabled={answerState !== 'idle'}
+                className={getOptionBtnStyle(
+                  index,
+                  selectedIndex,
+                  answerState !== 'idle' ? question.correctIndex : null,
+                  answerState,
+                )}
+              >
+                <span className="mr-1.5 inline-block h-[22px] w-[22px] rounded-full bg-[var(--color-muted)] text-center text-[11px] leading-[22px] font-bold text-[var(--color-muted-foreground)] sm:mr-2 sm:h-6 sm:w-6 sm:text-xs sm:leading-6">
+                  {String.fromCharCode(65 + index)}
+                </span>
+                {option}
+              </button>
+            ))}
+          </div>
+
+          {answerState !== 'idle' && (
+            <div
+              className={`mt-2.5 rounded-lg px-3 py-2 text-sm font-medium sm:mt-4 sm:px-4 sm:py-3 sm:text-sm ${
+                answerState === 'correct'
+                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
+                  : 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200'
+              }`}
+            >
+              {answerState === 'correct' ? t('multiplayer.correct') : t('multiplayer.wrong')}
+            </div>
           )}
         </div>
-        <div className="text-right">
-          <span className="text-lg font-bold text-[var(--color-foreground)] sm:text-2xl">
-            {score}
-          </span>
-        </div>
-      </div>
+      );
+    }
+  }
 
-      {/* Timer bar */}
-      <div className="mb-2.5 flex items-center gap-3 sm:mb-6">
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-muted)] sm:h-3">
-          <div
-            className={`h-full rounded-full transition-all duration-300 ${timerColor}`}
-            style={{ width: `${timerFraction * 100}%` }}
-          />
-        </div>
-        <span className="shrink-0 text-sm font-medium tabular-nums text-[var(--color-muted-foreground)]">
-          {t('multiplayer.timeLeft', { seconds: timerSeconds })}
-        </span>
-      </div>
-
-      {/* Question text */}
-      <h2 className="mb-3.5 text-xl font-semibold text-[var(--color-foreground)] sm:mb-6 sm:text-3xl">
-        {question.questionText}
-      </h2>
-
-      {/* Flag image */}
-      {question.flagUrl && (
-        <div className="mb-3.5 flex justify-center sm:mb-6">
-          <img
-            src={question.flagUrl}
-            alt=""
-            className="h-28 max-h-[33vh] rounded-lg border border-[var(--color-border)] object-cover shadow-sm sm:h-52"
-          />
-        </div>
-      )}
-
-      {/* Answer options */}
-      <div key={question.id} className="grid gap-2.5 sm:gap-3 sm:grid-cols-2">
-        {question.options.map((option: string, index: number) => (
-          <button
-            key={`${question.id}-${index}`}
-            onClick={() => submitAnswer(index)}
-            disabled={answerState !== 'idle'}
-            className={getOptionBtnStyle(
-              index,
-              selectedIndex,
-              answerState !== 'idle' ? question.correctIndex : null,
-              answerState,
-            )}
-          >
-            <span className="mr-1.5 inline-block h-[22px] w-[22px] rounded-full bg-[var(--color-muted)] text-center text-[11px] leading-[22px] font-bold text-[var(--color-muted-foreground)] sm:mr-2 sm:h-6 sm:w-6 sm:text-xs sm:leading-6">
-              {String.fromCharCode(65 + index)}
-            </span>
-            {option}
-          </button>
-        ))}
-      </div>
-
-      {/* Feedback */}
-      {answerState !== 'idle' && (
-        <div
-          className={`mt-2.5 rounded-lg px-3 py-2 text-sm font-medium sm:mt-4 sm:px-4 sm:py-3 sm:text-sm ${
-            answerState === 'correct'
-              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
-              : 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-200'
-          }`}
-        >
-          {answerState === 'correct' ? t('multiplayer.correct') : t('multiplayer.wrong')}
+  // ── Unified render with navigation guard modal ────────────────────────
+  return (
+    <>
+      {content}
+      {blocker.state === 'blocked' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 text-center shadow-lg">
+            <p className="text-lg font-semibold text-[var(--color-foreground)]">
+              {t('multiplayer.leaveTitle')}
+            </p>
+            <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+              {t('multiplayer.leaveWarning')}
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => blocker.reset()}
+                className="flex-1 min-h-[44px] rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)]"
+              >
+                {t('multiplayer.leaveStay')}
+              </button>
+              <button
+                onClick={() => blocker.proceed()}
+                className="flex-1 min-h-[44px] rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                {t('multiplayer.leaveAnyway')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

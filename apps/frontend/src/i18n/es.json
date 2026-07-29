@@ -316,6 +316,10 @@
   "multiplayer.noMatches": "Sin partidas aún",
   "multiplayer.inProgress": "En curso",
   "multiplayer.pending": "Pendiente",
+  "multiplayer.leaveTitle": "¿Salir de la partida?",
+  "multiplayer.leaveWarning": "Si salís ahora, vas a perder tu progreso",
+  "multiplayer.leaveStay": "Quedarse — seguir jugando",
+  "multiplayer.leaveAnyway": "Salir igual",
 
   "errors.common.sessionExpired": "Sesión expirada. Iniciá sesión de nuevo.",
   "errors.common.loginFailed": "Error al iniciar sesión",
