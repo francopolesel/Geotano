@@ -584,7 +584,7 @@ describe('edge cases', () => {
     expect(result).toBe(false);
   });
 
-  it('should generate separate shuffled orders on acceptChallenge', async () => {
+  it('should use the same shuffled order for both players on acceptChallenge', async () => {
     const challengeRow = {
       id: 'ch-1',
       challengerId: 'user-1',
@@ -605,6 +605,6 @@ describe('edge cases', () => {
     expect(insertCall.playerBOrder).toBeDefined();
     expect(insertCall.playerAOrder).toHaveLength(5);
     expect(insertCall.playerBOrder).toHaveLength(5);
-    expect(insertCall.playerAOrder.join(',')).not.toBe(insertCall.playerBOrder.join(','));
+    expect(insertCall.playerAOrder.join(',')).toBe(insertCall.playerBOrder.join(','));
   });
 });

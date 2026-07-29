@@ -86,8 +86,7 @@ export async function acceptChallenge(
       );
 
   const indices = Array.from({ length: pool.length }, (_, i) => i);
-  const playerAOrder = shuffleArray([...indices]);
-  const playerBOrder = shuffleArray([...indices]);
+  const sharedOrder = shuffleArray([...indices]);
 
   const matchId = crypto.randomUUID();
   await db.insert(matchGames).values({
@@ -98,8 +97,8 @@ export async function acceptChallenge(
     gameModeSlug: challenge.gameModeSlug,
     status: 'pending',
     questionPool: pool,
-    playerAOrder,
-    playerBOrder,
+    playerAOrder: sharedOrder,
+    playerBOrder: sharedOrder,
   });
 
   // Update challenge status
