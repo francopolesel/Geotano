@@ -327,14 +327,13 @@ export async function submitAnswer(
   });
 
   const finished = answeredCount + 1 >= order.length;
-  const scoreCol = isPlayer1 ? matchGames.player1Score : matchGames.player2Score;
-  const finishedCol = isPlayer1 ? matchGames.player1Finished : matchGames.player2Finished;
+  const currentScore = isPlayer1 ? match.player1Score : match.player2Score;
 
   // Update match
   await db
     .update(matchGames)
     .set({
-      [isPlayer1 ? 'player1Score' : 'player2Score']: Number(scoreCol) + scoreEarned,
+      [isPlayer1 ? 'player1Score' : 'player2Score']: currentScore + scoreEarned,
       [isPlayer1 ? 'player1Finished' : 'player2Finished']: finished,
     })
     .where(eq(matchGames.id, matchId));

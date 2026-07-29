@@ -55,9 +55,9 @@ const mockDb = vi.hoisted(() => {
 
 vi.mock('../db/index.js', () => ({ db: mockDb }));
 
-const mockGenerateQuestionBatch = vi.hoisted(() => vi.fn());
+const mockGenerateMatchQuestionPool = vi.hoisted(() => vi.fn());
 vi.mock('../services/quizEngine.js', () => ({
-  generateQuestionBatch: mockGenerateQuestionBatch,
+  generateMatchQuestionPool: mockGenerateMatchQuestionPool,
 }));
 
 // ─── Imports ────────────────────────────────────────────────────
@@ -247,7 +247,7 @@ describe('acceptChallenge', () => {
       status: 'pending',
     };
     pendingResults.push([challengeRow]); // select challenge
-    mockGenerateQuestionBatch.mockResolvedValueOnce(POOL_5 as any);
+    mockGenerateMatchQuestionPool.mockResolvedValueOnce(POOL_5 as any);
     pendingResults.push(undefined);        // insert match
     pendingResults.push(undefined);        // update challenge status
 
@@ -593,7 +593,7 @@ describe('edge cases', () => {
       status: 'pending',
     };
     pendingResults.push([challengeRow]);
-    mockGenerateQuestionBatch.mockResolvedValueOnce(POOL_5 as any);
+    mockGenerateMatchQuestionPool.mockResolvedValueOnce(POOL_5 as any);
     pendingResults.push(undefined);
     pendingResults.push(undefined);
 
