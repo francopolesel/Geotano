@@ -645,8 +645,9 @@ describe('finishMatch', () => {
 // ===================================================================
 
 describe('deleteExpiredMatches', () => {
-  it('should do nothing when no expired matches exist', async () => {
-    pendingResults.push([]);
+  it('should do nothing when no expired matches or stale challenges exist', async () => {
+    pendingResults.push([]); // no expired matches
+    pendingResults.push([]); // no stale pending challenges
 
     const result = await deleteExpiredMatches();
 
@@ -659,6 +660,7 @@ describe('deleteExpiredMatches', () => {
       { id: 'm-1', challengeId: 'ch-1' },
       { id: 'm-2', challengeId: 'ch-2' },
     ]);
+    pendingResults.push([]); // no stale pending challenges
     // Three deletes: answers, games, challenges
     pendingResults.push(undefined);
     pendingResults.push(undefined);
@@ -668,6 +670,17 @@ describe('deleteExpiredMatches', () => {
 
     expect(result).toEqual({ deleted: 2 });
     expect(mockDb.delete).toHaveBeenCalledTimes(3);
+  });
+
+  it('should delete stale pending challenges that were never accepted', async () => {
+    pendingResults.push([]); // no expired matches
+    pendingResults.push([{ id: 'ch-stale' }]); // one stale pending challenge
+    pendingResults.push(undefined); // one delete: the stale challenge
+
+    const result = await deleteExpiredMatches();
+
+    expect(result).toEqual({ deleted: 1 });
+    expect(mockDb.delete).toHaveBeenCalledTimes(1);
   });
 });
 

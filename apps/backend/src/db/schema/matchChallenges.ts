@@ -5,7 +5,9 @@ import {
   integer,
   timestamp,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './users.js';
 
 export const matchChallenges = pgTable(
@@ -28,5 +30,8 @@ export const matchChallenges = pgTable(
       table.challengerId,
       table.createdAt,
     ),
+    onePendingPairIdx: uniqueIndex('match_challenges_one_pending_pair_idx')
+      .on(table.challengerId, table.receiverId)
+      .where(sql`status = 'pending'`),
   }),
 );

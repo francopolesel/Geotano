@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthGuard } from '../components/AuthGuard';
+import { RouteError } from '../components/RouteError';
 import { setNavigateFn } from '../lib/socket';
 import { AppShell } from '../components/AppShell';
 import { LoginPage } from '../features/auth/LoginPage';
@@ -35,15 +36,17 @@ function NavSetup() {
 
 const router = createBrowserRouter([
   // Public routes — no shell
-  { path: '/login', element: <LoginPage /> },
-  { path: '/register', element: <RegisterPage /> },
+  { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
+  { path: '/register', element: <RegisterPage />, errorElement: <RouteError /> },
 
   // Protected routes — with shell layout
   {
     element: <AuthGuard />,
+    errorElement: <RouteError />,
     children: [
       {
         element: <><NavSetup /><AppShell /></>,
+        errorElement: <RouteError />,
         children: [
           { index: true, element: <HomePage /> },
           { path: 'quiz', element: <QuizPage /> },

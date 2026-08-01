@@ -70,14 +70,50 @@ export async function matchRoutes(app: FastifyInstance) {
         )
         .limit(1);
 
+      // If a pending challenge already exists (e.g. a previous invite that
+      // was never accepted, or the challenger's app crashed before showing
+      // the waiting state), replace it instead of blocking — a stale invite
+      // would otherwise prevent new duels until the 24h cleanup runs.
+      // The status='pending' predicate avoids deleting a challenge the
+      // receiver just accepted; the FK catch below handles the remaining race.
       if (existing) {
-        return reply.status(409).send({
-          errorCode: 'PENDING_CHALLENGE',
-          message: 'A pending challenge already exists with this user',
-        });
+        try {
+          await db
+            .delete(matchChallenges)
+            .where(
+              and(
+                eq(matchChallenges.id, existing.id),
+                eq(matchChallenges.status, 'pending'),
+              ),
+            );
+        } catch (err: any) {
+          // FK violation (23503): the receiver accepted this exact challenge
+          // while we were replacing it — a match now references it. Surface a
+          // clean, retryable error instead of a raw 500.
+          if (err?.code === '23503') {
+            return reply.status(409).send({
+              errorCode: 'CHALLENGE_IN_FLIGHT',
+              message: 'This challenge is being accepted right now. Try again.',
+            });
+          }
+          throw err;
+        }
       }
 
-      const challengeId = await matchService.createChallenge(userId, receiverId, gameModeSlug, durationMinutes ?? 3);
+      let challengeId: string;
+      try {
+        challengeId = await matchService.createChallenge(userId, receiverId, gameModeSlug, durationMinutes ?? 3);
+      } catch (err: any) {
+        // Unique violation (23505): two devices sent a challenge at the same
+        // time and the other one won the race. Tell the user to retry.
+        if (err?.code === '23505') {
+          return reply.status(409).send({
+            errorCode: 'PENDING_CHALLENGE',
+            message: 'A pending challenge already exists with this user',
+          });
+        }
+        throw err;
+      }
 
       // Notify receiver via Socket.IO if online
       const [challengerUser] = await db

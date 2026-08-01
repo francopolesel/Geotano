@@ -224,7 +224,10 @@ export async function getPlayerMatchHistory(userId: string) {
 /**
  * Permanently deletes stale matches (status pending/in_progress) older than
  * 24 hours, including their answers and the originating challenge, so no
- * record of them remains. Returns the number of matches deleted.
+ * record of them remains. Also deletes pending challenges that were never
+ * accepted and are older than 24 hours — those have no match row and would
+ * otherwise block future challenges between the same users.
+ * Returns the number of records deleted.
  */
 export async function deleteExpiredMatches(): Promise<{ deleted: number }> {
   const cutoff = new Date(Date.now() - MATCH_EXPIRY_MS);
@@ -239,17 +242,52 @@ export async function deleteExpiredMatches(): Promise<{ deleted: number }> {
       ),
     );
 
-  if (expired.length === 0) return { deleted: 0 };
+  const staleChallenges = await db
+    .select({ id: matchChallenges.id })
+    .from(matchChallenges)
+    .where(
+      and(
+        eq(matchChallenges.status, 'pending'),
+        lt(matchChallenges.createdAt, cutoff),
+      ),
+    );
+
+  if (expired.length === 0 && staleChallenges.length === 0) {
+    return { deleted: 0 };
+  }
 
   const matchIds = expired.map((m) => m.id);
   const challengeIds = expired.map((m) => m.challengeId);
 
   // FK order: answers reference the match, match references the challenge
-  await db.delete(matchAnswers).where(inArray(matchAnswers.matchId, matchIds));
-  await db.delete(matchGames).where(inArray(matchGames.id, matchIds));
-  await db.delete(matchChallenges).where(inArray(matchChallenges.id, challengeIds));
+  if (matchIds.length > 0) {
+    await db.delete(matchAnswers).where(inArray(matchAnswers.matchId, matchIds));
+    await db.delete(matchGames).where(inArray(matchGames.id, matchIds));
+    await db.delete(matchChallenges).where(inArray(matchChallenges.id, challengeIds));
+  }
 
-  return { deleted: expired.length };
+  // Stale pending challenges that were never accepted — they have no match
+  // row in normal operation. Guard the delete anyway: in the accept crash
+  // window a match may briefly reference a still-pending challenge, and the
+  // FK violation must not take down the hourly cleanup.
+  if (staleChallenges.length > 0) {
+    try {
+      await db.delete(matchChallenges).where(
+        inArray(
+          matchChallenges.id,
+          staleChallenges.map((c) => c.id),
+        ),
+      );
+    } catch (err) {
+      console.warn('[cleanup] Failed to delete stale pending challenges:', err);
+    }
+  }
+
+  // Count distinct records: don't double-count a challenge that was linked to
+  // an expired match AND appeared in the stale-pending query.
+  const staleOnlyCount = staleChallenges.filter((c) => !challengeIds.includes(c.id)).length;
+
+  return { deleted: expired.length + staleOnlyCount };
 }
 
 // ─── Match Gameplay ─────────────────────────────────────────────────────────

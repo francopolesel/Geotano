@@ -69,6 +69,13 @@ export async function runMigrations(): Promise<void> {
     -- 0006: Add duration_minutes column to match tables
     ALTER TABLE "match_challenges" ADD COLUMN IF NOT EXISTS "duration_minutes" integer DEFAULT 3 NOT NULL;
     ALTER TABLE "match_games" ADD COLUMN IF NOT EXISTS "duration_minutes" integer DEFAULT 3 NOT NULL;
+
+    -- 0007: At most one pending challenge per user pair. Prevents duplicate
+    -- invites from concurrent sends, and lets the challenge route safely
+    -- replace a stale pending invite without creating duplicates.
+    CREATE UNIQUE INDEX IF NOT EXISTS "match_challenges_one_pending_pair_idx"
+      ON "match_challenges" ("challenger_id", "receiver_id")
+      WHERE "status" = 'pending';
   `;
   await queryClient.unsafe(sql);
   console.log('[migrations] Applied pending migrations');

@@ -7,11 +7,13 @@ let _requestSeq = 0;
 
 export class ApiError extends Error {
   status: number;
+  errorCode?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, errorCode?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.errorCode = errorCode;
   }
 }
 
@@ -71,7 +73,7 @@ async function request<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: res.statusText }));
-    throw new ApiError(body.message || `HTTP ${res.status}`, res.status);
+    throw new ApiError(body.message || `HTTP ${res.status}`, res.status, body.errorCode);
   }
 
   return res.json();

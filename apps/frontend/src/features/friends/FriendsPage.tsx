@@ -5,7 +5,7 @@ import { UserAvatar } from '../../components/ui/UserAvatar';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, disconnectSocket } from '../../lib/socket';
-import { api } from '../../lib/api';
+import { api, ApiError } from '../../lib/api';
 import { GameModePicker } from '../multiplayer/GameModePicker';
 
 type Tab = 'friends' | 'requests' | 'search' | 'blocked';
@@ -49,7 +49,8 @@ export function FriendsPage() {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
-  const [challengeState, setChallengeState] = useState<Record<string, 'sending' | 'waiting'>>({});
+  const [challengeState, setChallengeState] = useState<Record<string, 'sending' | 'waiting' | 'error'>>({});
+  const [challengeError, setChallengeError] = useState<Record<string, string>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerFriendId, setPickerFriendId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
@@ -119,7 +120,7 @@ export function FriendsPage() {
   };
 
   const handleChallenge = (friendId: string) => {
-    if (challengeState[friendId]) return;
+    if (challengeState[friendId] && challengeState[friendId] !== 'error') return;
     setPickerFriendId(friendId);
     setPickerOpen(true);
   };
@@ -129,6 +130,11 @@ export function FriendsPage() {
     if (!friendId) return;
 
     setPickerOpen(false);
+    setChallengeError((prev) => {
+      const next = { ...prev };
+      delete next[friendId];
+      return next;
+    });
     setChallengeState((prev) => ({ ...prev, [friendId]: 'sending' }));
     try {
       await api.post('/matches/challenge', {
@@ -137,12 +143,18 @@ export function FriendsPage() {
         durationMinutes,
       });
       setChallengeState((prev) => ({ ...prev, [friendId]: 'waiting' }));
-    } catch {
-      setChallengeState((prev) => {
-        const next = { ...prev };
-        delete next[friendId];
-        return next;
-      });
+    } catch (err) {
+      const errorCode = err instanceof ApiError ? err.errorCode : undefined;
+      const known: Record<string, string> = {
+        NOT_FRIENDS: t('multiplayer.challengeNotFriends'),
+        CHALLENGE_IN_FLIGHT: t('multiplayer.challengeInFlight'),
+        PENDING_CHALLENGE: t('multiplayer.challengePending'),
+      };
+      setChallengeError((prev) => ({
+        ...prev,
+        [friendId]: (errorCode && known[errorCode]) || t('multiplayer.challengeError'),
+      }));
+      setChallengeState((prev) => ({ ...prev, [friendId]: 'error' }));
     }
   };
 
@@ -291,7 +303,7 @@ export function FriendsPage() {
                   <div className="hidden sm:flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => handleChallenge(friend.friendId)}
-                      disabled={!!cs}
+                      disabled={!!cs && cs !== 'error'}
                       className="rounded-md min-h-[44px] border border-[var(--color-border)] px-2 py-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-muted)] disabled:opacity-50"
                       title={t('multiplayer.challenge')}
                     >
@@ -299,7 +311,7 @@ export function FriendsPage() {
                         <span className="flex items-center gap-1 text-[var(--color-muted-foreground)]">⏳ {t('multiplayer.waitingResponse')}</span>
                       ) : cs === 'sending' ? (
                         <span className="flex items-center gap-1 text-[var(--color-muted-foreground)]">⏳</span>
-                      ) : '⚔️'}
+                      ) : cs === 'error' ? '⚠️' : '⚔️'}
                     </button>
                     <button
                       onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
@@ -326,14 +338,14 @@ export function FriendsPage() {
                 <div className="flex sm:hidden items-center gap-2">
                   <button
                     onClick={() => handleChallenge(friend.friendId)}
-                    disabled={!!cs}
+                    disabled={!!cs && cs !== 'error'}
                     className="flex-1 rounded-md min-h-[44px] border border-[var(--color-border)] px-1.5 py-1.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-muted)] disabled:opacity-50"
                   >
                     {cs === 'waiting' ? (
                       <span className="flex items-center justify-center gap-1">⏳ {t('multiplayer.waitingResponse')}</span>
                     ) : cs === 'sending' ? (
                       <span className="flex items-center justify-center gap-1">⏳</span>
-                    ) : '⚔️'}
+                    ) : cs === 'error' ? '⚠️' : '⚔️'}
                   </button>
                   <button
                     onClick={() => navigate(`/friends/chat/${friend.friendId}`)}
@@ -354,6 +366,11 @@ export function FriendsPage() {
                     {t('friends.block')}
                   </button>
                 </div>
+                {cs === 'error' && challengeError[friend.friendId] && (
+                  <p className="text-xs text-[var(--color-destructive)]" role="alert">
+                    {challengeError[friend.friendId]}
+                  </p>
+                )}
               </div>
             );
             })}
