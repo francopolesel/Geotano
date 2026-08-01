@@ -74,6 +74,9 @@ export async function authRoutes(app: FastifyInstance) {
         passwordHash,
         displayName: displayName ?? username,
         joinCode: generateJoinCode(),
+        // The creator is verified at insert time too — the startup migration
+        // backfill only covers rows that already exist when it runs.
+        isVerified: isCreator(username),
       })
       .returning();
 
@@ -205,6 +208,9 @@ export async function authRoutes(app: FastifyInstance) {
           avatarUrl: picture ?? null,
           passwordHash: await hashPassword(crypto.randomBytes(24).toString('hex')),
           joinCode: generateJoinCode(),
+          // Same fresh-DB guarantee as register: the creator's Google account
+          // is verified at insert time, not only via the migration backfill.
+          isVerified: isCreator(username),
         })
         .returning();
     }

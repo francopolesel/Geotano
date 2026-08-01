@@ -142,6 +142,33 @@ describe('Rankings — uncovered paths', () => {
     expect(body.entries[0].avatarUrl).toBe('http://example.com/2.jpg');
   });
 
+  it('should reflect the real is_verified in fallback userRank when the creator is outside the top 100', async () => {
+    // Top entries — user-1 (the creator) NOT in this list
+    waitData.push([
+      { userId: 'user-2', username: 'player2', avatarUrl: null, isVerified: false, score: 2000 },
+      { userId: 'user-3', username: 'player3', avatarUrl: null, isVerified: false, score: 1500 },
+    ]);
+    // Total players
+    waitData.push([{ totalPlayers: 10 }]);
+    // User's own score — the fallback query now joins users, so the row carries
+    // the real is_verified value instead of a hardcoded false.
+    waitData.push([{ score: 800, isVerified: true }]);
+    // Higher count — 2 users ahead
+    waitData.push([{ count: 2 }]);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/rankings?scope=global&period=forever',
+      headers: { authorization: 'Bearer valid-token' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.userRank).toBeDefined();
+    expect(body.userRank.rank).toBe(3); // 2 ahead + 1
+    expect(body.userRank.isVerified).toBe(true);
+  });
+
   it('should handle user not in top 100 — with mode filter', async () => {
     waitData.push([
       { userId: 'user-2', username: 'player2', avatarUrl: null, isVerified: false, score: 2000 },

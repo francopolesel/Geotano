@@ -14,7 +14,14 @@ export function isReservedDisplayName(name: string | null | undefined): boolean 
   return (name ?? '').trim().toLowerCase() === RESERVED_DISPLAY_NAME;
 }
 
-/** True when the given username belongs to the platform creator. */
+/**
+ * True when the given username belongs to the platform creator.
+ *
+ * Usernames are CASE-SENSITIVE in this app (register stores the body verbatim;
+ * duplicate checks use case-sensitive eq), so the creator check is plain
+ * equality. A case variant like "Francopolesel99" is a different account and
+ * must NOT inherit the creator exemption.
+ */
 export function isCreator(username: string | null | undefined): boolean {
-  return (username ?? '').toLowerCase() === CREATOR_USERNAME;
+  return username === CREATOR_USERNAME;
 }

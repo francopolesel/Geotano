@@ -180,11 +180,13 @@ export async function rankingsRoutes(app: FastifyInstance) {
         const [userScoreResult] = await db
           .select({
             score: sql<number>`CAST(MAX(${gameSessions.score}) AS INTEGER)`,
+            isVerified: users.isVerified,
           })
           .from(gameSessions)
           .innerJoin(gameModes, eq(gameModes.id, gameSessions.gameModeId))
+          .innerJoin(users, eq(users.id, gameSessions.userId))
           .where(and(...userConditions))
-          .groupBy(gameSessions.userId);
+          .groupBy(gameSessions.userId, users.isVerified);
 
         if (userScoreResult && userScoreResult.score > 0) {
           // Count users with strictly higher best score within scope
@@ -228,7 +230,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
           userRank = {
             userId,
             username: (request as any).user.username,
-            isVerified: false,
+            isVerified: userScoreResult.isVerified ?? false,
             score: userScoreResult.score,
             rank: callRank,
           };

@@ -182,10 +182,22 @@ describe('POST /api/auth/register', () => {
     expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
   });
 
+  it('should reject a case-variant of the creator username claiming displayName geocreator', async () => {
+    // Usernames are case-sensitive: 'Francopolesel99' is NOT the creator, so the
+    // displayName guard must fire (isCreator uses plain equality — no lowercase).
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'Francopolesel99', email: 'frank@test.com', password: 'password123', displayName: 'geocreator' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
+  });
+
   it('should allow the creator to register via submitted username (C1)', async () => {
     waitData.push([]); // no existing user
     mockHashPassword.mockResolvedValueOnce('hashed-password');
-    waitData.push([{ ...USER_ROW, username: 'francopolesel99', displayName: 'geocreator' }]); // insert returning
+    waitData.push([{ ...USER_ROW, username: 'francopolesel99', displayName: 'geocreator', isVerified: true }]); // insert returning
 
     const res = await app.inject({
       method: 'POST',
@@ -195,6 +207,9 @@ describe('POST /api/auth/register', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.user.username).toBe('francopolesel99');
+    // The creator is verified at insert time (fresh-DB guarantee, not only the
+    // migration backfill which only covers pre-existing rows).
+    expect(body.user.isVerified).toBe(true);
   });
 });
 
@@ -767,6 +782,40 @@ describe('PATCH /api/auth/profile', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).displayName).toBe('geocreator');
+  });
+
+  it('should reject a case-variant creator-username user PATCHing displayName to geocreator', async () => {
+    // 'Francopolesel99' is NOT the creator (case-sensitive usernames), so the
+    // PATCH displayName guard must fire and block the reserved name.
+    mockAuthGuard.mockImplementationOnce((request, _reply, done) => {
+      (request as any).user = { userId: 'user-1', username: 'Francopolesel99' };
+      done?.();
+    });
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/auth/profile',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { displayName: 'geocreator' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
+  });
+
+  it('should reject PATCHing username to a case variant combined with displayName geocreator', async () => {
+    // Same exemption bypass attempt through the username guard chain: neither
+    // the username rename nor the displayName claim may slip through.
+    mockAuthGuard.mockImplementationOnce((request, _reply, done) => {
+      (request as any).user = { userId: 'user-1', username: 'Francopolesel99' };
+      done?.();
+    });
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/auth/profile',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { username: 'Francopolesel99', displayName: 'geocreator' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
   });
 });
 
