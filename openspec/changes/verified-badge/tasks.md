@@ -57,3 +57,11 @@ Chain strategy: size-exception
 ## Phase 7: Verification
 
 - [x] 7.1 Full suites: `cd apps/backend && npm test` + `cd apps/frontend && npm test` + `check-types` both; confirm `multiplayerSocketListeners.test.ts` stays green (loose fixtures — no change needed).
+
+## Post-apply gatekeeper fixes (2026-08-01)
+
+- [x] 7.2 CRITICAL: `isCreator` in `lib/displayName.ts` now uses case-sensitive plain equality (`username === CREATOR_USERNAME`) per design D2 — a case-variant `Francopolesel99` no longer inherits the creator exemption. Regression tests: register `Francopolesel99` + displayName `geocreator` → 409; PATCH (JWT `Francopolesel99`) displayName/username+displayName `geocreator` → 409.
+- [x] 7.3 WARNING: rankings fallback `userScoreResult` query now inner-joins `users`, selects `isVerified`, and groups by it (D3/S5); `userRank` uses `userScoreResult.isVerified ?? false` instead of hardcoded `false`. Test: creator outside top-100 → `userRank.isVerified === true`.
+- [x] 7.4 SUGGESTION: register + Google sign-up set `isVerified` at insert time (`isVerified: isCreator(username)`) so a fresh-DB creator registration is verified even after the migration backfill already ran; creator-register test asserts `isVerified: true`.
+- [x] 7.5 SUGGESTION: restored `focusable="false"` on `VerifiedBadge.tsx` svg (D6).
+- [x] 7.6 Re-verified: backend 413/413, frontend 572/572, `check-types` clean both. Commits `2686dab` (backend) + `023a8f7` (frontend).
