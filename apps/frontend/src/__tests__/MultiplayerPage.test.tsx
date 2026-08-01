@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n/i18n';
 import { useAuthStore } from '../store/authStore';
@@ -70,13 +70,19 @@ const MOCK_ANSWER_OK = {
 // ─── Helper ────────────────────────────────────────────────────────────────
 
 function renderWithRouter() {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/multiplayer/:matchId',
+        element: <MultiplayerPage />,
+      },
+    ],
+    { initialEntries: ['/multiplayer/match-1'] },
+  );
+
   return render(
     <I18nextProvider i18n={i18n}>
-      <MemoryRouter initialEntries={['/multiplayer/match-1']}>
-        <Routes>
-          <Route path="/multiplayer/:matchId" element={<MultiplayerPage />} />
-        </Routes>
-      </MemoryRouter>
+      <RouterProvider router={router} />
     </I18nextProvider>,
   );
 }
@@ -178,6 +184,30 @@ describe('MultiplayerPage (async)', () => {
       renderWithRouter();
 
       expect(await screen.findByText('What is the capital of France?')).toBeDefined();
+    });
+  });
+
+  // ── Time expiry ──────────────────────────────────────────────────────────
+  describe('time expiry', () => {
+    it('should finish the match and show waiting screen when time runs out', async () => {
+      // /play returns remainingMs: 0 → the timer expires immediately
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
+      mockPost.mockResolvedValueOnce({ question: MOCK_QUESTION, remainingMs: 0 });
+      mockPost.mockResolvedValueOnce({ finished: true, matchEnded: false });
+
+      renderWithRouter();
+
+      const startBtn = await screen.findByText(/start playing/i);
+      fireEvent.click(startBtn);
+
+      // Should land on the waiting screen, NOT keep asking questions
+      expect(await screen.findByText(/you finished!/i, {}, { timeout: 3000 })).toBeDefined();
+
+      // Must call /finish; must never submit an answer for the timeout
+      const finishCall = mockPost.mock.calls.find(([url]) => url === '/matches/match-1/finish');
+      expect(finishCall).toBeDefined();
+      const answerCall = mockPost.mock.calls.find(([url]) => url === '/matches/match-1/answer');
+      expect(answerCall).toBeUndefined();
     });
   });
 

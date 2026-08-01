@@ -216,13 +216,40 @@ export function MultiplayerPage() {
     };
   }, [screen]);
 
+  // ── Time up: stop the game, notify backend, wait for opponent ──────────
+  const handleTimeUp = useCallback(() => {
+    if (!matchId || myFinished || matchEnded) return;
+
+    // Stop the game locally: no more questions, show "waiting" screen
+    setMyFinished(true);
+    setSelectedIndex(null);
+    setAnswerState('idle');
+    setScreen('my_finished');
+
+    // Notify backend so it marks us finished (authoritative state).
+    api.post<{ finished: boolean; matchEnded: boolean }>(`/matches/${matchId}/finish`, {})
+      .then((data) => {
+        if (data.matchEnded) {
+          api.get<MatchState>(`/matches/${matchId}`).then((updated) => {
+            setMatch(updated);
+            buildResult(updated);
+          });
+        }
+      })
+      .catch(() => {
+        // The poll effect on the my_finished screen picks up the completed
+        // state when the opponent finishes; the backend time guard also
+        // rejects any late answers, so no score is lost.
+      });
+  }, [matchId, myFinished, matchEnded]);
+
   // ── Timer expiry ────────────────────────────────────────────────────────
   useEffect(() => {
     if (screen === 'playing' && remainingMs <= 0 && question) {
-      // Timer expired — submit last answer with -1 to signal timeout
-      submitAnswer(-1);
+      // Timer expired — the match ends for this player
+      handleTimeUp();
     }
-  }, [remainingMs]);
+  }, [remainingMs, screen, question, handleTimeUp]);
 
   // ── Poll for opponent finishing ─────────────────────────────────────────
   useEffect(() => {

@@ -281,6 +281,77 @@ export async function startMatchPlay(
   return { question, remainingMs };
 }
 
+// ─── Time Expiry / Early Finish ─────────────────────────────────────────────
+
+/**
+ * Marks one player as finished without recording an answer (e.g. time ran out).
+ * When both players are finished, completes the match and computes the winner
+ * from the current scores.
+ */
+async function markPlayerFinished(
+  matchId: string,
+  isPlayer1: boolean,
+  match: {
+    player1Id: string;
+    player2Id: string;
+    player1Score: number;
+    player2Score: number;
+    player1Finished: boolean;
+    player2Finished: boolean;
+  },
+): Promise<{ matchEnded: boolean; winnerId: string | null }> {
+  const finishedCol = isPlayer1 ? 'player1Finished' : 'player2Finished';
+  const otherFinished = isPlayer1 ? match.player2Finished : match.player1Finished;
+
+  await db
+    .update(matchGames)
+    .set({ [finishedCol]: true })
+    .where(eq(matchGames.id, matchId));
+
+  if (!otherFinished) {
+    return { matchEnded: false, winnerId: null };
+  }
+
+  const winner = determineWinner(match.player1Score, match.player2Score);
+  const winnerUserId = winner === 'player1' ? match.player1Id
+    : winner === 'player2' ? match.player2Id
+    : null;
+
+  await db
+    .update(matchGames)
+    .set({ status: 'completed', winnerId: winnerUserId })
+    .where(eq(matchGames.id, matchId));
+
+  return { matchEnded: true, winnerId: winnerUserId };
+}
+
+/**
+ * Marks the player as finished when their time ran out.
+ * Idempotent: calling again after the player already finished is a no-op.
+ */
+export async function finishMatch(
+  matchId: string,
+  userId: string,
+): Promise<{ finished: boolean; matchEnded: boolean; winnerId: string | null } | null> {
+  const match = await getFullMatch(matchId);
+  if (!match || match.status === 'completed') return null;
+
+  const isPlayer1 = match.player1Id === userId;
+  if (!isPlayer1 && match.player2Id !== userId) return null;
+
+  const alreadyFinished = isPlayer1 ? match.player1Finished : match.player2Finished;
+  if (alreadyFinished) {
+    return {
+      finished: true,
+      matchEnded: match.player1Finished && match.player2Finished,
+      winnerId: match.winnerId,
+    };
+  }
+
+  const result = await markPlayerFinished(matchId, isPlayer1, match);
+  return { finished: true, ...result };
+}
+
 export async function submitAnswer(
   matchId: string,
   userId: string,
@@ -298,6 +369,24 @@ export async function submitAnswer(
 
   const isPlayer1 = match.player1Id === userId;
   const order = (isPlayer1 ? match.playerAOrder : match.playerBOrder) as number[];
+
+  // ── Time expiry guard: no answers accepted after the match duration ──
+  const startedAt = isPlayer1 ? match.player1StartedAt : match.player2StartedAt;
+  if (startedAt) {
+    const durationMs = (match.durationMinutes ?? 3) * 60 * 1000;
+    if (Date.now() - new Date(startedAt).getTime() > durationMs) {
+      const result = await markPlayerFinished(matchId, isPlayer1, match);
+      return {
+        correct: false,
+        scoreEarned: 0,
+        streak: 0,
+        nextQuestion: null,
+        finished: true,
+        matchEnded: result.matchEnded,
+      };
+    }
+  }
+
   const pool = match.questionPool as GeneratedQuestion[];
 
   // Lightweight: only fetch the streak column (less data than full rows)

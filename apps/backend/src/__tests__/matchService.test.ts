@@ -71,6 +71,7 @@ import {
   getPlayerMatchHistory,
   startMatchPlay,
   submitAnswer,
+  finishMatch,
 } from '../services/matchService.js';
 
 // ─── Fixtures ───────────────────────────────────────────────────
@@ -449,6 +450,42 @@ describe('submitAnswer', () => {
     expect(result).toBeNull();
   });
 
+  it('should reject answers and finish the player when time has expired', async () => {
+    // Player 1 started 4 minutes ago; default duration is 3 minutes
+    const startedAt = new Date(Date.now() - 4 * 60 * 1000);
+    pendingResults.push([createMockMatch({ player1StartedAt: startedAt })]);
+    pendingResults.push(undefined); // markPlayerFinished → update finished
+    pendingResults.push(undefined); // otherFinished=false → no second update
+
+    const result = await submitAnswer('m-1', 'user-1', 0);
+
+    expect(result).not.toBeNull();
+    expect(result!.finished).toBe(true);
+    expect(result!.matchEnded).toBe(false);
+    expect(result!.nextQuestion).toBeNull();
+    expect(result!.correct).toBe(false);
+    expect(result!.scoreEarned).toBe(0);
+  });
+
+  it('should complete the match when time expires and opponent already finished', async () => {
+    const startedAt = new Date(Date.now() - 4 * 60 * 1000);
+    pendingResults.push([createMockMatch({
+      player1StartedAt: startedAt,
+      player2Finished: true,
+      player1Score: 200,
+      player2Score: 300,
+    })]);
+    pendingResults.push(undefined); // markPlayerFinished → update finished
+    pendingResults.push(undefined); // both finished → update status/winner
+
+    const result = await submitAnswer('m-1', 'user-1', 0);
+
+    expect(result).not.toBeNull();
+    expect(result!.finished).toBe(true);
+    expect(result!.matchEnded).toBe(true);
+    expect(result!.nextQuestion).toBeNull();
+  });
+
   it('should return null for completed match', async () => {
     pendingResults.push([createMockMatch({ status: 'completed' })]);
 
@@ -533,6 +570,72 @@ describe('submitAnswer', () => {
     expect(lastResult!.finished).toBe(true);
     expect(lastResult!.matchEnded).toBe(true);
     expect(lastResult!.nextQuestion).toBeNull();
+  });
+});
+
+// ===================================================================
+//  finishMatch (time expiry / early finish)
+// ===================================================================
+
+describe('finishMatch', () => {
+  it('should return null for unknown match', async () => {
+    pendingResults.push([]);
+
+    const result = await finishMatch('nonexistent', 'user-1');
+
+    expect(result).toBeNull();
+  });
+
+  it('should return null for completed match', async () => {
+    pendingResults.push([createMockMatch({ status: 'completed' })]);
+
+    const result = await finishMatch('m-1', 'user-1');
+
+    expect(result).toBeNull();
+  });
+
+  it('should mark the player finished without changing score', async () => {
+    pendingResults.push([createMockMatch()]);
+    pendingResults.push(undefined); // markPlayerFinished → update finished
+
+    const result = await finishMatch('m-1', 'user-1');
+
+    expect(result).toEqual({ finished: true, matchEnded: false, winnerId: null });
+
+    const setCall = mockDb.set.mock.calls[0][0];
+    expect(setCall.player1Finished).toBe(true);
+    expect(setCall.player1Score).toBeUndefined();
+  });
+
+  it('should complete the match when both players are finished', async () => {
+    pendingResults.push([createMockMatch({
+      player2Finished: true,
+      player1Score: 500,
+      player2Score: 300,
+    })]);
+    pendingResults.push(undefined); // markPlayerFinished → update finished
+    pendingResults.push(undefined); // both finished → update status/winner
+
+    const result = await finishMatch('m-1', 'user-1');
+
+    expect(result).toEqual({ finished: true, matchEnded: true, winnerId: 'user-1' });
+  });
+
+  it('should be idempotent when the player already finished', async () => {
+    pendingResults.push([createMockMatch({ player1Finished: true })]);
+
+    const result = await finishMatch('m-1', 'user-1');
+
+    expect(result).toEqual({ finished: true, matchEnded: false, winnerId: null });
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('should return null for a user not in the match', async () => {
+    pendingResults.push([createMockMatch()]);
+
+    const result = await finishMatch('m-1', 'user-99');
+
+    expect(result).toBeNull();
   });
 });
 

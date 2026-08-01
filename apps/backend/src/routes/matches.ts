@@ -227,6 +227,26 @@ export async function matchRoutes(app: FastifyInstance) {
     },
   );
 
+  // POST /api/matches/:id/finish — mark player finished (time ran out)
+  app.post(
+    '/api/matches/:id/finish',
+    { preHandler: authGuard },
+    async (request, reply) => {
+      const { userId } = (request as any).user;
+      const { id } = request.params as { id: string };
+
+      const result = await matchService.finishMatch(id, userId);
+      if (!result) {
+        return reply.status(404).send({
+          errorCode: 'MATCH_NOT_FOUND',
+          message: 'Match not found or already completed',
+        });
+      }
+
+      return result;
+    },
+  );
+
   // GET /api/matches/:id — get current match state
   app.get(
     '/api/matches/:id',
