@@ -25,9 +25,11 @@ vi.mock('../lib/api', () => ({
   },
   ApiError: class ApiError extends Error {
     status: number;
-    constructor(message: string, status: number) {
+    errorCode?: string;
+    constructor(message: string, status: number, errorCode?: string) {
       super(message);
       this.status = status;
+      this.errorCode = errorCode;
     }
   },
 }));
@@ -135,6 +137,20 @@ describe('authStore', () => {
 
     const state = useAuthStore.getState();
     expect(state.error).toBe('auth.validation.usernameTaken');
+  });
+
+  it('should map RESERVED_DISPLAY_NAME errorCode to reserved name i18n key on register', async () => {
+    const { ApiError } = await import('../lib/api');
+    vi.mocked(api.post).mockRejectedValueOnce(
+      new ApiError('Conflict', 409, 'RESERVED_DISPLAY_NAME'),
+    );
+
+    await expect(
+      useAuthStore.getState().register('geocreator', 'e@mail.com', 'password123'),
+    ).rejects.toThrow();
+
+    const state = useAuthStore.getState();
+    expect(state.error).toBe('auth.validation.reservedDisplayName');
   });
 
   it('should logout and clear state', () => {

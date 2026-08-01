@@ -151,6 +151,28 @@ describe('MultiplayerPage (async)', () => {
 
       expect(await screen.findByText(/opponent/i)).toBeDefined();
     });
+
+    it('should show verified badge next to opponent name on start screen when opponent is verified', async () => {
+      const verifiedMatch = {
+        ...MOCK_MATCH,
+        player2: { ...MOCK_MATCH.player2, isVerified: true },
+      };
+      mockGet.mockResolvedValueOnce(verifiedMatch);
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/start playing/i)).toBeDefined();
+      expect(screen.getByRole('img', { name: 'Verified' })).toBeInTheDocument();
+    });
+
+    it('should not show verified badge on start screen when opponent is not verified', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/start playing/i)).toBeDefined();
+      expect(screen.queryByRole('img', { name: 'Verified' })).not.toBeInTheDocument();
+    });
   });
 
   // ── Playing screen ──────────────────────────────────────────────────────
@@ -203,6 +225,23 @@ describe('MultiplayerPage (async)', () => {
       // Audio feedback plays for correct answers (same as single-player)
       expect(sounds.playCorrect).toHaveBeenCalled();
       expect(sounds.playWrong).not.toHaveBeenCalled();
+    });
+
+    it('should show verified badge in the in-game header when opponent is verified (S8)', async () => {
+      const verifiedMatch = {
+        ...MOCK_MATCH,
+        player2: { ...MOCK_MATCH.player2, isVerified: true },
+      };
+      mockGet.mockResolvedValueOnce(verifiedMatch);
+      mockPost.mockResolvedValueOnce({ question: MOCK_QUESTION, remainingMs: 180_000 });
+
+      renderWithRouter();
+
+      const startBtn = await screen.findByText(/start playing/i);
+      fireEvent.click(startBtn);
+
+      expect(await screen.findByText('What is the capital of France?')).toBeDefined();
+      expect(screen.getByRole('img', { name: 'Verified' })).toBeInTheDocument();
     });
 
     it('should resume from in-progress match on mount', async () => {

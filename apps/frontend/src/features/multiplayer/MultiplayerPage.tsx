@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { api, ApiError } from '../../lib/api';
 import { playCorrect, playWrong, playGameWin, playGameOver, playClick } from '../../lib/sounds';
 import { connectSocket, setMatchFinishedHandler } from '../../lib/socket';
+import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -32,8 +33,8 @@ interface MatchState {
   winnerId: string | null;
   status: 'pending' | 'in_progress' | 'completed';
   createdAt: string;
-  player1: { id: string; username: string; displayName: string | null; avatarUrl: string | null } | null;
-  player2: { id: string; username: string; displayName: string | null; avatarUrl: string | null } | null;
+  player1: { id: string; username: string; displayName: string | null; avatarUrl: string | null; isVerified?: boolean } | null;
+  player2: { id: string; username: string; displayName: string | null; avatarUrl: string | null; isVerified?: boolean } | null;
 }
 
 interface PlayResponse {
@@ -149,6 +150,7 @@ export function MultiplayerPage() {
     ? (isPlayer1 ? match.player2 : match.player1)
     : null;
   const opponentName = opponent?.displayName ?? opponent?.username ?? t('multiplayer.opponent');
+  const isOpponentVerified = opponent?.isVerified === true;
   const isMyTurn = match && !myFinished && !matchEnded;
 
   // ── Fetch match on mount ────────────────────────────────────────────────
@@ -542,7 +544,12 @@ export function MultiplayerPage() {
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center shadow-sm">
           <h2 className="text-5xl">⚔️</h2>
           <p className="mt-4 text-base text-[var(--color-foreground)] font-medium">
-            {t('multiplayer.challengeFrom', { username: opponentName })}
+            <Trans
+              i18nKey="multiplayer.challengeFrom"
+              values={{ username: opponentName }}
+            >
+              {isOpponentVerified ? <VerifiedBadge className="ml-1" /> : <></>}
+            </Trans>
           </p>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
             {t('multiplayer.youHave', { minutes: match?.durationMinutes ?? 3 })}
@@ -628,6 +635,7 @@ export function MultiplayerPage() {
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)] p-4">
               <p className="mb-3 text-sm font-semibold text-[var(--color-foreground)]">
                 {opponentName}
+                {isOpponentVerified && <VerifiedBadge className="ml-1" />}
               </p>
               <p className="text-3xl font-bold text-[var(--color-foreground)]">
                 {matchResult.opponentScore}
@@ -685,6 +693,7 @@ export function MultiplayerPage() {
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <span className="text-sm font-medium text-[var(--color-muted-foreground)] sm:text-base">
                 ⚔️ {opponentName}
+                {isOpponentVerified && <VerifiedBadge className="ml-1" />}
               </span>
               {streak >= 5 && (
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">

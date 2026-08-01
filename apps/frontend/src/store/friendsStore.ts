@@ -9,6 +9,7 @@ interface FriendUser {
   username: string;
   displayName?: string;
   avatarUrl?: string;
+  isVerified?: boolean;
   status: string;
   createdAt: string;
 }
@@ -19,6 +20,7 @@ interface PendingIncoming {
   username: string;
   displayName?: string;
   avatarUrl?: string;
+  isVerified?: boolean;
   status: string;
   createdAt: string;
 }
@@ -29,6 +31,7 @@ interface PendingOutgoing {
   username: string;
   displayName?: string;
   avatarUrl?: string;
+  isVerified?: boolean;
   status: string;
   createdAt: string;
 }
@@ -38,6 +41,7 @@ interface SearchUser {
   username: string;
   displayName?: string;
   avatarUrl?: string;
+  isVerified?: boolean;
 }
 
 interface BlockedUser {
@@ -46,6 +50,7 @@ interface BlockedUser {
   username: string;
   displayName?: string;
   avatarUrl?: string;
+  isVerified?: boolean;
   blockedAt: string;
 }
 

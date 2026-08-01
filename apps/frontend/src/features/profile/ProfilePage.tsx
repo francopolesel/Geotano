@@ -6,6 +6,7 @@ import type { Achievement } from '@geotano/shared';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { AvatarLightbox } from '../../components/ui/AvatarLightbox';
 import { AchievementBadge } from '../../components/ui/AchievementBadge';
+import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 import { useFriendsStore } from '../../store/friendsStore';
@@ -39,6 +40,7 @@ interface ProfileResponse {
     username: string;
     displayName?: string;
     avatarUrl?: string;
+    isVerified?: boolean;
     bio?: string;
   };
   stats: UserStats;
@@ -149,6 +151,7 @@ export function ProfilePage() {
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-[var(--color-foreground)]">
             {user.displayName ?? user.username}
+            {user.isVerified && <VerifiedBadge className="ml-1" />}
           </h1>
           <p className="text-sm text-[var(--color-muted-foreground)]">
             @{user.username}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
+import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,7 @@ interface Opponent {
   username: string;
   displayName?: string;
   avatarUrl?: string;
+  isVerified?: boolean;
 }
 
 interface MatchSummary {
@@ -179,6 +181,7 @@ export function MatchHistoryPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[var(--color-foreground)]">
                       {match.opponent.displayName ?? match.opponent.username}
+                      {match.opponent.isVerified && <VerifiedBadge className="ml-1" />}
                     </span>
                     {resultBadge && (
                       <span

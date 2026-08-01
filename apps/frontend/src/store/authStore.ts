@@ -63,7 +63,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       });
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (err instanceof ApiError && err.status === 409 && err.errorCode === 'RESERVED_DISPLAY_NAME') {
+        set({ isLoading: false, error: i18n.t('auth.validation.reservedDisplayName') });
+      } else if (err instanceof ApiError && err.status === 409) {
         set({ isLoading: false, error: i18n.t('auth.validation.usernameTaken') });
       } else {
         const message = err instanceof Error ? err.message : i18n.t('errors.common.registrationFailed');

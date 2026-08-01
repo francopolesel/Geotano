@@ -40,9 +40,9 @@ Chain strategy: size-exception
 
 ## Phase 4: Frontend types + badge (RED→GREEN)
 
-- [ ] 4.1 RED: `VerifiedBadge.test.tsx` — renders svg `role="img"` + `aria-label="Verified"`, `className` passthrough via `cn`.
-- [ ] 4.2 GREEN: `apps/frontend/src/components/ui/VerifiedBadge.tsx` (inline SVG, theme primary color).
-- [ ] 4.3 Types: `friendsStore` (5 interfaces), `ProfilePage`, `MatchHistoryPage`, `MultiplayerPage` local types gain `isVerified?`. Test: `cd apps/frontend && npm test`
+- [x] 4.1 RED: `VerifiedBadge.test.tsx` — renders svg `role="img"` + `aria-label="Verified"`, `className` passthrough via `cn`.
+- [x] 4.2 GREEN: `apps/frontend/src/components/ui/VerifiedBadge.tsx` (inline SVG, theme primary color).
+- [x] 4.3 Types: `friendsStore` (5 interfaces), `ProfilePage`, `MatchHistoryPage`, `MultiplayerPage` local types gain `isVerified?`. Test: `cd apps/frontend && npm test`
 
 ## Phase 5: Error mapping + i18n (RED→GREEN)
 
@@ -51,9 +51,9 @@ Chain strategy: size-exception
 
 ## Phase 6: Badge insertions (RED→GREEN)
 
-- [ ] 6.1 RED: render tests — AppShell header, RankingsPage verified row, FriendsPage verified row, ProfilePage badge, MyProfilePage reserved-name message, MatchHistoryPage, MultiplayerPage start/vs + in-game header (S8), ChallengeNotification.
-- [ ] 6.2 GREEN: insert `{x.isVerified && <VerifiedBadge className="ml-1" />}` at all 13 spots (AppShell, ProfilePage, FriendsPage×5, RankingsPage×2, ChatPage, MatchHistoryPage, MultiplayerPage×3, ChallengeNotification); start-screen ReactNode interpolation (`MultiplayerPage.tsx:545`). Test: `cd apps/frontend && npm test`
+- [x] 6.1 RED: render tests — AppShell header, RankingsPage verified row, FriendsPage verified row, ProfilePage badge, MyProfilePage reserved-name message, MatchHistoryPage, MultiplayerPage start/vs + in-game header (S8), ChallengeNotification.
+- [x] 6.2 GREEN: insert `{x.isVerified && <VerifiedBadge className="ml-1" />}` at all 13 spots (AppShell, ProfilePage, FriendsPage×5, RankingsPage×2, ChatPage, MatchHistoryPage, MultiplayerPage×3, ChallengeNotification); start-screen ReactNode interpolation (`MultiplayerPage.tsx:545`). Test: `cd apps/frontend && npm test`
 
 ## Phase 7: Verification
 
-- [ ] 7.1 Full suites: `cd apps/backend && npm test` + `cd apps/frontend && npm test` + `check-types` both; confirm `multiplayerSocketListeners.test.ts` stays green (loose fixtures — no change needed).
+- [x] 7.1 Full suites: `cd apps/backend && npm test` + `cd apps/frontend && npm test` + `check-types` both; confirm `multiplayerSocketListeners.test.ts` stays green (loose fixtures — no change needed).

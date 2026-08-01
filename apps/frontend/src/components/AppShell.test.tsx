@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────
 
-let mockUser: { id: string; username: string; displayName?: string } | null = null;
+let mockUser: { id: string; username: string; displayName?: string; isVerified?: boolean } | null = null;
 const mockLogout = vi.fn();
 const mockNavigate = vi.fn();
 
@@ -193,6 +193,22 @@ describe('AppShell', () => {
     // Click again to close → back to 'hidden'
     fireEvent.click(hamburger);
     expect(aside.className).toContain('hidden');
+  });
+
+  it('should show verified badge next to user name when user is verified', () => {
+    mockUser = { id: '1', username: 'francopolesel99', displayName: 'Franco', isVerified: true };
+
+    render(<AppShell />);
+
+    expect(screen.getByRole('img', { name: 'Verified' })).toBeInTheDocument();
+  });
+
+  it('should not show verified badge when user is not verified', () => {
+    mockUser = { id: '1', username: 'testuser', displayName: 'Test User' };
+
+    render(<AppShell />);
+
+    expect(screen.queryByRole('img', { name: 'Verified' })).not.toBeInTheDocument();
   });
 
   it('should apply active and inactive class names on NavLink (line 97)', () => {

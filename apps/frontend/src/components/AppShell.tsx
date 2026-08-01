@@ -6,6 +6,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle } from './LanguageToggle';
 import { NotificationBell } from './NotificationBell';
 import { ChallengeNotification } from '../features/multiplayer/ChallengeNotification';
+import { VerifiedBadge } from './ui/VerifiedBadge';
 // header_logo from /public — direct URL, no import needed
 
 const navItems = [
@@ -63,6 +64,7 @@ export function AppShell() {
             {user && (
               <span className="hidden text-sm text-[var(--color-muted-foreground)] sm:block">
                 {user.displayName ?? user.username}
+                {user.isVerified && <VerifiedBadge className="ml-1" />}
               </span>
             )}
             {user && <NotificationBell />}

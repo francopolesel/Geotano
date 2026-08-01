@@ -1,8 +1,9 @@
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMultiplayerStore } from '../../store/multiplayerStore';
 import { api } from '../../lib/api';
+import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
 export function ChallengeNotification() {
   const { t } = useTranslation();
@@ -46,9 +47,18 @@ export function ChallengeNotification() {
         <div className="text-center">
           <div className="text-5xl">⚔️</div>
           <h3 className="mt-4 text-lg font-semibold text-[var(--color-foreground)]">
-            {t('multiplayer.challengeFrom', {
-              username: notification.challenger.displayName ?? notification.challenger.username,
-            })}
+            <Trans
+              i18nKey="multiplayer.challengeFrom"
+              values={{
+                username: notification.challenger.displayName ?? notification.challenger.username,
+              }}
+            >
+              {notification.challenger.isVerified ? (
+                <VerifiedBadge className="ml-1" />
+              ) : (
+                <></>
+              )}
+            </Trans>
           </h3>
         </div>
 

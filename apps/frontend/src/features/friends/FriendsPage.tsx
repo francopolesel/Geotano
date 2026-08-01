@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/ui/UserAvatar';
+import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, disconnectSocket } from '../../lib/socket';
@@ -294,6 +295,7 @@ export function FriendsPage() {
                   >
                     <p className="text-sm font-medium text-[var(--color-foreground)]">
                       {friend.displayName ?? friend.username}
+                      {friend.isVerified && <VerifiedBadge className="ml-1" />}
                     </p>
                     <p className="text-xs text-[var(--color-muted-foreground)]">
                       @{friend.username}
@@ -407,6 +409,7 @@ export function FriendsPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
                           {req.displayName ?? req.username}
+                          {req.isVerified && <VerifiedBadge className="ml-1" />}
                         </p>
                         <p className="text-xs text-[var(--color-muted-foreground)] truncate">
                           @{req.username}
@@ -462,6 +465,7 @@ export function FriendsPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
                           {req.displayName ?? req.username}
+                          {req.isVerified && <VerifiedBadge className="ml-1" />}
                         </p>
                         <p className="text-xs text-[var(--color-muted-foreground)] truncate">
                           @{req.username}
@@ -541,6 +545,7 @@ export function FriendsPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
                           {user.displayName ?? user.username}
+                          {user.isVerified && <VerifiedBadge className="ml-1" />}
                         </p>
                         <p className="text-xs text-[var(--color-muted-foreground)] truncate">
                           @{user.username}
@@ -652,6 +657,7 @@ export function FriendsPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
                       {blocked.displayName ?? blocked.username}
+                      {blocked.isVerified && <VerifiedBadge className="ml-1" />}
                     </p>
                     <p className="text-xs text-[var(--color-muted-foreground)] truncate">
                       @{blocked.username}

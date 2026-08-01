@@ -226,6 +226,23 @@ describe('ProfilePage', () => {
     expect(screen.queryByText('Geo enthusiast')).not.toBeInTheDocument();
   });
 
+  it('should show verified badge next to display name when user is verified', () => {
+    queryState.data = {
+      ...sampleProfile,
+      user: { ...sampleProfile.user, isVerified: true },
+    };
+    render(<ProfilePage />);
+
+    expect(screen.getByRole('img', { name: 'Verified' })).toBeInTheDocument();
+  });
+
+  it('should not show verified badge when user is not verified', () => {
+    queryState.data = sampleProfile;
+    render(<ProfilePage />);
+
+    expect(screen.queryByRole('img', { name: 'Verified' })).not.toBeInTheDocument();
+  });
+
   // ── Stats ────────────────────────────────────────────────────────────────
 
   it('should render stats grid', () => {

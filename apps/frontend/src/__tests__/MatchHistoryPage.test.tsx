@@ -170,6 +170,26 @@ describe('MatchHistoryPage', () => {
     expect(inProgress.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('should show verified badge next to a verified opponent name', async () => {
+    const verifiedMatches = MOCK_MATCHES.map((m) => ({
+      ...m,
+      opponent: { ...m.opponent, isVerified: true },
+    }));
+    mockGet.mockResolvedValue({ matches: verifiedMatches });
+    renderPage();
+
+    await screen.findAllByText(/opponent one/i);
+    expect(screen.getAllByRole('img', { name: 'Verified' }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should not show verified badge for non-verified opponents', async () => {
+    mockGet.mockResolvedValue({ matches: MOCK_MATCHES });
+    renderPage();
+
+    await screen.findAllByText(/opponent one/i);
+    expect(screen.queryByRole('img', { name: 'Verified' })).not.toBeInTheDocument();
+  });
+
   it('should show correct scores', async () => {
     mockGet.mockResolvedValue({ matches: MOCK_MATCHES });
     renderPage();

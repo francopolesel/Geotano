@@ -260,6 +260,32 @@ describe('FriendsPage', () => {
     expect(screen.getByText('No friends yet')).toBeInTheDocument();
   });
 
+  it('should show verified badge next to a verified friend name', () => {
+    storeState.friends = [{ ...sampleFriend, isVerified: true }];
+    render(<FriendsPage />);
+
+    expect(screen.getByRole('img', { name: 'Verified' })).toBeInTheDocument();
+  });
+
+  it('should not show verified badge for non-verified friends', () => {
+    render(<FriendsPage />);
+
+    expect(screen.queryByRole('img', { name: 'Verified' })).not.toBeInTheDocument();
+  });
+
+  it('should show verified badge next to a verified search result name', async () => {
+    storeState.searchResults = [{ ...sampleSearchResult, isVerified: true }];
+    render(<FriendsPage />);
+
+    fireEvent.click(screen.getByText('Search'));
+    const searchInput = screen.getByPlaceholderText('Search by username...');
+    fireEvent.change(searchInput, { target: { value: 'found' } });
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'Verified' })).toBeInTheDocument();
+    });
+  });
+
   it('should navigate to chat on chat button click', () => {
     render(<FriendsPage />);
     const chatBtn = screen.getByTitle('💬');

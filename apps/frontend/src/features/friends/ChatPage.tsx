@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/ui/UserAvatar';
+import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 import { useFriendsStore } from '../../store/friendsStore';
 import { useAuthStore } from '../../store/authStore';
 import { connectSocket, sendChatMessage, setChatMessageHandler } from '../../lib/socket';
@@ -157,6 +158,7 @@ export function ChatPage() {
         >
           <p data-testid="friend-name" className="truncate text-sm font-medium text-[var(--color-foreground)] hover:underline">
             {activeFriend.displayName ?? activeFriend.username}
+            {activeFriend.isVerified && <VerifiedBadge className="ml-1" />}
           </p>
           <p className="text-xs text-[var(--color-muted-foreground)]">
             {isOnline ? t('chat.online') : t('chat.offline')}

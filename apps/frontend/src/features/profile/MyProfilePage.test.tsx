@@ -21,6 +21,7 @@ const T = (key: string) => {
     'common.loading': 'Loading...',
     'common.error': 'Something went wrong',
     'errors.common.saveFailed': 'Failed to save',
+    'auth.validation.reservedDisplayName': 'This display name is reserved',
     'profile.stats': 'Stats',
     'profile.bestScore': 'Best Score',
     'profile.totalGames': 'Games Played',
@@ -73,9 +74,11 @@ vi.mock('../../lib/api', () => ({
   api: { patch: mockPatch, get: mockGet },
   ApiError: class ApiError extends Error {
     status: number;
-    constructor(message: string, status: number) {
+    errorCode?: string;
+    constructor(message: string, status: number, errorCode?: string) {
       super(message);
       this.status = status;
+      this.errorCode = errorCode;
     }
   },
 }));
@@ -91,6 +94,7 @@ vi.mock('../../components/ui/AchievementBadge', () => ({
 }));
 
 import { MyProfilePage } from './MyProfilePage';
+import { ApiError } from '../../lib/api';
 
 describe('MyProfilePage', () => {
   beforeEach(() => {
@@ -145,6 +149,16 @@ describe('MyProfilePage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Network error')).toBeInTheDocument();
+      });
+    });
+
+    it('should show reserved display name message on 409 RESERVED_DISPLAY_NAME', async () => {
+      mockPatch.mockRejectedValueOnce(new ApiError('Conflict', 409, 'RESERVED_DISPLAY_NAME'));
+      render(<MyProfilePage />);
+      fireEvent.click(screen.getByText('Save'));
+
+      await waitFor(() => {
+        expect(screen.getByText('This display name is reserved')).toBeInTheDocument();
       });
     });
   });

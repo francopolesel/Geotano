@@ -282,6 +282,37 @@ describe('RankingsPage', () => {
     expect(screen.getByText('Unlimited')).toBeInTheDocument();
   });
 
+  it('should show verified badge next to a verified top-100 entry username', () => {
+    queryState.data = {
+      ...sampleRankings,
+      entries: [
+        { userId: 'user-1', username: 'player1', avatarUrl: null, score: 5000, rank: 1, isVerified: true },
+        ...sampleEntries.slice(1),
+      ],
+    };
+    render(<RankingsPage />);
+
+    expect(screen.getByRole('img', { name: 'Verified' })).toBeInTheDocument();
+  });
+
+  it('should show verified badge on the userRank row when verified', () => {
+    queryState.data = {
+      entries: sampleEntries.slice(0, 1), // only player1 → user-2 not in top entries
+      totalPlayers: 150,
+      userRank: { userId: 'user-2', username: 'currentPlayer', avatarUrl: null, score: 3200, rank: 42, isVerified: true },
+    };
+    render(<RankingsPage />);
+
+    expect(screen.getByRole('img', { name: 'Verified' })).toBeInTheDocument();
+  });
+
+  it('should not show verified badge for non-verified entries', () => {
+    queryState.data = sampleRankings;
+    render(<RankingsPage />);
+
+    expect(screen.queryByRole('img', { name: 'Verified' })).not.toBeInTheDocument();
+  });
+
   // ── fetchRankings (lines 22-30) ──────────────────────────────────────────
 
   it('should fetch rankings without mode param (lines 22-30)', async () => {

@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
-import { api } from '../../lib/api';
+import { api, ApiError } from '../../lib/api';
 import { resizeImage } from '../../lib/image';
 import { AchievementBadge } from '../../components/ui/AchievementBadge';
 import type { UserProfile, Achievement } from '@geotano/shared';
@@ -80,7 +80,13 @@ function EditProfileSection({ user, onUpdated }: { user: UserProfile; onUpdated:
       onUpdated(updated);
       setMsg({ type: 'success', text: t('settings.saved') });
     } catch (err) {
-      setMsg({ type: 'error', text: err instanceof Error ? err.message : t('errors.common.saveFailed') });
+      let message: string;
+      if (err instanceof ApiError && err.status === 409 && err.errorCode === 'RESERVED_DISPLAY_NAME') {
+        message = t('auth.validation.reservedDisplayName');
+      } else {
+        message = err instanceof Error ? err.message : t('errors.common.saveFailed');
+      }
+      setMsg({ type: 'error', text: message });
     } finally {
       setSaving(false);
     }

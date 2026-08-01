@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { UserAvatar } from '../../components/ui/UserAvatar';
+import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 import type { RankingsResponse } from '@geotano/shared';
@@ -231,6 +232,7 @@ export function RankingsPage() {
                                 }`}
                               >
                                 {entry.username}
+                                {entry.isVerified && <VerifiedBadge className="ml-1" />}
                               </span>
                               {isCurrentUser && (
                                 <span className="ml-2 rounded bg-[var(--color-primary)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-primary)]">
@@ -301,6 +303,7 @@ export function RankingsPage() {
                   />
                   <span className="text-sm font-medium text-[var(--color-foreground)]">
                     {data.userRank.username}
+                    {data.userRank.isVerified && <VerifiedBadge className="ml-1" />}
                   </span>
                 </div>
                 <span className="font-mono text-sm font-semibold text-[var(--color-foreground)]">
