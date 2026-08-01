@@ -6,11 +6,16 @@ A real-time multiplayer geography quiz game. Test your knowledge of flags, capit
 
 ## Features
 
-- **🗺️ Geography Quizzes** — Flags, capitals, continents, and countries. Randomized questions with scoring and streaks.
-- **👥 Friends & Chat** — Add friends, see who's online, and chat in real time via WebSockets.
+- **🗺️ Geography Quizzes** — Flags, capitals, continents, and countries. Randomized questions with scoring and streaks across five modes: Standard, Express, Unlimited, and Hardcore (with lives).
+- **⚔️ Multiplayer Duels** — Challenge friends to turn-based geography duels. Pick a game mode and duration (1/2/3 minutes), accept or decline invites in real time via WebSockets, and get sound feedback (correct/wrong/win/lose) just like in single-player.
+- **🕒 Match History** — Track your duels in "Multiplayer Games", with automatic cleanup of stale or abandoned matches after 24 hours.
+- **👥 Friends & Chat** — Add friends, see who's online, chat in real time via WebSockets, and invite friends with join codes.
 - **🏆 Rankings** — Compete on the global leaderboard and track your progress.
+- **🏅 Achievements** — Unlock 20+ achievements for games played, streaks, perfect games, high scores, and more.
+- **🔔 Notifications** — In-app notifications for duel invites and other events, delivered in real time.
+- **🌐 i18n** — Full English and Spanish (Rioplatense) localization.
 - **📱 Responsive Design** — Works on mobile and desktop with a clean, modern UI.
-- **🔐 Authentication** — Email/password registration with JWT sessions and password recovery.
+- **🔐 Authentication** — Email/password registration with JWT sessions, password recovery, and Google sign-in.
 
 ---
 
@@ -36,13 +41,14 @@ geotano/
 │   │   │   ├── services/ # Business logic
 │   │   │   ├── db/       # Drizzle schema & migrations
 │   │   │   └── lib/      # Utilities (email, socket, auth)
-│   │   └── __tests__/    # Vitest test suite (244+ tests)
+│   │   └── __tests__/    # Vitest test suite (389 tests)
 │   └── frontend/         # React SPA with Vite
 │       └── src/
-│           ├── features/ # Feature modules (quiz, friends, profile, etc.)
+│           ├── features/ # Feature modules (quiz, multiplayer, friends, etc.)
 │           ├── components/# Shared UI components
 │           ├── store/    # Zustand stores
-│           └── lib/      # API client, socket, i18n
+│           ├── lib/      # API client, socket, i18n
+│           └── __tests__/# Vitest test suite (531 tests)
 ├── packages/
 │   └── shared/           # Shared TypeScript types
 ├── turbo.json
@@ -110,7 +116,7 @@ pnpm --filter @geotano/backend test -- --coverage
 
 ## Database
 
-Geotano uses **PostgreSQL** with **Drizzle ORM**. The schema includes tables for users, friends, chat messages, quiz sessions, game results, rankings, and daily rankings.
+Geotano uses **PostgreSQL** with **Drizzle ORM**. The schema includes tables for users, friends, chat messages, quiz sessions, game results, rankings, daily rankings, achievements, notifications, match challenges, match games, and match answers.
 
 Run `pnpm --filter @geotano/backend db:studio` to open Drizzle Studio and inspect data.
 
@@ -118,7 +124,8 @@ Run `pnpm --filter @geotano/backend db:studio` to open Drizzle Studio and inspec
 
 ## Coverage
 
-**Backend** — 82%+ statement coverage across 20+ test files with Vitest.
+**Backend** — 389 tests across 22 test files with Vitest (82%+ statement coverage).
+**Frontend** — 531 tests across 33 test files with Vitest.
 
 ---
 
@@ -144,11 +151,16 @@ Un juego de geografía multijugador en tiempo real. Poné a prueba tu conocimien
 
 ## Funcionalidades
 
-- **🗺️ Cuestionarios de geografía** — Banderas, capitales, continentes y países. Preguntas aleatorias con puntuación y rachas.
-- **👥 Amigos y chat** — Agregá amigos, mirá quién está conectado y chateá en tiempo real via WebSockets.
+- **🗺️ Cuestionarios de geografía** — Banderas, capitales, continentes y países. Preguntas aleatorias con puntuación y rachas en cinco modos: Standard, Express, Unlimited y Hardcore (con vidas).
+- **⚔️ Duelos multijugador** — Desafiá a tus amigos a duelos de geografía por turnos. Elegí el modo y la duración (1/2/3 minutos), aceptá o rechazá invitaciones en tiempo real via WebSockets, y escuchá los mismos sonidos (acierto/error/ganar/perder) que en el modo individual.
+- **🕒 Historial de partidas** — Seguí tus duelos en "Juegos multijugador", con limpieza automática de partidas abandonadas o vencidas después de 24 horas.
+- **👥 Amigos y chat** — Agregá amigos, mirá quién está conectado, chateá en tiempo real via WebSockets e invitá amigos con códigos de invitación.
 - **🏆 Rankings** — Competí en la tabla global y seguí tu progreso.
+- **🏅 Logros** — Desbloqueá más de 20 logros por partidas jugadas, rachas, juegos perfectos, puntajes altos y más.
+- **🔔 Notificaciones** — Notificaciones in-app para invitaciones a duelos y otros eventos, en tiempo real.
+- **🌐 i18n** — Localización completa en inglés y español (rioplatense).
 - **📱 Diseño responsive** — Funciona en mobile y desktop con una UI limpia y moderna.
-- **🔐 Autenticación** — Registro con email/contraseña, sesiones JWT y recuperación de contraseña.
+- **🔐 Autenticación** — Registro con email/contraseña, sesiones JWT, recuperación de contraseña e inicio de sesión con Google.
 
 ---
 
@@ -174,13 +186,14 @@ geotano/
 │   │   │   ├── services/ # Lógica de negocio
 │   │   │   ├── db/       # Schema Drizzle y migraciones
 │   │   │   └── lib/      # Utilidades (email, socket, auth)
-│   │   └── __tests__/    # Suite de tests Vitest (244+ tests)
+│   │   └── __tests__/    # Suite de tests Vitest (389 tests)
 │   └── frontend/         # SPA React con Vite
 │       └── src/
-│           ├── features/ # Módulos funcionales (quiz, friends, profile, etc.)
+│           ├── features/ # Módulos funcionales (quiz, multiplayer, friends, etc.)
 │           ├── components/# Componentes compartidos de UI
 │           ├── store/    # Stores de Zustand
-│           └── lib/      # Cliente API, socket, i18n
+│           ├── lib/      # Cliente API, socket, i18n
+│           └── __tests__/# Suite de tests Vitest (531 tests)
 ├── packages/
 │   └── shared/           # Tipos compartidos TypeScript
 ├── turbo.json
@@ -248,7 +261,7 @@ pnpm --filter @geotano/backend test -- --coverage
 
 ## Base de Datos
 
-Geotano usa **PostgreSQL** con **Drizzle ORM**. El schema incluye tablas para usuarios, amigos, mensajes de chat, sesiones de quiz, resultados de partidas, rankings y rankings diarios.
+Geotano usa **PostgreSQL** con **Drizzle ORM**. El schema incluye tablas para usuarios, amigos, mensajes de chat, sesiones de quiz, resultados de partidas, rankings, rankings diarios, logros, notificaciones, desafíos de partida, partidas y respuestas de partidas.
 
 Ejecutá `pnpm --filter @geotano/backend db:studio` para abrir Drizzle Studio e inspeccionar los datos.
 
@@ -256,7 +269,8 @@ Ejecutá `pnpm --filter @geotano/backend db:studio` para abrir Drizzle Studio e 
 
 ## Cobertura
 
-**Backend** — 82%+ de cobertura de sentencias en más de 20 archivos de test con Vitest.
+**Backend** — 389 tests en más de 22 archivos de test con Vitest (82%+ de cobertura de sentencias).
+**Frontend** — 531 tests en más de 33 archivos de test con Vitest.
 
 ---
 
