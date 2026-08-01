@@ -138,7 +138,7 @@ export function ProfilePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-12">
       {/* User info header */}
-      <div className="flex items-center gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6">
+      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6">
         <UserAvatar
           avatarUrl={user.avatarUrl}
           username={user.username}
@@ -146,7 +146,7 @@ export function ProfilePage() {
           className="h-16 w-16 text-2xl"
           onClick={user.avatarUrl ? () => setLightboxUrl(user.avatarUrl!) : undefined}
         />
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-[var(--color-foreground)]">
             {user.displayName ?? user.username}
           </h1>
@@ -154,7 +154,7 @@ export function ProfilePage() {
             @{user.username}
           </p>
           {user.bio && (
-            <p className="mt-2 max-w-md text-sm text-[var(--color-muted-foreground)]">
+            <p className="mt-2 max-w-md break-words text-sm text-[var(--color-muted-foreground)]">
               {user.bio}
             </p>
           )}
