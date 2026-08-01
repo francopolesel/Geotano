@@ -4,6 +4,11 @@ import { registerCors } from './plugins/index.js';
 import { runMigrations } from './db/index.js';
 import { healthRoutes, authRoutes, quizRoutes, countriesRoutes, friendsRoutes, chatRoutes, rankingsRoutes, profileRoutes, notificationsRoutes, matchRoutes } from './routes/index.js';
 import { initSocket } from './socket/index.js';
+import { deleteExpiredMatches } from './services/matchService.js';
+
+// Stale multiplayer matches (pending/in_progress older than 24h) are
+// permanently deleted every hour so no record of them survives.
+const MATCH_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 async function buildApp() {
   const app = Fastify({
@@ -48,6 +53,17 @@ async function start() {
     await app.listen({ port: env.PORT, host: env.HOST });
     // Initialize Socket.io after server is listening
     initSocket(app);
+
+    // Clean up stale multiplayer matches on boot and hourly
+    const runCleanup = () =>
+      deleteExpiredMatches().catch((err) =>
+        app.log.error({ err }, 'match cleanup failed'),
+      );
+    await runCleanup();
+    // unref so the timer never keeps the process alive on shutdown
+    const cleanupTimer = setInterval(runCleanup, MATCH_CLEANUP_INTERVAL_MS);
+    cleanupTimer.unref?.();
+
     app.log.info(`Server running at http://${env.HOST}:${env.PORT}`);
     app.log.info(`Environment: ${env.NODE_ENV}`);
   } catch (err) {

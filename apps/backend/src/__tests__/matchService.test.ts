@@ -72,6 +72,7 @@ import {
   startMatchPlay,
   submitAnswer,
   finishMatch,
+  deleteExpiredMatches,
 } from '../services/matchService.js';
 
 // ─── Fixtures ───────────────────────────────────────────────────
@@ -636,6 +637,37 @@ describe('finishMatch', () => {
     const result = await finishMatch('m-1', 'user-99');
 
     expect(result).toBeNull();
+  });
+});
+
+// ===================================================================
+//  deleteExpiredMatches (24h stale match cleanup)
+// ===================================================================
+
+describe('deleteExpiredMatches', () => {
+  it('should do nothing when no expired matches exist', async () => {
+    pendingResults.push([]);
+
+    const result = await deleteExpiredMatches();
+
+    expect(result).toEqual({ deleted: 0 });
+    expect(mockDb.delete).not.toHaveBeenCalled();
+  });
+
+  it('should permanently delete expired matches, their answers, and challenges', async () => {
+    pendingResults.push([
+      { id: 'm-1', challengeId: 'ch-1' },
+      { id: 'm-2', challengeId: 'ch-2' },
+    ]);
+    // Three deletes: answers, games, challenges
+    pendingResults.push(undefined);
+    pendingResults.push(undefined);
+    pendingResults.push(undefined);
+
+    const result = await deleteExpiredMatches();
+
+    expect(result).toEqual({ deleted: 2 });
+    expect(mockDb.delete).toHaveBeenCalledTimes(3);
   });
 });
 

@@ -3,6 +3,7 @@ import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../lib/api';
+import { playCorrect, playWrong, playGameWin, playGameOver, playClick } from '../../lib/sounds';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -323,6 +324,19 @@ export function MultiplayerPage() {
     });
   };
 
+  // ── Result sound (same as single-player: win fanfare / lose tone) ──────
+  useEffect(() => {
+    if (screen === 'result' && matchResult) {
+      if (matchResult.iWon) {
+        playGameWin();
+      } else if (matchResult.tie) {
+        playClick();
+      } else {
+        playGameOver();
+      }
+    }
+  }, [screen, matchResult]);
+
   // ── Handle answer (optimistic UI — same pattern as QuizPage) ────────────
   // Shows feedback IMMEDIATELY from local question.correctIndex.
   // Fire API in background; on error, reset to idle for retry.
@@ -333,6 +347,7 @@ export function MultiplayerPage() {
     setSelectedIndex(optionIndex);
     const wasCorrect = optionIndex === question.correctIndex;
     setAnswerState(wasCorrect ? 'correct' : 'wrong');
+    (wasCorrect ? playCorrect : playWrong)();
 
     // Compute optimistic score locally (same formula as backend calculateRaceScore)
     const streakBefore = wasCorrect ? streak : 0;

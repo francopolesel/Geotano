@@ -22,6 +22,17 @@ vi.mock('../lib/api', () => ({
   },
 }));
 
+// Mock sounds — track calls so we can assert audio feedback
+const sounds = vi.hoisted(() => ({
+  playCorrect: vi.fn(),
+  playWrong: vi.fn(),
+  playGameWin: vi.fn(),
+  playGameOver: vi.fn(),
+  playClick: vi.fn(),
+}));
+
+vi.mock('../lib/sounds', () => sounds);
+
 import { MultiplayerPage } from '../features/multiplayer/MultiplayerPage';
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────
@@ -170,6 +181,9 @@ describe('MultiplayerPage (async)', () => {
       fireEvent.click(parisBtn);
 
       expect(await screen.findByText(/correct!/i)).toBeDefined();
+      // Audio feedback plays for correct answers (same as single-player)
+      expect(sounds.playCorrect).toHaveBeenCalled();
+      expect(sounds.playWrong).not.toHaveBeenCalled();
     });
 
     it('should resume from in-progress match on mount', async () => {
@@ -261,6 +275,8 @@ describe('MultiplayerPage (async)', () => {
       // Scores should appear
       expect(screen.getByText('800')).toBeDefined();
       expect(screen.getByText('600')).toBeDefined();
+      // Win fanfare plays on the result screen
+      expect(sounds.playGameWin).toHaveBeenCalled();
     });
 
     it('should show loser when opponent won', async () => {

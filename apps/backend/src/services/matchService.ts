@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import crypto from 'crypto';
-import { eq, and, or, sql } from 'drizzle-orm';
+import { eq, and, or, sql, inArray, lt } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { matchChallenges, matchGames, matchAnswers, users } from '../db/schema/index.js';
 import { generateMatchQuestionPool } from './quizEngine.js';
@@ -18,6 +18,7 @@ const WRONG_PENALTY = -50;
 const STREAK_THRESHOLD = 3;
 const STREAK_MULTIPLIER = 1.5;
 const POOL_SIZE = 120;
+const MATCH_EXPIRY_MS = 24 * 60 * 60 * 1000; // Stale matches expire after 24h
 
 // ─── Scoring ────────────────────────────────────────────────────────────────
 
@@ -218,6 +219,37 @@ export async function getPlayerMatchHistory(userId: string) {
       ),
     )
     .orderBy(sql`${matchGames.createdAt} DESC`);
+}
+
+/**
+ * Permanently deletes stale matches (status pending/in_progress) older than
+ * 24 hours, including their answers and the originating challenge, so no
+ * record of them remains. Returns the number of matches deleted.
+ */
+export async function deleteExpiredMatches(): Promise<{ deleted: number }> {
+  const cutoff = new Date(Date.now() - MATCH_EXPIRY_MS);
+
+  const expired = await db
+    .select({ id: matchGames.id, challengeId: matchGames.challengeId })
+    .from(matchGames)
+    .where(
+      and(
+        inArray(matchGames.status, ['pending', 'in_progress']),
+        lt(matchGames.createdAt, cutoff),
+      ),
+    );
+
+  if (expired.length === 0) return { deleted: 0 };
+
+  const matchIds = expired.map((m) => m.id);
+  const challengeIds = expired.map((m) => m.challengeId);
+
+  // FK order: answers reference the match, match references the challenge
+  await db.delete(matchAnswers).where(inArray(matchAnswers.matchId, matchIds));
+  await db.delete(matchGames).where(inArray(matchGames.id, matchIds));
+  await db.delete(matchChallenges).where(inArray(matchChallenges.id, challengeIds));
+
+  return { deleted: expired.length };
 }
 
 // ─── Match Gameplay ─────────────────────────────────────────────────────────

@@ -2,24 +2,29 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─── Mock DB ─────────────────────────────────────────────────────────────────
 const waitData: any[] = [];
-const mockDb = vi.hoisted(() => ({
-  select: vi.fn(),
-  from: vi.fn(),
-  where: vi.fn(),
-  limit: vi.fn(),
-  orderBy: vi.fn(),
-  insert: vi.fn(),
-  values: vi.fn(),
-  returning: vi.fn(),
-  update: vi.fn(),
-  set: vi.fn(),
-  delete: vi.fn(),
-  then(resolve: (value: any) => void) {
-    const data = waitData.shift();
-    resolve(data !== undefined ? data : []);
-  },
-  catch() {},
-}));
+const mockDb = vi.hoisted(() => {
+  function makeChainable() {
+    const chain: any = () => chain;
+    chain.select = vi.fn(() => chain);
+    chain.from = vi.fn(() => chain);
+    chain.where = vi.fn(() => chain);
+    chain.limit = vi.fn(() => chain);
+    chain.orderBy = vi.fn(() => chain);
+    chain.insert = vi.fn(() => chain);
+    chain.values = vi.fn(() => chain);
+    chain.returning = vi.fn(() => chain);
+    chain.update = vi.fn(() => chain);
+    chain.set = vi.fn(() => chain);
+    chain.delete = vi.fn(() => chain);
+    chain.then = vi.fn((resolve: (value: any) => void) => {
+      const data = waitData.shift();
+      resolve(data !== undefined ? data : []);
+    });
+    chain.catch = vi.fn();
+    return chain;
+  }
+  return makeChainable();
+});
 
 vi.mock('../db/index.js', () => ({ db: mockDb, runMigrations: vi.fn() }));
 
