@@ -7,6 +7,19 @@ import * as matchService from '../services/matchService.js';
 import { createNotification } from '../services/notifications.js';
 import { getIO, getUserSocketIds } from '../socket/index.js';
 
+/**
+ * Pushes `match:finished` to every connected socket of BOTH players
+ * (multi-device safe) — mirrors the `challenge:accepted` emit pattern.
+ */
+function emitMatchFinished(matchId: string, player1Id: string, player2Id: string): void {
+  const io = getIO();
+  for (const userId of [player1Id, player2Id]) {
+    for (const sid of getUserSocketIds(userId)) {
+      io.to(sid).emit('match:finished', { matchId, status: 'completed' });
+    }
+  }
+}
+
 export async function matchRoutes(app: FastifyInstance) {
   // POST /api/matches/challenge — challenge a friend with a game mode
   app.post(
@@ -259,6 +272,15 @@ export async function matchRoutes(app: FastifyInstance) {
         });
       }
 
+      // Real-time delivery: when the match just completed, push the result to
+      // both players immediately (the 10s poll stays as a fallback).
+      if (result.matchEnded) {
+        const match = await matchService.getMatchState(id);
+        if (match) {
+          emitMatchFinished(id, match.player1Id, match.player2Id);
+        }
+      }
+
       return result;
     },
   );
@@ -277,6 +299,15 @@ export async function matchRoutes(app: FastifyInstance) {
           errorCode: 'MATCH_NOT_FOUND',
           message: 'Match not found or already completed',
         });
+      }
+
+      // Real-time delivery: when the match just completed, push the result to
+      // both players immediately (the 10s poll stays as a fallback).
+      if (result.matchEnded) {
+        const match = await matchService.getMatchState(id);
+        if (match) {
+          emitMatchFinished(id, match.player1Id, match.player2Id);
+        }
       }
 
       return result;
