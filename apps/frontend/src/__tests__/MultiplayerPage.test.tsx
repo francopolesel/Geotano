@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n/i18n';
@@ -295,7 +295,7 @@ describe('MultiplayerPage (async)', () => {
       expect(screen.getByText('800')).toBeDefined();
       expect(screen.getByText('600')).toBeDefined();
       // Win fanfare plays on the result screen
-      expect(sounds.playGameWin).toHaveBeenCalled();
+      await waitFor(() => expect(sounds.playGameWin).toHaveBeenCalled());
     });
 
     it('should show loser when opponent won', async () => {
