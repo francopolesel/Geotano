@@ -109,14 +109,31 @@ function pushProfiles() {
 }
 
 /**
+ * Builds the row returned by completeMatchIfBothFinished's fresh re-read
+ * (the SELECT of flags+scores+status+winnerId that runs after every finish write).
+ */
+function makeFreshState(overrides: Record<string, any> = {}) {
+  return [{
+    player1Score: 0,
+    player2Score: 0,
+    player1Finished: false,
+    player2Finished: false,
+    winnerId: null,
+    status: 'in_progress',
+    ...overrides,
+  }];
+}
+
+/**
  * Push all pendingResults entries for a single submitAnswer() call.
  *
  * submitAnswer internally calls, in order:
  *   1. getFullMatch → db.select().from(matchGames).where(...).limit(1)
  *   2. db.select({streakAtAnswer}).from(matchAnswers).where(...).orderBy(...)
  *   3. db.insert(matchAnswers).values(...)
- *   4. db.update(matchGames).set(...).where(...)
- *   5. if bothFinished → db.update(matchGames).set({status,winnerId}).where(...)
+ *   4. db.update(matchGames).set(score + finished).where(...)
+ *   5. if finished → completeMatchIfBothFinished: fresh re-read of flags+scores+status
+ *   6. if both finished → db.update(matchGames).set({status,winnerId}).where(...)
  */
 function pushSubmitAnswerMocks(
   correctSoFar: number,
@@ -149,10 +166,24 @@ function pushSubmitAnswerMocks(
   // 3. insert answer
   pendingResults.push(undefined);
 
-  // 4. update match
+  // 4. update match (score + finished flag)
   pendingResults.push(undefined);
 
-  // 5. bothFinished update (only if both finished)
+  // 5. completeMatchIfBothFinished: fresh re-read of flags + scores + status.
+  //    Runs whenever THIS answer finishes the player (finished=true), even if
+  //    the opponent hasn't finished yet.
+  const isFinishingAnswer = correctSoFar + 1 >= totalQuestions;
+  if (isFinishingAnswer) {
+    const newScore = playerScoreBefore + (isCorrect ? 100 : -50);
+    pendingResults.push(makeFreshState({
+      player1Score: isPlayer1 ? newScore : otherScore,
+      player2Score: isPlayer1 ? otherScore : newScore,
+      player1Finished: isPlayer1 || otherFinished,
+      player2Finished: isPlayer1 ? otherFinished : true,
+    }));
+  }
+
+  // 6. completion update (only if both finished)
   if (bothFinished) {
     pendingResults.push(undefined);
   }
@@ -455,8 +486,8 @@ describe('submitAnswer', () => {
     // Player 1 started 4 minutes ago; default duration is 3 minutes
     const startedAt = new Date(Date.now() - 4 * 60 * 1000);
     pendingResults.push([createMockMatch({ player1StartedAt: startedAt })]);
-    pendingResults.push(undefined); // markPlayerFinished → update finished
-    pendingResults.push(undefined); // otherFinished=false → no second update
+    pendingResults.push(undefined); // markPlayerFinished → update finished flag
+    pendingResults.push(makeFreshState({ player1Finished: true })); // fresh re-read → other not finished → no completion
 
     const result = await submitAnswer('m-1', 'user-1', 0);
 
@@ -476,8 +507,14 @@ describe('submitAnswer', () => {
       player1Score: 200,
       player2Score: 300,
     })]);
-    pendingResults.push(undefined); // markPlayerFinished → update finished
-    pendingResults.push(undefined); // both finished → update status/winner
+    pendingResults.push(undefined); // markPlayerFinished → update finished flag
+    pendingResults.push(makeFreshState({
+      player1Finished: true,
+      player2Finished: true,
+      player1Score: 200,
+      player2Score: 300,
+    })); // fresh re-read → both finished
+    pendingResults.push(undefined); // completion update
 
     const result = await submitAnswer('m-1', 'user-1', 0);
 
@@ -597,7 +634,8 @@ describe('finishMatch', () => {
 
   it('should mark the player finished without changing score', async () => {
     pendingResults.push([createMockMatch()]);
-    pendingResults.push(undefined); // markPlayerFinished → update finished
+    pendingResults.push(undefined); // markPlayerFinished → update finished flag
+    pendingResults.push(makeFreshState({ player1Finished: true })); // fresh re-read → other not finished → no completion
 
     const result = await finishMatch('m-1', 'user-1');
 
@@ -614,8 +652,14 @@ describe('finishMatch', () => {
       player1Score: 500,
       player2Score: 300,
     })]);
-    pendingResults.push(undefined); // markPlayerFinished → update finished
-    pendingResults.push(undefined); // both finished → update status/winner
+    pendingResults.push(undefined); // markPlayerFinished → update finished flag
+    pendingResults.push(makeFreshState({
+      player1Finished: true,
+      player2Finished: true,
+      player1Score: 500,
+      player2Score: 300,
+    })); // fresh re-read → both finished
+    pendingResults.push(undefined); // completion update
 
     const result = await finishMatch('m-1', 'user-1');
 
@@ -624,6 +668,7 @@ describe('finishMatch', () => {
 
   it('should be idempotent when the player already finished', async () => {
     pendingResults.push([createMockMatch({ player1Finished: true })]);
+    pendingResults.push(makeFreshState({ player1Finished: true })); // idempotent branch → fresh re-read → other not finished
 
     const result = await finishMatch('m-1', 'user-1');
 
@@ -637,6 +682,150 @@ describe('finishMatch', () => {
     const result = await finishMatch('m-1', 'user-99');
 
     expect(result).toBeNull();
+  });
+});
+
+// ===================================================================
+//  Atomic completion (completeMatchIfBothFinished — D1/D2/D7)
+// ===================================================================
+
+describe('atomic completion (completeMatchIfBothFinished)', () => {
+  it('completes from FRESH scores — the last finisher never uses stale snapshot scores', async () => {
+    // user-2 (last finisher) snapshots BEFORE user-1's final answer commits:
+    // the snapshot shows p1Score=400 (stale) but the fresh re-read sees p1Score=700.
+    // Stale logic would crown user-2 (500>400); fresh logic crowns user-1 (700>500).
+    pendingResults.push([createMockMatch({
+      player1Score: 400,
+      player2Score: 500,
+      player1Finished: false,
+      player2Finished: false,
+    })]);
+    pendingResults.push(undefined); // markPlayerFinished → update p2Finished flag
+    pendingResults.push(makeFreshState({
+      player1Score: 700,
+      player2Score: 500,
+      player1Finished: true,
+      player2Finished: true,
+    })); // fresh re-read → both finished, fresh scores
+    pendingResults.push(undefined); // completion update
+
+    const result = await finishMatch('m-1', 'user-2');
+
+    expect(result).toEqual({ finished: true, matchEnded: true, winnerId: 'user-1' });
+
+    const completionSets = mockDb.set.mock.calls.filter((c) => c[0]?.status === 'completed');
+    expect(completionSets).toHaveLength(1);
+    expect(completionSets[0][0]).toEqual({ status: 'completed', winnerId: 'user-1' });
+  });
+
+  it('D7-A: two finishMatch calls sharing one stale snapshot → exactly one completion UPDATE, winner from fresh scores', async () => {
+    // Both requests read the SAME stale snapshot (other.finished=false), then each
+    // writes its flag. The first fresh re-read sees both flags committed and
+    // completes; the second fresh re-read sees status=completed and short-circuits
+    // (idempotent). No timing, no races — the mock queue fixes the interleaving.
+    const staleSnapshot = createMockMatch({
+      player1Finished: false,
+      player2Finished: false,
+      player1Score: 400,
+      player2Score: 500,
+    });
+
+    // call 1 (user-1): getFullMatch → write p1Finished → fresh read (both committed) → completion UPDATE
+    pendingResults.push([staleSnapshot]);
+    pendingResults.push(undefined); // write p1Finished
+    pendingResults.push(makeFreshState({
+      player1Finished: true,
+      player2Finished: true,
+      player1Score: 700,
+      player2Score: 500,
+    }));
+    pendingResults.push(undefined); // completion UPDATE
+    // call 2 (user-2): getFullMatch (same stale) → write p2Finished → fresh read (already completed) → no update
+    pendingResults.push([staleSnapshot]);
+    pendingResults.push(undefined); // write p2Finished
+    pendingResults.push(makeFreshState({ status: 'completed', winnerId: 'user-1' }));
+
+    const r1 = await finishMatch('m-1', 'user-1');
+    const r2 = await finishMatch('m-1', 'user-2');
+
+    expect(r1).toEqual({ finished: true, matchEnded: true, winnerId: 'user-1' });
+    expect(r2).toEqual({ finished: true, matchEnded: true, winnerId: 'user-1' });
+
+    // Exactly ONE completion UPDATE — winner from FRESH scores (700>500 → user-1,
+    // NOT stale 400<500 → user-2).
+    const completionSets = mockDb.set.mock.calls.filter((c) => c[0]?.status === 'completed');
+    expect(completionSets).toHaveLength(1);
+    expect(completionSets[0][0]).toEqual({ status: 'completed', winnerId: 'user-1' });
+
+    // Explicit invocation ORDER (mock queue, no timing): call 1 writes its
+    // flag, completes from the fresh read (which observed call 2's flag as
+    // already committed), then call 2 writes its flag and short-circuits.
+    const setOrder = mockDb.set.mock.calls.map((c) => c[0]);
+    expect(setOrder).toHaveLength(3);
+    expect(setOrder[0].player1Finished).toBe(true);
+    expect(setOrder[1]).toEqual({ status: 'completed', winnerId: 'user-1' });
+    expect(setOrder[2].player2Finished).toBe(true);
+  });
+
+  it('D7-B: first finisher fresh-read misses the other commit → last finisher completes, never stuck in_progress', async () => {
+    const staleSnapshot = createMockMatch({
+      player1Finished: false,
+      player2Finished: false,
+      player1Score: 400,
+      player2Score: 500,
+    });
+
+    // call 1 (user-1): getFullMatch → write p1Finished → fresh read sees p2 NOT committed → no completion
+    pendingResults.push([staleSnapshot]);
+    pendingResults.push(undefined); // write p1Finished
+    pendingResults.push(makeFreshState({ player1Finished: true, player2Finished: false }));
+    // call 2 (user-2): getFullMatch (same stale) → write p2Finished → fresh read sees both → completion UPDATE
+    pendingResults.push([staleSnapshot]);
+    pendingResults.push(undefined); // write p2Finished
+    pendingResults.push(makeFreshState({
+      player1Finished: true,
+      player2Finished: true,
+      player1Score: 700,
+      player2Score: 500,
+    }));
+    pendingResults.push(undefined); // completion UPDATE
+
+    const r1 = await finishMatch('m-1', 'user-1');
+    const r2 = await finishMatch('m-1', 'user-2');
+
+    expect(r1).toEqual({ finished: true, matchEnded: false, winnerId: null });
+    expect(r2).toEqual({ finished: true, matchEnded: true, winnerId: 'user-1' });
+
+    // Exactly one completion UPDATE — the last finisher always completes.
+    const completionSets = mockDb.set.mock.calls.filter((c) => c[0]?.status === 'completed');
+    expect(completionSets).toHaveLength(1);
+    expect(completionSets[0][0]).toEqual({ status: 'completed', winnerId: 'user-1' });
+  });
+
+  it('repairs a stuck row (both finished, status still in_progress) via the idempotent branch', async () => {
+    pendingResults.push([createMockMatch({
+      player1Finished: true,
+      player2Finished: true,
+      player1Score: 500,
+      player2Score: 300,
+      winnerId: null,
+      status: 'in_progress', // stuck: both flags set, no winner, not completed
+    })]);
+    pendingResults.push(makeFreshState({
+      player1Finished: true,
+      player2Finished: true,
+      player1Score: 500,
+      player2Score: 300,
+    })); // idempotent branch → fresh re-read → both finished → completion UPDATE
+    pendingResults.push(undefined); // completion UPDATE
+
+    const result = await finishMatch('m-1', 'user-1');
+
+    expect(result).toEqual({ finished: true, matchEnded: true, winnerId: 'user-1' });
+
+    const completionSets = mockDb.set.mock.calls.filter((c) => c[0]?.status === 'completed');
+    expect(completionSets).toHaveLength(1);
+    expect(completionSets[0][0]).toEqual({ status: 'completed', winnerId: 'user-1' });
   });
 });
 

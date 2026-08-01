@@ -354,37 +354,40 @@ export async function startMatchPlay(
 // ─── Time Expiry / Early Finish ─────────────────────────────────────────────
 
 /**
- * Marks one player as finished without recording an answer (e.g. time ran out).
- * When both players are finished, completes the match and computes the winner
- * from the current scores.
+ * Atomic completion: after a finish write, re-reads both finished flags and
+ * both scores in a FRESH statement (the last writer always observes the other
+ * flag under Postgres READ COMMITTED), then completes the match when both
+ * players have finished. Winner is computed from the FRESH scores, never from
+ * a stale snapshot. Idempotent: an already-completed match returns the stored
+ * winner. Never leaves a match `in_progress` with both flags set.
  */
-async function markPlayerFinished(
+async function completeMatchIfBothFinished(
   matchId: string,
-  isPlayer1: boolean,
-  match: {
-    player1Id: string;
-    player2Id: string;
-    player1Score: number;
-    player2Score: number;
-    player1Finished: boolean;
-    player2Finished: boolean;
-  },
+  player1Id: string,
+  player2Id: string,
 ): Promise<{ matchEnded: boolean; winnerId: string | null }> {
-  const finishedCol = isPlayer1 ? 'player1Finished' : 'player2Finished';
-  const otherFinished = isPlayer1 ? match.player2Finished : match.player1Finished;
+  const [fresh] = await db
+    .select({
+      player1Score: matchGames.player1Score,
+      player2Score: matchGames.player2Score,
+      player1Finished: matchGames.player1Finished,
+      player2Finished: matchGames.player2Finished,
+      winnerId: matchGames.winnerId,
+      status: matchGames.status,
+    })
+    .from(matchGames)
+    .where(eq(matchGames.id, matchId))
+    .limit(1);
 
-  await db
-    .update(matchGames)
-    .set({ [finishedCol]: true })
-    .where(eq(matchGames.id, matchId));
-
-  if (!otherFinished) {
+  if (!fresh) return { matchEnded: false, winnerId: null };
+  if (fresh.status === 'completed') return { matchEnded: true, winnerId: fresh.winnerId };
+  if (!(fresh.player1Finished && fresh.player2Finished)) {
     return { matchEnded: false, winnerId: null };
   }
 
-  const winner = determineWinner(match.player1Score, match.player2Score);
-  const winnerUserId = winner === 'player1' ? match.player1Id
-    : winner === 'player2' ? match.player2Id
+  const winner = determineWinner(fresh.player1Score, fresh.player2Score);
+  const winnerUserId = winner === 'player1' ? player1Id
+    : winner === 'player2' ? player2Id
     : null;
 
   await db
@@ -393,6 +396,27 @@ async function markPlayerFinished(
     .where(eq(matchGames.id, matchId));
 
   return { matchEnded: true, winnerId: winnerUserId };
+}
+
+/**
+ * Marks one player as finished without recording an answer (e.g. time ran out).
+ * When both players are finished, completes the match and computes the winner
+ * from the fresh scores.
+ */
+async function markPlayerFinished(
+  matchId: string,
+  isPlayer1: boolean,
+  player1Id: string,
+  player2Id: string,
+): Promise<{ matchEnded: boolean; winnerId: string | null }> {
+  const finishedCol = isPlayer1 ? 'player1Finished' : 'player2Finished';
+
+  await db
+    .update(matchGames)
+    .set({ [finishedCol]: true })
+    .where(eq(matchGames.id, matchId));
+
+  return completeMatchIfBothFinished(matchId, player1Id, player2Id);
 }
 
 /**
@@ -411,14 +435,15 @@ export async function finishMatch(
 
   const alreadyFinished = isPlayer1 ? match.player1Finished : match.player2Finished;
   if (alreadyFinished) {
+    // Idempotent: repair a stuck row (both flags set, status still
+    // in_progress) and return the stored/fresh winner instead of match.winnerId.
     return {
       finished: true,
-      matchEnded: match.player1Finished && match.player2Finished,
-      winnerId: match.winnerId,
+      ...(await completeMatchIfBothFinished(matchId, match.player1Id, match.player2Id)),
     };
   }
 
-  const result = await markPlayerFinished(matchId, isPlayer1, match);
+  const result = await markPlayerFinished(matchId, isPlayer1, match.player1Id, match.player2Id);
   return { finished: true, ...result };
 }
 
@@ -445,7 +470,7 @@ export async function submitAnswer(
   if (startedAt) {
     const durationMs = (match.durationMinutes ?? 3) * 60 * 1000;
     if (Date.now() - new Date(startedAt).getTime() > durationMs) {
-      const result = await markPlayerFinished(matchId, isPlayer1, match);
+      const result = await markPlayerFinished(matchId, isPlayer1, match.player1Id, match.player2Id);
       return {
         correct: false,
         scoreEarned: 0,
@@ -505,22 +530,13 @@ export async function submitAnswer(
     })
     .where(eq(matchGames.id, matchId));
 
-  // Determine if both finished — uses data already fetched (no extra query)
-  const otherFinished = isPlayer1 ? match.player2Finished : match.player1Finished;
-  const bothFinished = finished && otherFinished;
+  // Complete atomically when this was the finishing answer: re-read BOTH flags
+  // and scores fresh, so the winner reflects final scores and the match never
+  // sticks `in_progress` with both finished flags set.
   let matchEnded = false;
-
-  if (bothFinished) {
-    const otherScore = isPlayer1 ? match.player2Score : match.player1Score;
-    const winner = determineWinner(newScore, otherScore);
-    const winnerUserId = winner === 'player1' ? match.player1Id
-      : winner === 'player2' ? match.player2Id
-      : null;
-    await db
-      .update(matchGames)
-      .set({ status: 'completed', winnerId: winnerUserId })
-      .where(eq(matchGames.id, matchId));
-    matchEnded = true;
+  if (finished) {
+    const completion = await completeMatchIfBothFinished(matchId, match.player1Id, match.player2Id);
+    matchEnded = completion.matchEnded;
   }
 
   // Get next question
