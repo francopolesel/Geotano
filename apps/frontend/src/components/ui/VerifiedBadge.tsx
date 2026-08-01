@@ -14,6 +14,7 @@ export function VerifiedBadge({ className }: VerifiedBadgeProps) {
     <svg
       role="img"
       aria-label="Verified"
+      focusable="false"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
