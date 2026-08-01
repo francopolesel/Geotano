@@ -73,8 +73,8 @@ describe('Rankings — uncovered paths', () => {
   it('should filter by mode when mode slug is given', async () => {
     // Top entries (with mode filter)
     waitData.push([
-      { userId: 'user-1', username: 'testuser', avatarUrl: null, score: 1500 },
-      { userId: 'user-2', username: 'player2', avatarUrl: null, score: 1200 },
+      { userId: 'user-1', username: 'testuser', avatarUrl: null, isVerified: false, score: 1500 },
+      { userId: 'user-2', username: 'player2', avatarUrl: null, isVerified: false, score: 1200 },
     ]);
     // Total players
     waitData.push([{ totalPlayers: 5 }]);
@@ -93,7 +93,7 @@ describe('Rankings — uncovered paths', () => {
 
   it('should filter by daily period', async () => {
     waitData.push([
-      { userId: 'user-1', username: 'testuser', avatarUrl: null, score: 1500 },
+      { userId: 'user-1', username: 'testuser', avatarUrl: null, isVerified: false, score: 1500 },
     ]);
     waitData.push([{ totalPlayers: 3 }]);
 
@@ -112,8 +112,8 @@ describe('Rankings — uncovered paths', () => {
   it('should handle user not in top 100 — global scope', async () => {
     // Top entries — user-1 NOT in this list
     waitData.push([
-      { userId: 'user-2', username: 'player2', avatarUrl: 'http://example.com/2.jpg', score: 2000 },
-      { userId: 'user-3', username: 'player3', avatarUrl: null, score: 1500 },
+      { userId: 'user-2', username: 'player2', avatarUrl: 'http://example.com/2.jpg', isVerified: false, score: 2000 },
+      { userId: 'user-3', username: 'player3', avatarUrl: null, isVerified: false, score: 1500 },
     ]);
     // Total players
     waitData.push([{ totalPlayers: 10 }]);
@@ -135,6 +135,7 @@ describe('Rankings — uncovered paths', () => {
     expect(body.userRank.userId).toBe('user-1');
     expect(body.userRank.rank).toBe(3); // 2 ahead + 1
     expect(body.userRank.score).toBe(800);
+    expect(body.userRank.isVerified).toBe(false);
     // entries should have correct ranks (different scores → different ranks)
     expect(body.entries[0].rank).toBe(1);
     expect(body.entries[1].rank).toBe(2);
@@ -143,7 +144,7 @@ describe('Rankings — uncovered paths', () => {
 
   it('should handle user not in top 100 — with mode filter', async () => {
     waitData.push([
-      { userId: 'user-2', username: 'player2', avatarUrl: null, score: 2000 },
+      { userId: 'user-2', username: 'player2', avatarUrl: null, isVerified: false, score: 2000 },
     ]);
     waitData.push([{ totalPlayers: 5 }]);
     waitData.push([{ score: 400 }]);
@@ -169,7 +170,7 @@ describe('Rankings — uncovered paths', () => {
     waitData.push([]);
     // Top entries (friends only)
     waitData.push([
-      { userId: 'user-2', username: 'player2', avatarUrl: null, score: 2000 },
+      { userId: 'user-2', username: 'player2', avatarUrl: null, isVerified: false, score: 2000 },
     ]);
     // Total players (friends only)
     waitData.push([{ totalPlayers: 3 }]);
@@ -193,8 +194,8 @@ describe('Rankings — uncovered paths', () => {
 
   it('should handle user not in top 100 — daily period', async () => {
     waitData.push([
-      { userId: 'user-2', username: 'player2', avatarUrl: null, score: 2000 },
-      { userId: 'user-3', username: 'player3', avatarUrl: null, score: 1500 },
+      { userId: 'user-2', username: 'player2', avatarUrl: null, isVerified: false, score: 2000 },
+      { userId: 'user-3', username: 'player3', avatarUrl: null, isVerified: false, score: 1500 },
     ]);
     waitData.push([{ totalPlayers: 5 }]);
     waitData.push([{ score: 300 }]);
@@ -216,9 +217,9 @@ describe('Rankings — uncovered paths', () => {
   it('should handle tie scores — same rank for equal scores', async () => {
     // user-1 and user-2 have same score
     waitData.push([
-      { userId: 'user-1', username: 'testuser', avatarUrl: null, score: 1500 },
-      { userId: 'user-2', username: 'player2', avatarUrl: null, score: 1500 },
-      { userId: 'user-3', username: 'player3', avatarUrl: null, score: 1000 },
+      { userId: 'user-1', username: 'testuser', avatarUrl: null, isVerified: false, score: 1500 },
+      { userId: 'user-2', username: 'player2', avatarUrl: null, isVerified: false, score: 1500 },
+      { userId: 'user-3', username: 'player3', avatarUrl: null, isVerified: false, score: 1000 },
     ]);
     waitData.push([{ totalPlayers: 3 }]);
 

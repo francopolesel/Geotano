@@ -85,8 +85,8 @@ describe('GET /api/friends', () => {
     ]);
     // Query 2: friend profiles → .where(inArray(...))
     waitData.push([
-      { id: 'user-2', username: 'friend2', displayName: 'Friend 2', avatarUrl: null },
-      { id: 'user-3', username: 'friend3', displayName: 'Friend 3', avatarUrl: null },
+      { id: 'user-2', username: 'friend2', displayName: 'Friend 2', avatarUrl: null, isVerified: false },
+      { id: 'user-3', username: 'friend3', displayName: 'Friend 3', avatarUrl: null, isVerified: false },
     ]);
     // Query 3: incoming pending → .where(...)
     waitData.push([
@@ -94,7 +94,7 @@ describe('GET /api/friends', () => {
     ]);
     // Query 4: incoming profiles → .where(inArray(...))
     waitData.push([
-      { id: 'user-4', username: 'sender4', displayName: 'Sender 4', avatarUrl: null },
+      { id: 'user-4', username: 'sender4', displayName: 'Sender 4', avatarUrl: null, isVerified: false },
     ]);
     // Query 5: outgoing pending → .where(...)
     waitData.push([
@@ -102,7 +102,7 @@ describe('GET /api/friends', () => {
     ]);
     // Query 6: outgoing profiles → .where(inArray(...))
     waitData.push([
-      { id: 'user-5', username: 'receiver5', displayName: 'Receiver 5', avatarUrl: null },
+      { id: 'user-5', username: 'receiver5', displayName: 'Receiver 5', avatarUrl: null, isVerified: false },
     ]);
 
     const res = await app.inject({
@@ -117,12 +117,16 @@ describe('GET /api/friends', () => {
     expect(body.friends).toHaveLength(2);
     expect(body.friends[0]).toMatchObject({ friendId: 'user-2', username: 'friend2' });
     expect(body.friends[1]).toMatchObject({ friendId: 'user-3', username: 'friend3' });
+    expect(body.friends[0].isVerified).toBe(false);
+    expect(body.friends[1].isVerified).toBe(false);
 
     expect(body.pendingIncoming).toHaveLength(1);
     expect(body.pendingIncoming[0]).toMatchObject({ senderId: 'user-4', username: 'sender4' });
+    expect(body.pendingIncoming[0].isVerified).toBe(false);
 
     expect(body.pendingOutgoing).toHaveLength(1);
     expect(body.pendingOutgoing[0]).toMatchObject({ receiverId: 'user-5', username: 'receiver5' });
+    expect(body.pendingOutgoing[0].isVerified).toBe(false);
   });
 
   it('should return empty lists when no friends', async () => {
@@ -598,7 +602,7 @@ describe('GET /api/friends/blocked', () => {
       { id: 'b1', friendId: 'user-2', createdAt: NOW },
     ]);
     waitData.push([
-      { id: 'user-2', username: 'blocked2', displayName: 'Blocked 2', avatarUrl: null },
+      { id: 'user-2', username: 'blocked2', displayName: 'Blocked 2', avatarUrl: null, isVerified: false },
     ]);
 
     const res = await app.inject({
@@ -650,7 +654,7 @@ describe('GET /api/users/search', () => {
   it('should return matching users excluding self and existing friends', async () => {
     // db.select(...).from(users).where(and(ne(uid), LIKE, NOT EXISTS(...))).limit(10)
     waitData.push([
-      { id: 'user-3', username: 'player3', displayName: 'Player 3', avatarUrl: null },
+      { id: 'user-3', username: 'player3', displayName: 'Player 3', avatarUrl: null, isVerified: false },
     ]);
 
     const res = await app.inject({

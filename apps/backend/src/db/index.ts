@@ -76,6 +76,10 @@ export async function runMigrations(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS "match_challenges_one_pending_pair_idx"
       ON "match_challenges" ("challenger_id", "receiver_id")
       WHERE "status" = 'pending';
+
+    -- 0008: Verified badge support
+    ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "is_verified" boolean NOT NULL DEFAULT false;
+    UPDATE "users" SET "is_verified" = true WHERE "username" = 'francopolesel99';
   `;
   await queryClient.unsafe(sql);
   console.log('[migrations] Applied pending migrations');

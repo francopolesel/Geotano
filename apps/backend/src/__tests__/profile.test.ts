@@ -82,6 +82,7 @@ const PROFILE_USER = {
   username: 'testuser',
   displayName: 'Test User',
   avatarUrl: null,
+  isVerified: false,
   bio: 'Hello!',
   createdAt: NOW,
 };
@@ -157,6 +158,7 @@ describe('GET /api/users/:id/profile', () => {
       username: 'testuser',
       displayName: 'Test User',
     });
+    expect(body.user.isVerified).toBe(false);
     expect(body.stats).toMatchObject({
       totalScore: 15000,
       totalGames: 42,

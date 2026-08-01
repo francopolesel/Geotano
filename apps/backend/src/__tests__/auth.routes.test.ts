@@ -81,6 +81,7 @@ const USER_ROW = {
   email: 'test@example.com',
   displayName: 'Test User',
   avatarUrl: null,
+  isVerified: false,
   language: 'en',
   joinCode: 'a1b2c3d4',
   passwordHash: 'hashed-password',
@@ -148,6 +149,52 @@ describe('POST /api/auth/register', () => {
     const body = JSON.parse(res.body);
     expect(body).toHaveProperty('token');
     expect(body.user).toMatchObject({ username: 'testuser' });
+    expect(body.user.isVerified).toBe(false);
+  });
+
+  it('should return 409 RESERVED_DISPLAY_NAME when username is geocreator', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'geocreator', email: 'gc@test.com', password: 'password123' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
+  });
+
+  it('should return 409 RESERVED_DISPLAY_NAME for displayName with trim/case variations', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'normaluser', email: 'nu@test.com', password: 'password123', displayName: ' Geocreator ' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
+  });
+
+  it('should reject crafted bypass — reserved username with safe displayName (W1)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'geocreator', email: 'gb@test.com', password: 'password123', displayName: 'John' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
+  });
+
+  it('should allow the creator to register via submitted username (C1)', async () => {
+    waitData.push([]); // no existing user
+    mockHashPassword.mockResolvedValueOnce('hashed-password');
+    waitData.push([{ ...USER_ROW, username: 'francopolesel99', displayName: 'geocreator' }]); // insert returning
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'francopolesel99', email: 'creator@test.com', password: 'password123', displayName: 'geocreator' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.user.username).toBe('francopolesel99');
   });
 });
 
@@ -215,6 +262,7 @@ describe('POST /api/auth/login', () => {
     const body = JSON.parse(res.body);
     expect(body).toHaveProperty('token');
     expect(body.user).toMatchObject({ username: 'testuser' });
+    expect(body.user.isVerified).toBe(false);
   });
 });
 
@@ -342,6 +390,31 @@ describe('POST /api/auth/google', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body).toHaveProperty('token');
+  });
+
+  it('should return 409 RESERVED_DISPLAY_NAME for new google user with reserved generated username', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        sub: 'google-999',
+        email: 'geocreator@example.com',
+        name: 'Some Person',
+        picture: null,
+        aud: 'my-client-id',
+      }),
+    });
+
+    waitData.push([]); // no existing user by email
+    waitData.push([]); // no existing user by username (username check)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/google',
+      payload: { credential: 'valid-token', clientId: 'my-client-id' },
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
   });
 
   it('should use given_name when name is not provided by Google', async () => {
@@ -656,6 +729,44 @@ describe('PATCH /api/auth/profile', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).username).toBe('newname');
+  });
+
+  it('should return 409 RESERVED_DISPLAY_NAME when PATCHing displayName to geocreator', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/auth/profile',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { displayName: 'geocreator' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
+  });
+
+  it('should return 409 RESERVED_DISPLAY_NAME when PATCHing username to geocreator (W3)', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/auth/profile',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { username: 'geocreator' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(JSON.parse(res.body).errorCode).toBe('RESERVED_DISPLAY_NAME');
+  });
+
+  it('should allow the creator to PATCH displayName to geocreator', async () => {
+    mockAuthGuard.mockImplementationOnce((request, _reply, done) => {
+      (request as any).user = { userId: 'user-1', username: 'francopolesel99' };
+      done?.();
+    });
+    waitData.push([{ ...USER_ROW, displayName: 'geocreator' }]); // returning
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/auth/profile',
+      headers: { authorization: 'Bearer valid-token' },
+      payload: { displayName: 'geocreator' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).displayName).toBe('geocreator');
   });
 });
 

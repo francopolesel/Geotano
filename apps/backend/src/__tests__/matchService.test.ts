@@ -77,8 +77,8 @@ import {
 
 // ─── Fixtures ───────────────────────────────────────────────────
 
-const USER1_PROFILE = { id: 'user-1', username: 'player1', displayName: null, avatarUrl: null };
-const USER2_PROFILE = { id: 'user-2', username: 'player2', displayName: null, avatarUrl: null };
+const USER1_PROFILE = { id: 'user-1', username: 'player1', displayName: null, avatarUrl: null, isVerified: false };
+const USER2_PROFILE = { id: 'user-2', username: 'player2', displayName: null, avatarUrl: null, isVerified: false };
 
 function createMockMatch(overrides: Record<string, any> = {}) {
   return {

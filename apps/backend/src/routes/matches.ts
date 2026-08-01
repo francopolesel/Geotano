@@ -135,6 +135,7 @@ export async function matchRoutes(app: FastifyInstance) {
           username: users.username,
           displayName: users.displayName,
           avatarUrl: users.avatarUrl,
+          isVerified: users.isVerified,
         })
         .from(users)
         .where(eq(users.id, userId))
@@ -145,7 +146,7 @@ export async function matchRoutes(app: FastifyInstance) {
       for (const sid of receiverSids) {
         io.to(sid).emit('challenge:invite', {
           challengeId,
-          challenger: challengerUser ?? { id: userId, username: 'unknown' },
+          challenger: challengerUser ?? { id: userId, username: 'unknown', isVerified: false },
         });
       }
 
@@ -356,14 +357,14 @@ export async function matchRoutes(app: FastifyInstance) {
         history.map(async (m) => {
           const oppId = m.player1Id === userId ? m.player2Id : m.player1Id;
           const [oppUser] = await db
-            .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl })
+            .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl, isVerified: users.isVerified })
             .from(users)
             .where(eq(users.id, oppId))
             .limit(1);
 
           return {
             ...m,
-            opponent: oppUser ?? { id: oppId, username: 'unknown', displayName: null, avatarUrl: null },
+            opponent: oppUser ?? { id: oppId, username: 'unknown', displayName: null, avatarUrl: null, isVerified: false },
           };
         }),
       );

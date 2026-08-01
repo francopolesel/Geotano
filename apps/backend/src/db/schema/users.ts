@@ -3,6 +3,7 @@ import {
   uuid,
   text,
   timestamp,
+  boolean,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
@@ -15,6 +16,7 @@ export const users = pgTable(
     passwordHash: text('password_hash').notNull(),
     displayName: text('display_name'),
     avatarUrl: text('avatar_url'),
+    isVerified: boolean('is_verified').notNull().default(false),
     bio: text('bio'),
     language: text('language').default('en').notNull(),
     joinCode: text('join_code').unique(),

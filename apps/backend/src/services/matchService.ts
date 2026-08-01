@@ -156,13 +156,13 @@ export async function getMatchState(matchId: string): Promise<MatchStateResponse
 
   // Fetch player profiles for opponent display
   const [player1] = await db
-    .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl })
+    .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl, isVerified: users.isVerified })
     .from(users)
     .where(eq(users.id, match.player1Id))
     .limit(1);
 
   const [player2] = await db
-    .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl })
+    .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl, isVerified: users.isVerified })
     .from(users)
     .where(eq(users.id, match.player2Id))
     .limit(1);
@@ -204,8 +204,8 @@ export interface MatchStateResponse {
   winnerId: string | null;
   status: string;
   createdAt: Date;
-  player1: { id: string; username: string; displayName: string | null; avatarUrl: string | null } | null;
-  player2: { id: string; username: string; displayName: string | null; avatarUrl: string | null } | null;
+  player1: { id: string; username: string; displayName: string | null; avatarUrl: string | null; isVerified: boolean } | null;
+  player2: { id: string; username: string; displayName: string | null; avatarUrl: string | null; isVerified: boolean } | null;
 }
 
 export async function getPlayerMatchHistory(userId: string) {

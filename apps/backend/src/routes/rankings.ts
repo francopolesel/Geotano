@@ -98,6 +98,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
           userId: gameSessions.userId,
           username: users.username,
           avatarUrl: users.avatarUrl,
+          isVerified: users.isVerified,
           score: sql<number>`CAST(MAX(${gameSessions.score}) AS INTEGER)`.as('score'),
           gameModeSlug: modeSlug
             ? sql<string>`${modeSlug}`.as('game_mode_slug')
@@ -118,7 +119,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
         .innerJoin(users, eq(users.id, gameSessions.userId))
         .innerJoin(gameModes, eq(gameModes.id, gameSessions.gameModeId))
         .where(and(...conditions))
-        .groupBy(gameSessions.userId, users.username, users.avatarUrl)
+        .groupBy(gameSessions.userId, users.username, users.avatarUrl, users.isVerified)
         .orderBy(sql`score DESC`)
         .limit(100);
 
@@ -136,6 +137,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
           userId: e.userId,
           username: e.username,
           avatarUrl: e.avatarUrl ?? undefined,
+          isVerified: e.isVerified ?? false,
           score: e.score,
           rank,
           gameModeSlug: (e.gameModeSlug ?? undefined) as GameModeSlug | undefined,
@@ -226,6 +228,7 @@ export async function rankingsRoutes(app: FastifyInstance) {
           userRank = {
             userId,
             username: (request as any).user.username,
+            isVerified: false,
             score: userScoreResult.score,
             rank: callRank,
           };

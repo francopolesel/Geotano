@@ -107,8 +107,8 @@ describe('Rankings API', () => {
 
     mockDb.limit
       .mockResolvedValueOnce([
-        { userId: 'user-1', username: 'testuser', avatarUrl: null, score: 1500 },
-        { userId: 'user-2', username: 'player2', avatarUrl: null, score: 1200 },
+        { userId: 'user-1', username: 'testuser', avatarUrl: null, isVerified: false, score: 1500 },
+        { userId: 'user-2', username: 'player2', avatarUrl: null, isVerified: false, score: 1200 },
       ]);
 
     const res = await app.inject({
@@ -123,6 +123,8 @@ describe('Rankings API', () => {
     expect(body.totalPlayers).toBe(10);
     expect(body.scope).toBe('global');
     expect(body.period).toBe('forever');
+    expect(body.entries[0].isVerified).toBe(false);
+    expect(body.entries[1].isVerified).toBe(false);
   });
 
   it('should return friends-scoped rankings', async () => {
@@ -134,8 +136,8 @@ describe('Rankings API', () => {
       .mockResolvedValueOnce([{ totalPlayers: 2 }]);
 
     mockDb.limit.mockResolvedValueOnce([
-        { userId: 'user-1', username: 'testuser', avatarUrl: null, score: 1500 },
-        { userId: 'user-2', username: 'player2', avatarUrl: null, score: 1200 },
+        { userId: 'user-1', username: 'testuser', avatarUrl: null, isVerified: false, score: 1500 },
+        { userId: 'user-2', username: 'player2', avatarUrl: null, isVerified: false, score: 1200 },
       ]);
 
     const res = await app.inject({
@@ -177,7 +179,7 @@ describe('Rankings API', () => {
       .mockResolvedValueOnce([{ totalPlayers: 5 }]);
 
     mockDb.limit.mockResolvedValueOnce([
-      { userId: 'user-1', username: 'testuser', avatarUrl: null, score: 1500 },
+      { userId: 'user-1', username: 'testuser', avatarUrl: null, isVerified: false, score: 1500 },
     ]);
 
     const res = await app.inject({
@@ -221,7 +223,7 @@ describe('Rankings API', () => {
       .mockResolvedValueOnce([{ totalPlayers: 5 }]);
 
     mockDb.limit.mockResolvedValueOnce([
-        { userId: 'user-1', username: 'testuser', avatarUrl: null, score: 1500 },
+        { userId: 'user-1', username: 'testuser', avatarUrl: null, isVerified: false, score: 1500 },
       ]);
 
     const res = await app.inject({
@@ -234,5 +236,27 @@ describe('Rankings API', () => {
     const body = JSON.parse(res.body);
     expect(body.userRank).toBeDefined();
     expect(body.entries[0].userId).toBe('user-1');
+    expect(body.userRank.isVerified).toBe(false);
+  });
+
+  it('should map isVerified: true through to the response entry', async () => {
+    mockDb.where
+      .mockImplementationOnce(() => mockDb)
+      .mockResolvedValueOnce([{ totalPlayers: 1 }]);
+
+    mockDb.limit.mockResolvedValueOnce([
+        { userId: 'user-1', username: 'testuser', avatarUrl: null, isVerified: true, score: 1500 },
+      ]);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/rankings?scope=global&period=forever',
+      headers: { authorization: 'Bearer valid-token' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.entries).toHaveLength(1);
+    expect(body.entries[0].isVerified).toBe(true);
   });
 });

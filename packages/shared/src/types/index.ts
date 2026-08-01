@@ -18,6 +18,7 @@ export interface UserProfile {
   email: string;
   displayName?: string;
   avatarUrl?: string;
+  isVerified?: boolean;
   bio?: string;
   language: Locale;
   joinCode: string;
@@ -218,6 +219,7 @@ export interface RankingEntry {
   userId: EntityId;
   username: string;
   avatarUrl?: string;
+  isVerified?: boolean;
   score: number;
   rank: number;
   gameModeSlug?: GameModeSlug;

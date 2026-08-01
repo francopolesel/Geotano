@@ -21,6 +21,7 @@ export async function profileRoutes(app: FastifyInstance) {
           username: users.username,
           displayName: users.displayName,
           avatarUrl: users.avatarUrl,
+          isVerified: users.isVerified,
           bio: users.bio,
           createdAt: users.createdAt,
         })
@@ -196,6 +197,7 @@ export async function profileRoutes(app: FastifyInstance) {
           username: user.username,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
+          isVerified: user.isVerified ?? false,
           bio: user.bio,
           createdAt: user.createdAt.toISOString(),
         },

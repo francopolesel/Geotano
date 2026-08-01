@@ -26,6 +26,7 @@ export async function friendsRoutes(app: FastifyInstance) {
           username: users.username,
           displayName: users.displayName,
           avatarUrl: users.avatarUrl,
+          isVerified: users.isVerified,
         })
         .from(users)
         .where(
@@ -282,6 +283,7 @@ export async function friendsRoutes(app: FastifyInstance) {
               username: users.username,
               displayName: users.displayName,
               avatarUrl: users.avatarUrl,
+              isVerified: users.isVerified,
             })
             .from(users)
             .where(inArray(users.id, friendIds))
@@ -298,6 +300,7 @@ export async function friendsRoutes(app: FastifyInstance) {
           username: profile?.username,
           displayName: profile?.displayName,
           avatarUrl: profile?.avatarUrl,
+          isVerified: profile?.isVerified ?? false,
           status: f.status,
           createdAt: f.createdAt.toISOString(),
         };
@@ -328,6 +331,7 @@ export async function friendsRoutes(app: FastifyInstance) {
               username: users.username,
               displayName: users.displayName,
               avatarUrl: users.avatarUrl,
+              isVerified: users.isVerified,
             })
             .from(users)
             .where(inArray(users.id, incomingSenderIds))
@@ -343,6 +347,7 @@ export async function friendsRoutes(app: FastifyInstance) {
           username: profile?.username,
           displayName: profile?.displayName,
           avatarUrl: profile?.avatarUrl,
+          isVerified: profile?.isVerified ?? false,
           status: r.status,
           createdAt: r.createdAt.toISOString(),
         };
@@ -373,6 +378,7 @@ export async function friendsRoutes(app: FastifyInstance) {
               username: users.username,
               displayName: users.displayName,
               avatarUrl: users.avatarUrl,
+              isVerified: users.isVerified,
             })
             .from(users)
             .where(inArray(users.id, outgoingReceiverIds))
@@ -388,6 +394,7 @@ export async function friendsRoutes(app: FastifyInstance) {
           username: profile?.username,
           displayName: profile?.displayName,
           avatarUrl: profile?.avatarUrl,
+          isVerified: profile?.isVerified ?? false,
           status: r.status,
           createdAt: r.createdAt.toISOString(),
         };
@@ -669,6 +676,7 @@ export async function friendsRoutes(app: FastifyInstance) {
               username: users.username,
               displayName: users.displayName,
               avatarUrl: users.avatarUrl,
+              isVerified: users.isVerified,
             })
             .from(users)
             .where(inArray(users.id, blockedIds))
@@ -684,6 +692,7 @@ export async function friendsRoutes(app: FastifyInstance) {
           username: profile?.username,
           displayName: profile?.displayName,
           avatarUrl: profile?.avatarUrl,
+          isVerified: profile?.isVerified ?? false,
           blockedAt: b.createdAt.toISOString(),
         };
       });

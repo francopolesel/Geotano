@@ -5,6 +5,7 @@ import { signToken, authGuard, hashPassword, verifyPassword } from '../auth/inde
 import { eq, and, ne, or } from 'drizzle-orm';
 import crypto from 'crypto';
 import { isEmailConfigured, sendPasswordResetEmail } from '../lib/email.js';
+import { isCreator, isReservedDisplayName } from '../lib/displayName.js';
 
 function generateJoinCode(): string {
   return crypto.randomBytes(4).toString('hex');
@@ -18,6 +19,7 @@ function mapUser(user: any) {
     email: user.email,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
+    isVerified: user.isVerified ?? false,
     bio: user.bio,
     language: user.language,
     joinCode: user.joinCode,
@@ -42,6 +44,13 @@ export async function authRoutes(app: FastifyInstance) {
 
     if (password.length < 8) {
       return reply.status(400).send({ errorCode: 'WEAK_PASSWORD', message: 'Password must be at least 8 characters' });
+    }
+
+    // Reserved display-name guard — the creator is the only account allowed to
+    // use "geocreator". Check the submitted username AND displayName so a crafted
+    // bypass ({ username: 'geocreator', displayName: 'John' }) cannot slip through.
+    if (!isCreator(username) && (isReservedDisplayName(username) || isReservedDisplayName(displayName ?? username))) {
+      return reply.status(409).send({ errorCode: 'RESERVED_DISPLAY_NAME', message: 'This display name is reserved' });
     }
 
     // Check for existing user
@@ -181,6 +190,12 @@ export async function authRoutes(app: FastifyInstance) {
         suffix++;
       }
 
+      // Reserved display-name guard — the generated username or the provider
+      // name must not claim "geocreator" unless this is the creator.
+      if (!isCreator(username) && (isReservedDisplayName(username) || isReservedDisplayName(name))) {
+        return reply.status(409).send({ errorCode: 'RESERVED_DISPLAY_NAME', message: 'This display name is reserved' });
+      }
+
       [user] = await db
         .insert(users)
         .values({
@@ -216,7 +231,13 @@ export async function authRoutes(app: FastifyInstance) {
       };
 
       const updates: Record<string, any> = {};
-      if (displayName !== undefined) updates.displayName = displayName || null;
+      if (displayName !== undefined) {
+        // Reserved display-name guard — only the creator may use "geocreator".
+        if (!isCreator((request as any).user.username) && isReservedDisplayName(displayName)) {
+          return reply.status(409).send({ errorCode: 'RESERVED_DISPLAY_NAME', message: 'This display name is reserved' });
+        }
+        updates.displayName = displayName || null;
+      }
       if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl || null;
       if (avatarData !== undefined) {
         // Validate base64 image data URI
@@ -243,6 +264,11 @@ export async function authRoutes(app: FastifyInstance) {
       }
       if (username !== undefined) {
         const trimmed = username.trim();
+        // Reserved display-name guard (W3) — renaming your username to
+        // "geocreator" is the same claim as using it as a display name.
+        if (!isCreator((request as any).user.username) && isReservedDisplayName(trimmed)) {
+          return reply.status(409).send({ errorCode: 'RESERVED_DISPLAY_NAME', message: 'This display name is reserved' });
+        }
         if (trimmed.length < 3) {
           return reply.status(400).send({ errorCode: 'VALIDATION_ERROR', message: 'Username must be at least 3 characters' });
         }
