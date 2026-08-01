@@ -539,6 +539,35 @@ describe('MultiplayerPage (async)', () => {
       unmount();
       expect(mockSetMatchFinishedHandler).toHaveBeenLastCalledWith(null);
     });
+
+    // ── Poll fallback (10s poll delivers the result when the socket event was missed) ──
+    it('transitions to the result screen when the 10s poll returns a completed match', async () => {
+      // Mount lands on the waiting screen; the match:finished event never
+      // arrives (socket disconnected / event missed). Only the 10s poll can
+      // deliver the completed state.
+      mockGet.mockResolvedValueOnce(waitingMatch);
+      mockGet.mockResolvedValueOnce(completedMatch); // the poll tick fetch
+
+      vi.useFakeTimers();
+      try {
+        renderWithRouter();
+
+        // Flush the mount fetch (promise microtasks still run under fake timers).
+        await act(async () => {});
+        expect(screen.getByText(/you finished!/i)).toBeDefined();
+
+        // Advance one 10s poll tick. The poll callback refetches the match,
+        // sees status='completed', and transitions to the result screen.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_000);
+        });
+
+        expect(screen.getByText(/won/i)).toBeDefined();
+        expect(mockGet).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   // ── Error screen ────────────────────────────────────────────────────────
