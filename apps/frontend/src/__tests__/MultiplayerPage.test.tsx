@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n/i18n';
@@ -26,14 +26,16 @@ vi.mock('../lib/api', () => ({
 }));
 
 // Mock socket — track connectSocket so we can assert the reconnect precondition
-const { mockConnectSocket, mockSetNavigateFn } = vi.hoisted(() => ({
+const { mockConnectSocket, mockSetNavigateFn, mockSetMatchFinishedHandler } = vi.hoisted(() => ({
   mockConnectSocket: vi.fn(),
   mockSetNavigateFn: vi.fn(),
+  mockSetMatchFinishedHandler: vi.fn(),
 }));
 
 vi.mock('../lib/socket', () => ({
   connectSocket: mockConnectSocket,
   setNavigateFn: mockSetNavigateFn,
+  setMatchFinishedHandler: mockSetMatchFinishedHandler,
 }));
 
 // Mock sounds — track calls so we can assert audio feedback
@@ -115,7 +117,9 @@ function renderWithRouter() {
 
 describe('MultiplayerPage (async)', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // resetAllMocks (not clearAllMocks): also drops the once-queue so a failed
+    // test can't leak mockResolvedValueOnce values into the next test.
+    vi.resetAllMocks();
     useAuthStore.setState({
       user: { id: 'user-1', username: 'current_user', email: 'test@test.com', language: 'en', joinCode: '', createdAt: '' },
       token: 'test-token',
@@ -440,6 +444,100 @@ describe('MultiplayerPage (async)', () => {
         );
         expect(screen.getByRole('button', { name: /rematch/i })).toBeEnabled();
       });
+    });
+  });
+
+  // ── Real-time result delivery (match:finished) ─────────────────────────
+  describe('real-time result delivery (match:finished)', () => {
+    const completedMatch = {
+      ...MOCK_MATCH,
+      player1Score: 800,
+      player2Score: 600,
+      player1Finished: true,
+      player2Finished: true,
+      player1StartedAt: new Date().toISOString(),
+      player2StartedAt: new Date().toISOString(),
+      winnerId: 'user-1', // current user wins
+      status: 'completed' as const,
+    };
+    const waitingMatch = {
+      ...MOCK_MATCH,
+      player1Score: 400,
+      player2Score: 300,
+      player1Finished: true,
+      player2Finished: false,
+      player1StartedAt: new Date().toISOString(),
+      status: 'in_progress' as const,
+    };
+
+    it('connects the socket on mount with the auth token', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/start playing/i)).toBeDefined();
+      expect(mockConnectSocket).toHaveBeenCalledWith('test-token');
+    });
+
+    it('registers a match:finished handler on mount and transitions to result when it fires', async () => {
+      // Mount fetch lands on the waiting screen; the handler refetch returns the completed match.
+      mockGet.mockResolvedValueOnce(waitingMatch);
+      mockGet.mockResolvedValueOnce(completedMatch);
+
+      renderWithRouter();
+      expect(await screen.findByText(/you finished!/i)).toBeDefined();
+
+      const handler = mockSetMatchFinishedHandler.mock.calls[0][0];
+      expect(typeof handler).toBe('function');
+
+      await act(async () => {
+        handler({ matchId: 'match-1', status: 'completed' });
+      });
+
+      expect(await screen.findByText(/won/i)).toBeDefined();
+      expect(mockGet).toHaveBeenCalledWith('/matches/match-1');
+    });
+
+    it('ignores match:finished events for a different match', async () => {
+      mockGet.mockResolvedValueOnce(waitingMatch);
+
+      renderWithRouter();
+      await screen.findByText(/you finished!/i);
+
+      const handler = mockSetMatchFinishedHandler.mock.calls[0][0];
+      await act(async () => {
+        handler({ matchId: 'other-match', status: 'completed' });
+      });
+
+      // Still on the waiting screen and no refetch of our match was triggered.
+      expect(screen.getByText(/you finished!/i)).toBeDefined();
+      expect(mockGet).toHaveBeenCalledTimes(1);
+    });
+
+    it('transitions directly to the result screen when finish responds matchEnded=true (no poll tick)', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH); // mount fetch
+      mockPost.mockResolvedValueOnce({ question: MOCK_QUESTION, remainingMs: 0 }); // /play
+      mockPost.mockResolvedValueOnce({ finished: true, matchEnded: true }); // /finish
+      mockGet.mockResolvedValueOnce(completedMatch); // refetch after matchEnded
+
+      renderWithRouter();
+
+      const startBtn = await screen.findByText(/start playing/i);
+      fireEvent.click(startBtn);
+
+      // Result screen appears from the finish response path — well before any
+      // 10s poll tick could fire (findBy default timeout is 1s).
+      expect(await screen.findByText(/won/i, {}, { timeout: 3000 })).toBeDefined();
+    });
+
+    it('clears the match:finished handler on unmount', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH);
+
+      const { unmount } = renderWithRouter();
+      await screen.findByText(/start playing/i);
+
+      unmount();
+      expect(mockSetMatchFinishedHandler).toHaveBeenLastCalledWith(null);
     });
   });
 

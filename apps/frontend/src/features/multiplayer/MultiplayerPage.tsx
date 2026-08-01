@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { api, ApiError } from '../../lib/api';
 import { playCorrect, playWrong, playGameWin, playGameOver, playClick } from '../../lib/sounds';
-import { connectSocket } from '../../lib/socket';
+import { connectSocket, setMatchFinishedHandler } from '../../lib/socket';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -136,6 +136,12 @@ export function MultiplayerPage() {
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Mutable screen mirror so the socket handler reads the CURRENT screen
+  // (avoids stale closures in the stable registered callback).
+  const screenRef = useRef<Screen>('loading');
+  useEffect(() => {
+    screenRef.current = screen;
+  }, [screen]);
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const isPlayer1 = match ? match.player1Id === currentUserId : false;
@@ -198,6 +204,44 @@ export function MultiplayerPage() {
     };
   }, [matchId]);
 
+  // ── Socket: connect on mount + subscribe to match:finished ─────────────
+  // AppShell does NOT own the socket: NotificationBell connects, FriendsPage
+  // disconnects on unmount. React runs unmount cleanups before mount effects
+  // and connectSocket is idempotent, so connecting here is safe. The cleanup
+  // MUST NOT call disconnectSocket() — the socket is a module singleton.
+  // handleMatchFinished is stable (useCallback) so registration never
+  // re-subscribes per render.
+  const handleMatchFinished = useCallback(
+    (payload: { matchId: string; status: string }) => {
+      if (!matchId || payload.matchId !== matchId) return;
+      if (screenRef.current === 'result') return;
+      if (payload.status !== 'completed') return;
+
+      // Canonical state: refetch the match, then transition to the result
+      // screen. The 10s poll on the waiting screen stays as the fallback.
+      api.get<MatchState>(`/matches/${matchId}`)
+        .then((updated) => {
+          if (updated.status === 'completed') {
+            setMatch(updated);
+            setMatchEnded(true);
+            buildResult(updated);
+            setScreen('result');
+          }
+        })
+        .catch(() => {
+          // Missed/failed refetch → the poll effect picks up the completed
+          // state on the next tick.
+        });
+    },
+    [matchId, currentUserId],
+  );
+
+  useEffect(() => {
+    if (token) connectSocket(token);
+    setMatchFinishedHandler(handleMatchFinished);
+    return () => setMatchFinishedHandler(null);
+  }, [token, handleMatchFinished]);
+
   // ── Timer effect ────────────────────────────────────────────────────────
   useEffect(() => {
     if (screen !== 'playing') {
@@ -239,6 +283,8 @@ export function MultiplayerPage() {
         if (data.matchEnded) {
           api.get<MatchState>(`/matches/${matchId}`).then((updated) => {
             setMatch(updated);
+            setMatchEnded(true);
+            setScreen('result');
             buildResult(updated);
           });
         }

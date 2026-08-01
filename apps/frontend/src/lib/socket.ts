@@ -15,10 +15,13 @@ type ChatMessageHandler = (message: ChatMessage) => void;
 type UserStatusHandler = (payload: { userId: string }) => void;
 type NotificationHandler = (notification: Notification) => void;
 
+export type MatchFinishedHandler = (payload: { matchId: string; status: string }) => void;
+
 let onChatMessage: ChatMessageHandler | null = null;
 let onUserOnline: UserStatusHandler | null = null;
 let onUserOffline: UserStatusHandler | null = null;
 let onNotification: NotificationHandler | null = null;
+let onMatchFinished: MatchFinishedHandler | null = null;
 
 // If VITE_API_URL has an /api suffix (common in production), strip it for socket.io
 // Socket.io needs the root server URL, not the API prefix.
@@ -89,6 +92,14 @@ export function connectSocket(token: string): Socket {
     }
   });
 
+  // Registered inside connectSocket so it survives reconnects; the page-scoped
+  // handler is set via setMatchFinishedHandler (never direct socket.on per page).
+  socket.on('match:finished', (data: { matchId: string; status: string }) => {
+    if (onMatchFinished) {
+      onMatchFinished(data);
+    }
+  });
+
   return socket;
 }
 
@@ -119,6 +130,10 @@ export function setUserOfflineHandler(handler: UserStatusHandler) {
 
 export function setNotificationHandler(handler: NotificationHandler) {
   onNotification = handler;
+}
+
+export function setMatchFinishedHandler(handler: MatchFinishedHandler | null) {
+  onMatchFinished = handler;
 }
 
 

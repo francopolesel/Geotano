@@ -244,6 +244,49 @@ describe('socket', () => {
 
       expect(handler).toHaveBeenCalledWith(payload);
     });
+
+    it('setMatchFinishedHandler stores and calls handler on match:finished', async () => {
+      const { setMatchFinishedHandler } = await import('../lib/socket');
+
+      const handler = vi.fn();
+      setMatchFinishedHandler(handler);
+
+      const matchFinishedCallback = mockSocket.on.mock.calls.find(
+        (call) => call[0] === 'match:finished',
+      )?.[1];
+      expect(matchFinishedCallback).toBeDefined();
+
+      const payload = { matchId: 'm-1', status: 'completed' };
+      matchFinishedCallback(payload);
+
+      expect(handler).toHaveBeenCalledWith(payload);
+    });
+
+    it('does not throw when handler is not set for match:finished', async () => {
+      const matchFinishedCallback = mockSocket.on.mock.calls.find(
+        (call) => call[0] === 'match:finished',
+      )?.[1];
+
+      expect(matchFinishedCallback).toBeDefined();
+      expect(() => {
+        matchFinishedCallback({ matchId: 'm-1', status: 'completed' });
+      }).not.toThrow();
+    });
+
+    it('setMatchFinishedHandler(null) clears the handler so the event is a no-op', async () => {
+      const { setMatchFinishedHandler } = await import('../lib/socket');
+
+      const handler = vi.fn();
+      setMatchFinishedHandler(handler);
+      setMatchFinishedHandler(null);
+
+      const matchFinishedCallback = mockSocket.on.mock.calls.find(
+        (call) => call[0] === 'match:finished',
+      )?.[1];
+      matchFinishedCallback({ matchId: 'm-1', status: 'completed' });
+
+      expect(handler).not.toHaveBeenCalled();
+    });
   });
 
   // ─── VITE_API_URL / SOCKET_URL ──────────────────────────────────────────────
