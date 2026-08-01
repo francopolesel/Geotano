@@ -306,6 +306,7 @@
   "multiplayer.result.reason.timer": "Se acabó el tiempo",
   "multiplayer.result.reason.finished": "Todas las preguntas respondidas",
   "multiplayer.result.reason.disconnected": "Oponente se desconectó",
+  "multiplayer.rematch": "Revancha",
   "multiplayer.backToHome": "Volver al inicio",
   "multiplayer.cancel": "Cancelar",
   "multiplayer.matchNotFound": "Partida no encontrada",

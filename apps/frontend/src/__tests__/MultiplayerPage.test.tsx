@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n/i18n';
 import { useAuthStore } from '../store/authStore';
+import { ApiError } from '../lib/api';
 
 // Mock api — use vi.hoisted to avoid hoisting issues
 const { mockGet, mockPost } = vi.hoisted(() => ({
@@ -15,11 +16,24 @@ vi.mock('../lib/api', () => ({
   api: { get: mockGet, post: mockPost, patch: vi.fn() },
   ApiError: class ApiError extends Error {
     status: number;
-    constructor(message: string, status: number) {
+    errorCode?: string;
+    constructor(message: string, status: number, errorCode?: string) {
       super(message);
       this.status = status;
+      this.errorCode = errorCode;
     }
   },
+}));
+
+// Mock socket — track connectSocket so we can assert the reconnect precondition
+const { mockConnectSocket, mockSetNavigateFn } = vi.hoisted(() => ({
+  mockConnectSocket: vi.fn(),
+  mockSetNavigateFn: vi.fn(),
+}));
+
+vi.mock('../lib/socket', () => ({
+  connectSocket: mockConnectSocket,
+  setNavigateFn: mockSetNavigateFn,
 }));
 
 // Mock sounds — track calls so we can assert audio feedback
@@ -43,6 +57,7 @@ const MOCK_MATCH = {
   player1Id: 'user-1',
   player2Id: 'user-2',
   gameModeSlug: 'flag-guess',
+  durationMinutes: 3,
   player1Score: 0,
   player2Score: 0,
   player1Finished: false,
@@ -315,6 +330,116 @@ describe('MultiplayerPage (async)', () => {
       renderWithRouter();
 
       expect(await screen.findByText(/tie/i)).toBeDefined();
+    });
+
+    // ── Rematch ──────────────────────────────────────────────────────────
+    describe('rematch', () => {
+      const makeCompletedMatch = (winnerId: string | null, myScore = 800, oppScore = 600) => ({
+        ...MOCK_MATCH,
+        player1Score: myScore,
+        player2Score: oppScore,
+        player1Finished: true,
+        player2Finished: true,
+        player1StartedAt: new Date().toISOString(),
+        player2StartedAt: new Date().toISOString(),
+        winnerId,
+        status: 'completed' as const,
+      });
+      const winMatch = makeCompletedMatch('user-1');
+
+      const resultFixtures: Array<[string, ReturnType<typeof makeCompletedMatch>]> = [
+        ['win', makeCompletedMatch('user-1', 800, 600)],
+        ['lose', makeCompletedMatch('user-2', 400, 700)],
+        ['tie', makeCompletedMatch(null, 500, 500)],
+      ];
+
+      it.each(resultFixtures)(
+        'renders the Rematch button before Back to Home on a %s result',
+        async (_outcome: string, match: ReturnType<typeof makeCompletedMatch>) => {
+          mockGet.mockResolvedValueOnce(match);
+
+          renderWithRouter();
+
+          const rematchBtn = await screen.findByRole('button', { name: /rematch/i });
+          expect(rematchBtn).toBeEnabled();
+
+          const buttons = screen.getAllByRole('button');
+          const labels = buttons.map((b) => b.textContent?.trim());
+          expect(labels.indexOf('Rematch')).toBeGreaterThan(-1);
+          expect(labels.indexOf('Back to Home')).toBeGreaterThan(labels.indexOf('Rematch'));
+        },
+      );
+
+      it('does not render the Rematch button before a match completes', async () => {
+        mockGet.mockResolvedValueOnce(MOCK_MATCH); // pending match → start screen
+
+        renderWithRouter();
+
+        expect(await screen.findByText(/start playing/i)).toBeDefined();
+        expect(screen.queryByRole('button', { name: /rematch/i })).toBeNull();
+      });
+
+      it('reconnects the socket and posts the challenge payload when tapped', async () => {
+        mockGet.mockResolvedValueOnce(winMatch);
+        mockPost.mockResolvedValueOnce({ challengeId: 'ch-2' });
+
+        renderWithRouter();
+
+        const rematchBtn = await screen.findByRole('button', { name: /rematch/i });
+        fireEvent.click(rematchBtn);
+
+        expect(await screen.findByText(/waiting for response/i)).toBeDefined();
+        expect(mockConnectSocket).toHaveBeenCalledWith('test-token');
+        expect(mockPost).toHaveBeenCalledWith('/matches/challenge', {
+          receiverId: 'user-2',
+          gameModeSlug: 'flag-guess',
+          durationMinutes: 3,
+        });
+      });
+
+      it('disables the button while sending and sends exactly one challenge on double tap', async () => {
+        mockGet.mockResolvedValueOnce(winMatch);
+        mockPost.mockReturnValueOnce(new Promise(() => {})); // never settles
+
+        renderWithRouter();
+
+        const rematchBtn = await screen.findByRole('button', { name: /rematch/i });
+        fireEvent.click(rematchBtn);
+        fireEvent.click(rematchBtn);
+
+        const waitingBtn = await screen.findByRole('button', { name: /waiting for response/i });
+        expect(waitingBtn).toBeDisabled();
+        const challengeCalls = mockPost.mock.calls.filter(([url]) => url === '/matches/challenge');
+        expect(challengeCalls).toHaveLength(1);
+      });
+
+      it('maps NOT_FRIENDS to challengeNotFriends and re-enables the button for retry', async () => {
+        mockGet.mockResolvedValueOnce(winMatch);
+        mockPost.mockRejectedValueOnce(new ApiError('Not friends', 403, 'NOT_FRIENDS'));
+
+        renderWithRouter();
+
+        const rematchBtn = await screen.findByRole('button', { name: /rematch/i });
+        fireEvent.click(rematchBtn);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('You can only challenge friends.');
+        expect(screen.getByRole('button', { name: /rematch/i })).toBeEnabled();
+      });
+
+      it('maps generic errors to challengeError and re-enables the button for retry', async () => {
+        mockGet.mockResolvedValueOnce(winMatch);
+        mockPost.mockRejectedValueOnce(new Error('network down'));
+
+        renderWithRouter();
+
+        const rematchBtn = await screen.findByRole('button', { name: /rematch/i });
+        fireEvent.click(rematchBtn);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'Could not send the challenge. Try again.',
+        );
+        expect(screen.getByRole('button', { name: /rematch/i })).toBeEnabled();
+      });
     });
   });
 

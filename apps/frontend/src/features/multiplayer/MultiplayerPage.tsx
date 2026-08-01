@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
-import { api } from '../../lib/api';
+import { api, ApiError } from '../../lib/api';
 import { playCorrect, playWrong, playGameWin, playGameOver, playClick } from '../../lib/sounds';
+import { connectSocket } from '../../lib/socket';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -103,6 +104,7 @@ export function MultiplayerPage() {
   const navigate = useNavigate();
   const { matchId } = useParams<{ matchId: string }>();
   const currentUserId = useAuthStore((s) => s.user?.id);
+  const token = useAuthStore((s) => s.token);
 
   // ── State ───────────────────────────────────────────────────────────────
   const [screen, setScreen] = useState<Screen>('loading');
@@ -123,6 +125,10 @@ export function MultiplayerPage() {
     myStats: { correctCount: number; totalAnswered: number; maxStreak: number };
     opponentStats: { correctCount: number; totalAnswered: number; maxStreak: number };
   } | null>(null);
+
+  // Rematch state (result screen)
+  const [rematchState, setRematchState] = useState<'idle' | 'sending' | 'waiting' | 'error'>('idle');
+  const [rematchError, setRematchError] = useState<string | null>(null);
 
   // Answer feedback state
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -428,6 +434,39 @@ export function MultiplayerPage() {
     navigate('/');
   };
 
+  // ── Rematch ─────────────────────────────────────────────────────────────
+  // Re-establishes the socket BEFORE sending: the socket is dead on the
+  // result screen (FriendsPage disconnects on unmount, NotificationBell never
+  // re-runs, MultiplayerPage never connects), so without this the
+  // `challenge:accepted` event never reaches the client and the rematch would
+  // stay stuck in "waiting" (design Decision 4).
+  const handleRematch = useCallback(async () => {
+    if (rematchState === 'sending' || rematchState === 'waiting') return;
+    if (!token || !opponent || !match) return;
+
+    connectSocket(token);
+
+    setRematchError(null);
+    setRematchState('sending');
+    try {
+      await api.post('/matches/challenge', {
+        receiverId: opponent.id,
+        gameModeSlug: match.gameModeSlug,
+        durationMinutes: match.durationMinutes,
+      });
+      setRematchState('waiting');
+    } catch (err) {
+      const errorCode = err instanceof ApiError ? err.errorCode : undefined;
+      const known: Record<string, string> = {
+        NOT_FRIENDS: t('multiplayer.challengeNotFriends'),
+        CHALLENGE_IN_FLIGHT: t('multiplayer.challengeInFlight'),
+        PENDING_CHALLENGE: t('multiplayer.challengePending'),
+      };
+      setRematchError((errorCode && known[errorCode]) || t('multiplayer.challengeError'));
+      setRematchState('error');
+    }
+  }, [rematchState, opponent, match, token, t]);
+
   // ── Screen content ─────────────────────────────────────────────────────
   let content: React.ReactNode = null;
 
@@ -554,8 +593,23 @@ export function MultiplayerPage() {
           </div>
 
           <button
+            onClick={handleRematch}
+            disabled={rematchState === 'sending' || rematchState === 'waiting'}
+            className="mt-8 w-full min-h-[52px] rounded-lg bg-[var(--color-primary)] px-4 py-3 text-base font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
+          >
+            {rematchState === 'sending' || rematchState === 'waiting'
+              ? t('multiplayer.waitingResponse')
+              : t('multiplayer.rematch')}
+          </button>
+          {rematchError && (
+            <p role="alert" className="mt-2 text-xs text-[var(--color-destructive)]">
+              {rematchError}
+            </p>
+          )}
+
+          <button
             onClick={handleGoHome}
-            className="mt-8 w-full min-h-[52px] rounded-lg border border-[var(--color-border)] px-4 py-3 text-base font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
+            className="mt-3 w-full min-h-[52px] rounded-lg border border-[var(--color-border)] px-4 py-3 text-base font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
           >
             {t('multiplayer.backToHome')}
           </button>

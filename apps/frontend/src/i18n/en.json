@@ -306,6 +306,7 @@
   "multiplayer.result.reason.timer": "Time ran out",
   "multiplayer.result.reason.finished": "All questions answered",
   "multiplayer.result.reason.disconnected": "Opponent disconnected",
+  "multiplayer.rematch": "Rematch",
   "multiplayer.backToHome": "Back to Home",
   "multiplayer.cancel": "Cancel",
   "multiplayer.matchNotFound": "Match not found",
