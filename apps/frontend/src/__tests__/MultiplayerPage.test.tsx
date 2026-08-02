@@ -518,6 +518,28 @@ describe('MultiplayerPage (async)', () => {
       expect(mockConnectSocket).toHaveBeenCalledWith('test-token');
     });
 
+    it('registers the match:finished handler exactly once across re-renders (stable mount effect)', async () => {
+      mockGet.mockResolvedValueOnce(MOCK_MATCH); // pending match → start screen
+      mockPost.mockResolvedValueOnce({ question: MOCK_QUESTION, remainingMs: 180_000 });
+
+      renderWithRouter();
+
+      // Mount registers the handler exactly once with a function.
+      expect(await screen.findByText(/start playing/i)).toBeDefined();
+      expect(mockSetMatchFinishedHandler).toHaveBeenCalledTimes(1);
+      expect(mockSetMatchFinishedHandler).toHaveBeenLastCalledWith(expect.any(Function));
+
+      // Clicking "Start" drives several setState updates → many re-renders.
+      // Because handleMatchFinished is identity-stable (useCallback via
+      // buildResult), the mount effect must NOT re-run and therefore must NOT
+      // re-register the handler on every render.
+      fireEvent.click(screen.getByText(/start playing/i));
+      expect(await screen.findByText('What is the capital of France?')).toBeDefined();
+      await act(async () => {});
+
+      expect(mockSetMatchFinishedHandler).toHaveBeenCalledTimes(1);
+    });
+
     it('registers a match:finished handler on mount and transitions to result when it fires', async () => {
       // Mount fetch lands on the waiting screen; the handler refetch returns the completed match.
       mockGet.mockResolvedValueOnce(waitingMatch);
