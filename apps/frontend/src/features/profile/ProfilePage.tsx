@@ -137,146 +137,168 @@ export function ProfilePage() {
 
   const earnedCount = achievements.filter((a) => a.earnedAt).length;
 
+  const isOtherProfile = friendshipStatus !== 'self' && currentUser?.id !== user.id;
+
+  // Renders the friend action for the given friendship status. Shared between
+  // the desktop (inline, right-aligned) and mobile (own full-width row) wrappers.
+  const renderFriendAction = () => {
+    if (friendshipStatus === 'none') {
+      return (
+        <button
+          onClick={async () => {
+            setActionLoading(true);
+            setActionFeedback(null);
+            try {
+              await sendRequest(user.username);
+              setActionFeedback(t('profile.requestSent'));
+              queryClient.setQueryData(['profile', userId], {
+                ...data,
+                friendshipStatus: 'outgoing' as FriendshipStatus,
+              });
+            } catch {
+              setActionFeedback(null);
+            } finally {
+              setActionLoading(false);
+            }
+          }}
+          disabled={actionLoading}
+          className="min-h-[44px] w-full sm:w-auto rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
+        >
+          {actionLoading ? t('common.loading') : t('profile.addFriend')}
+        </button>
+      );
+    }
+
+    if (friendshipStatus === 'accepted') {
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {t('profile.friendshipAccepted')}
+        </span>
+      );
+    }
+
+    if (friendshipStatus === 'outgoing') {
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+          {t('profile.friendshipOutgoing')}
+        </span>
+      );
+    }
+
+    if (friendshipStatus === 'incoming' && friendRequestId) {
+      return (
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              setActionLoading(true);
+              try {
+                await acceptRequest(friendRequestId);
+                queryClient.setQueryData(['profile', userId], {
+                  ...data,
+                  friendshipStatus: 'accepted' as FriendshipStatus,
+                });
+              } finally {
+                setActionLoading(false);
+              }
+            }}
+            disabled={actionLoading}
+            className="min-h-[44px] flex-1 sm:flex-none rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
+          >
+            {t('profile.acceptRequest')}
+          </button>
+          <button
+            onClick={async () => {
+              setActionLoading(true);
+              try {
+                await declineRequest(friendRequestId);
+                queryClient.setQueryData(['profile', userId], {
+                  ...data,
+                  friendshipStatus: 'none' as FriendshipStatus,
+                  friendRequestId: null,
+                });
+              } finally {
+                setActionLoading(false);
+              }
+            }}
+            disabled={actionLoading}
+            className="min-h-[44px] flex-1 sm:flex-none rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] disabled:opacity-50"
+          >
+            {t('profile.rejectRequest')}
+          </button>
+        </div>
+      );
+    }
+
+    if (friendshipStatus === 'blocked') {
+      return (
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+            {t('friends.blocked')}
+          </span>
+          <button
+            onClick={async () => {
+              setActionLoading(true);
+              try {
+                await unblockUser(user.id);
+                queryClient.setQueryData(['profile', userId], {
+                  ...data,
+                  friendshipStatus: 'none' as FriendshipStatus,
+                });
+              } finally {
+                setActionLoading(false);
+              }
+            }}
+            disabled={actionLoading}
+            className="min-h-[44px] rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] disabled:opacity-50"
+          >
+            {actionLoading ? t('common.loading') : t('profile.unblock')}
+          </button>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-12">
       {/* User info header */}
-      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6">
-        <UserAvatar
-          avatarUrl={user.avatarUrl}
-          username={user.username}
-          displayName={user.displayName}
-          className="h-16 w-16 text-2xl"
-          onClick={user.avatarUrl ? () => setLightboxUrl(user.avatarUrl!) : undefined}
-        />
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold text-[var(--color-foreground)]">
-            {user.displayName ?? user.username}
-            {user.isVerified && <VerifiedBadge className="ml-1" />}
-          </h1>
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            @{user.username}
-          </p>
-          {user.bio && (
-            <p className="mt-2 max-w-md break-words text-sm text-[var(--color-muted-foreground)]">
-              {user.bio}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6">
+        {/* Grid: [avatar | name/bio+solid action] on desktop →
+            [avatar | name/bio] over [full-width action] on mobile */}
+        <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-4 sm:grid-cols-[auto_1fr_auto]">
+          <UserAvatar
+            avatarUrl={user.avatarUrl}
+            username={user.username}
+            displayName={user.displayName}
+            className="h-16 w-16 shrink-0 text-2xl"
+            onClick={user.avatarUrl ? () => setLightboxUrl(user.avatarUrl!) : undefined}
+          />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-[var(--color-foreground)]">
+              {user.displayName ?? user.username}
+              {user.isVerified && <VerifiedBadge className="ml-1" />}
+            </h1>
+            <p className="text-sm text-[var(--color-muted-foreground)]">
+              @{user.username}
             </p>
-          )}
-        </div>
-
-        {/* Friend action / badge — only shown for OTHER users' profiles */}
-        {friendshipStatus !== 'self' && currentUser?.id !== user.id && (
-          <div className="ml-auto shrink-0">
-            {friendshipStatus === 'none' && (
-              <button
-                onClick={async () => {
-                  setActionLoading(true);
-                  setActionFeedback(null);
-                  try {
-                    await sendRequest(user.username);
-                    setActionFeedback(t('profile.requestSent'));
-                    // Optimistically update the cached profile
-                    queryClient.setQueryData(['profile', userId], {
-                      ...data,
-                      friendshipStatus: 'outgoing' as FriendshipStatus,
-                    });
-                  } catch {
-                    setActionFeedback(null);
-                  } finally {
-                    setActionLoading(false);
-                  }
-                }}
-                disabled={actionLoading}
-                className="min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
-              >
-                {actionLoading ? t('common.loading') : t('profile.addFriend')}
-              </button>
-            )}
-
-            {friendshipStatus === 'accepted' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                {t('profile.friendshipAccepted')}
-              </span>
-            )}
-
-            {friendshipStatus === 'outgoing' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                {t('profile.friendshipOutgoing')}
-              </span>
-            )}
-
-            {friendshipStatus === 'incoming' && friendRequestId && (
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    setActionLoading(true);
-                    try {
-                      await acceptRequest(friendRequestId);
-                      queryClient.setQueryData(['profile', userId], {
-                        ...data,
-                        friendshipStatus: 'accepted' as FriendshipStatus,
-                      });
-                    } finally {
-                      setActionLoading(false);
-                    }
-                  }}
-                  disabled={actionLoading}
-                  className="min-h-[44px] rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-50"
-                >
-                  {t('profile.acceptRequest')}
-                </button>
-                <button
-                  onClick={async () => {
-                    setActionLoading(true);
-                    try {
-                      await declineRequest(friendRequestId);
-                      queryClient.setQueryData(['profile', userId], {
-                        ...data,
-                        friendshipStatus: 'none' as FriendshipStatus,
-                        friendRequestId: null,
-                      });
-                    } finally {
-                      setActionLoading(false);
-                    }
-                  }}
-                  disabled={actionLoading}
-                  className="min-h-[44px] rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] disabled:opacity-50"
-                >
-                  {t('profile.rejectRequest')}
-                </button>
-              </div>
-            )}
-
-            {friendshipStatus === 'blocked' && (
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                  {t('friends.blocked')}
-                </span>
-                <button
-                  onClick={async () => {
-                    setActionLoading(true);
-                    try {
-                      await unblockUser(user.id);
-                      queryClient.setQueryData(['profile', userId], {
-                        ...data,
-                        friendshipStatus: 'none' as FriendshipStatus,
-                      });
-                    } finally {
-                      setActionLoading(false);
-                    }
-                  }}
-                  disabled={actionLoading}
-                  className="min-h-[44px] rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] disabled:opacity-50"
-                >
-                  {actionLoading ? t('common.loading') : t('profile.unblock')}
-                </button>
-              </div>
+            {user.bio && (
+              <p className="mt-2 max-w-md break-words text-sm text-[var(--color-muted-foreground)]">
+                {user.bio}
+              </p>
             )}
           </div>
-        )}
 
+          {/* Friend action — inline right on desktop, own full-width row on mobile */}
+          {isOtherProfile && (
+            <div className="col-span-2 flex justify-center border-t border-[var(--color-border)] pt-4 sm:col-span-1 sm:justify-end sm:border-0 sm:pt-0">
+              {renderFriendAction()}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Friend action feedback */}
