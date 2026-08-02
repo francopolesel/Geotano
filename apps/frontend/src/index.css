@@ -43,6 +43,14 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: system-ui, -apple-system, sans-serif;
+  /* Prevent unintended horizontal page scroll (e.g. overflowing tables/cards
+     on small screens). Content that must scroll (tables) is confined with its
+     own `overflow-x-auto` container. */
+  overflow-x: clip;
+}
+
+html {
+  overflow-x: clip;
 }
 
 /* ─── iOS safe area bottom padding ── */

@@ -68,7 +68,7 @@ export function RankingsPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full min-w-0 max-w-4xl">
       <h1 className="mb-6 text-2xl font-bold text-[var(--color-foreground)]">
         {t('rankings.title')}
       </h1>
@@ -185,7 +185,7 @@ export function RankingsPage() {
               {t('rankings.noData')}
             </p>
           ) : (
-            <div className="-mx-4 sm:mx-0 overflow-x-auto rounded-none sm:rounded-lg border-x-0 sm:border-x border-[var(--color-border)]">
+            <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--color-border)] bg-[var(--color-muted)]/50">
@@ -221,18 +221,18 @@ export function RankingsPage() {
                             <UserAvatar
                               avatarUrl={entry.avatarUrl}
                               username={entry.username}
-                              className="h-8 w-8 text-xs"
+                              className="h-8 w-8 shrink-0 text-xs"
                             />
-                            <div>
+                            <div className="min-w-0">
                               <span
-                                className={`text-sm font-medium ${
+                                className={`truncate text-sm font-medium ${
                                   isCurrentUser
                                     ? 'text-[var(--color-primary)]'
                                     : 'text-[var(--color-foreground)]'
                                 }`}
                               >
-                                {entry.username}
-                                {entry.isVerified && <VerifiedBadge className="ml-1" />}
+                                {entry.username}{" "}
+                                {entry.isVerified && <VerifiedBadge className="ml-0.5" />}
                               </span>
                               {isCurrentUser && (
                                 <span className="ml-2 rounded bg-[var(--color-primary)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-primary)]">
