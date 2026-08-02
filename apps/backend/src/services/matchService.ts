@@ -517,15 +517,24 @@ export async function submitAnswer(
     streakAtAnswer: newStreak,
   });
 
-  const finished = answeredCount + 1 >= order.length;
-  const currentScore = isPlayer1 ? match.player1Score : match.player2Score;
-  const newScore = currentScore + scoreEarned;
+  // The finished flag is monotonic: once a player finishes (via finishMatch or
+  // time expiry) it must never be lowered by a late answer, or the match could
+  // never complete. OR the existing flag in from the snapshot.
+  const alreadyFinished = isPlayer1 ? match.player1Finished : match.player2Finished;
+  const finished = alreadyFinished || answeredCount + 1 >= order.length;
 
-  // Update match score + finished flag (single UPDATE)
+  const scoreCol = isPlayer1 ? matchGames.player1Score : matchGames.player2Score;
+
+  // Update match score + finished flag (single UPDATE).
+  // The score is incremented ATOMICALLY against the DB value (raw `sql`), not
+  // computed from the stale snapshot: two concurrent answers from the same
+  // player each ADD to the current DB value instead of overwriting the other's
+  // write (lost update). completeMatchIfBothFinished re-reads both scores fresh,
+  // so the winner is still computed from authoritative post-increment values.
   await db
     .update(matchGames)
     .set({
-      [isPlayer1 ? 'player1Score' : 'player2Score']: newScore,
+      [isPlayer1 ? 'player1Score' : 'player2Score']: sql`${scoreCol} + ${scoreEarned}`,
       [isPlayer1 ? 'player1Finished' : 'player2Finished']: finished,
     })
     .where(eq(matchGames.id, matchId));

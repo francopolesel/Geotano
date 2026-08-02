@@ -609,6 +609,54 @@ describe('submitAnswer', () => {
     expect(lastResult!.matchEnded).toBe(true);
     expect(lastResult!.nextQuestion).toBeNull();
   });
+
+  it('FU2: increments the score atomically in the UPDATE instead of overwriting from the stale snapshot', async () => {
+    // Two concurrent requests from the same player both read player1Score=0 from
+    // the same snapshot. The fix must set the column to a raw `sql` INCREMENT
+    // against the DB value (not `currentScore + scoreEarned`) so the second
+    // write ADDS to whatever the first committed instead of overwriting it.
+    pushSubmitAnswerMocks(0, true, 0, true, 50, false);
+    await submitAnswer('m-1', 'user-1', 0);
+    pushSubmitAnswerMocks(1, true, 0, true, 50, false);
+    await submitAnswer('m-1', 'user-1', 0);
+
+    // The score UPDATE is the `.set()` call carrying the player1Score key.
+    const scoreSets = mockDb.set.mock.calls.filter((c) => c[0] && 'player1Score' in c[0]);
+
+    expect(scoreSets).toHaveLength(2);
+    for (const call of scoreSets) {
+      // Must be a raw SQL expression (an object), NOT a plain precomputed number
+      // (which would be frozen from the stale snapshot and cause a lost update).
+      expect(typeof call[0].player1Score).toBe('object');
+      expect(call[0].player1Score).not.toEqual(0 + 100);
+    }
+  });
+
+  it('FU3: a late answer after the player already finished keeps the finished flag true', async () => {
+    // The player finished earlier (via finishMatch/timeout → player1Finished=true).
+    // A late answer then arrives for a question that does NOT exhaust the order, so
+    // `answeredCount + 1 >= order.length` is false. The flag must stay true — the
+    // finished boolean is OR'd with the player's existing flag, never lowered.
+    pendingResults.push([createMockMatch({
+      player1Finished: true,
+      player1Score: 200,
+      player2Finished: false,
+      player2Score: 0,
+    })]); // getFullMatch
+    pendingResults.push([{ streakAtAnswer: 100 }]); // prev answers (not finishing: 1+1 < 50)
+    pendingResults.push(undefined); // insert answer
+    pendingResults.push(undefined); // update match (score + finished)
+    pendingResults.push(makeFreshState({ player1Finished: true })); // finished=true → fresh re-read → other not finished
+
+    const result = await submitAnswer('m-1', 'user-1', 0);
+
+    expect(result).not.toBeNull();
+    expect(result!.finished).toBe(true);
+
+    const scoreSet = mockDb.set.mock.calls.find((c) => c[0] && 'player1Finished' in c[0]);
+    expect(scoreSet).toBeDefined();
+    expect(scoreSet![0].player1Finished).toBe(true);
+  });
 });
 
 // ===================================================================
