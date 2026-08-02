@@ -224,21 +224,23 @@ export function RankingsPage() {
                               className="h-8 w-8 shrink-0 text-xs"
                             />
                             <div className="min-w-0">
-                              <span
-                                className={`block truncate text-sm font-medium ${
-                                  isCurrentUser
-                                    ? 'text-[var(--color-primary)]'
-                                    : 'text-[var(--color-foreground)]'
-                                }`}
-                              >
-                                {entry.username}{" "}
-                                {entry.isVerified && <VerifiedBadge className="ml-0.5" />}
-                              </span>
-                              {isCurrentUser && (
-                                <span className="mt-0.5 ml-2 inline-block rounded bg-[var(--color-primary)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-primary)]">
-                                  {t('rankings.you')}
+                              <div className="flex min-w-0 items-center gap-1">
+                                <span
+                                  className={`min-w-0 truncate text-sm font-medium ${
+                                    isCurrentUser
+                                      ? 'text-[var(--color-primary)]'
+                                      : 'text-[var(--color-foreground)]'
+                                  }`}
+                                >
+                                  {entry.username}
                                 </span>
-                              )}
+                                {entry.isVerified && <VerifiedBadge className="shrink-0" />}
+                                {isCurrentUser && (
+                                  <span className="shrink-0 rounded bg-[var(--color-primary)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-primary)]">
+                                    {t('rankings.you')}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
