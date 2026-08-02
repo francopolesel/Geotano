@@ -185,17 +185,17 @@ export function RankingsPage() {
               {t('rankings.noData')}
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
-              <table className="w-full text-sm">
+            <div className="overflow-hidden rounded-lg border border-[var(--color-border)]">
+              <table className="w-full table-fixed text-sm">
                 <thead>
                   <tr className="border-b border-[var(--color-border)] bg-[var(--color-muted)]/50">
-                    <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium uppercase text-[var(--color-muted-foreground)] w-8 sm:w-auto">
+                    <th className="w-8 px-3 sm:px-4 py-2.5 text-left text-xs font-medium uppercase text-[var(--color-muted-foreground)] sm:w-auto">
                       #
                     </th>
-                    <th className="px-3 sm:px-4 py-2.5 text-left text-xs font-medium uppercase text-[var(--color-muted-foreground)]">
+                    <th className="px-3 py-2.5 text-left text-xs font-medium uppercase text-[var(--color-muted-foreground)] sm:px-4">
                       {t('rankings.player')}
                     </th>
-                    <th className="px-3 sm:px-4 py-2.5 text-right text-xs font-medium uppercase text-[var(--color-muted-foreground)] whitespace-nowrap">
+                    <th className="w-20 px-3 py-2.5 text-right text-xs font-medium uppercase text-[var(--color-muted-foreground)] whitespace-nowrap sm:w-40 sm:px-4">
                       {t('rankings.score')}
                     </th>
                   </tr>
@@ -213,10 +213,10 @@ export function RankingsPage() {
                             : 'hover:bg-[var(--color-muted)]/30'
                         }`}
                       >
-                        <td className="px-3 sm:px-4 py-3 font-mono text-xs text-[var(--color-muted-foreground)]">
+                        <td className="w-8 px-3 py-3 font-mono text-xs text-[var(--color-muted-foreground)] sm:w-auto sm:px-4">
                           {entry.rank}
                         </td>
-                        <td className="px-3 sm:px-4 py-3">
+                        <td className="px-3 py-3 sm:px-4">
                           <div className="flex items-center gap-3">
                             <UserAvatar
                               avatarUrl={entry.avatarUrl}
@@ -225,7 +225,7 @@ export function RankingsPage() {
                             />
                             <div className="min-w-0">
                               <span
-                                className={`truncate text-sm font-medium ${
+                                className={`block truncate text-sm font-medium ${
                                   isCurrentUser
                                     ? 'text-[var(--color-primary)]'
                                     : 'text-[var(--color-foreground)]'
@@ -235,40 +235,42 @@ export function RankingsPage() {
                                 {entry.isVerified && <VerifiedBadge className="ml-0.5" />}
                               </span>
                               {isCurrentUser && (
-                                <span className="ml-2 rounded bg-[var(--color-primary)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-primary)]">
+                                <span className="mt-0.5 ml-2 inline-block rounded bg-[var(--color-primary)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-primary)]">
                                   {t('rankings.you')}
                                 </span>
                               )}
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 sm:px-4 py-3 text-right">
-                          <div className="flex flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+                        <td className="w-20 px-3 py-3 text-right sm:w-40 sm:px-4">
+                          <div className="flex flex-col items-end justify-end gap-0.5 whitespace-nowrap sm:flex-row sm:items-center sm:gap-2">
                             <span className="font-mono text-sm font-semibold text-[var(--color-foreground)]">
                               {entry.score.toLocaleString()}
                             </span>
                             {!mode && entry.gameModeSlug && (() => {
                               const { base, variant } = parseModeSlug(entry.gameModeSlug!);
                               const baseKey = MODE_SLUG_TO_KEY[base];
+                              // Mode badge only on sm+ — on mobile it would inflate the
+                              // score column and hide the score behind a horizontal scroll.
                               if (!baseKey) {
                                 return (
-                                  <span className="rounded bg-[var(--color-muted)] px-1 py-0.5 text-[9px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                  <span className="hidden rounded bg-[var(--color-muted)] px-1 py-0.5 text-[9px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap sm:inline-block">
                                     {entry.gameModeSlug}
                                   </span>
                                 );
                               }
                               return (
-                                <div className="flex items-center gap-0.5 sm:gap-1">
-                                  <span className="rounded bg-[var(--color-muted)] px-1 py-0.5 text-[9px] sm:text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                <div className="hidden items-center gap-0.5 sm:flex sm:gap-1">
+                                  <span className="rounded bg-[var(--color-muted)] px-1 py-0.5 text-[9px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap sm:text-[10px]">
                                     {t(baseKey)}
                                   </span>
                                   {variant === 'hardcore' && (
-                                    <span className="rounded bg-red-600 px-1 py-0.5 text-[9px] sm:text-[10px] font-medium text-white whitespace-nowrap">
+                                    <span className="rounded bg-red-600 px-1 py-0.5 text-[9px] font-medium text-white whitespace-nowrap sm:text-[10px]">
                                       🔥{t('modes.variantHardcore')}
                                     </span>
                                   )}
                                   {variant === 'unlimited' && (
-                                    <span className="rounded bg-[var(--color-muted)] px-1 py-0.5 text-[9px] sm:text-[10px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap">
+                                    <span className="rounded bg-[var(--color-muted)] px-1 py-0.5 text-[9px] font-medium text-[var(--color-muted-foreground)] whitespace-nowrap sm:text-[10px]">
                                       {t('modes.variantUnlimited')}
                                     </span>
                                   )}
