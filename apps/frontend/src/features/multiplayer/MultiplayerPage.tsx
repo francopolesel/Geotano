@@ -206,6 +206,31 @@ export function MultiplayerPage() {
     };
   }, [matchId]);
 
+  // ── Helper: build result ────────────────────────────────────────────────
+  // Memoized (only reads currentUserId) so it stays identity-stable and can be
+  // a safe dependency of the stable match:finished handler. Without this,
+  // passing a fresh function each render into handleMatchFinished would be an
+  // exhaustive-deps footgun.
+  const buildResult = useCallback(
+    (m: MatchState) => {
+      const isP1 = m.player1Id === currentUserId;
+      const myScore = isP1 ? m.player1Score : m.player2Score;
+      const oppScore = isP1 ? m.player2Score : m.player1Score;
+      const iWon = m.winnerId === currentUserId;
+      const tie = m.winnerId === null;
+
+      setMatchResult({
+        iWon,
+        tie,
+        myScore,
+        opponentScore: oppScore,
+        myStats: { correctCount: 0, totalAnswered: 0, maxStreak: 0 },
+        opponentStats: { correctCount: 0, totalAnswered: 0, maxStreak: 0 },
+      });
+    },
+    [currentUserId],
+  );
+
   // ── Socket: connect on mount + subscribe to match:finished ─────────────
   // AppShell does NOT own the socket: NotificationBell connects, FriendsPage
   // disconnects on unmount. React runs unmount cleanups before mount effects
@@ -235,7 +260,7 @@ export function MultiplayerPage() {
           // state on the next tick.
         });
     },
-    [matchId, currentUserId],
+    [matchId, currentUserId, buildResult],
   );
 
   useEffect(() => {
@@ -358,24 +383,6 @@ export function MultiplayerPage() {
       setErrorMsg(t('multiplayer.errorResume'));
       setScreen('error');
     }
-  };
-
-  // ── Helper: build result ────────────────────────────────────────────────
-  const buildResult = (m: MatchState) => {
-    const isP1 = m.player1Id === currentUserId;
-    const myScore = isP1 ? m.player1Score : m.player2Score;
-    const oppScore = isP1 ? m.player2Score : m.player1Score;
-    const iWon = m.winnerId === currentUserId;
-    const tie = m.winnerId === null;
-
-    setMatchResult({
-      iWon,
-      tie,
-      myScore,
-      opponentScore: oppScore,
-      myStats: { correctCount: 0, totalAnswered: 0, maxStreak: 0 },
-      opponentStats: { correctCount: 0, totalAnswered: 0, maxStreak: 0 },
-    });
   };
 
   // ── Result sound (same as single-player: win fanfare / lose tone) ──────
