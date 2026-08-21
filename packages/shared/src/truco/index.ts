@@ -6,6 +6,7 @@
 // sit on top. This barrel is the only place that re-exports them together.
 
 export * from './deck.js';
+export * from './engine.js';
 export * from './envido.js';
 export * from './errors.js';
 export * from './events.js';

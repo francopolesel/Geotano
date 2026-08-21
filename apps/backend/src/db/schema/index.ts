@@ -12,3 +12,4 @@ export { userAchievements } from './userAchievements.js';
 export { matchChallenges } from './matchChallenges.js';
 export { matchGames } from './matchGames.js';
 export { matchAnswers } from './matchAnswers.js';
+export { trucoMatches } from './trucoMatches.js';

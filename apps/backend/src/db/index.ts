@@ -80,6 +80,26 @@ export async function runMigrations(): Promise<void> {
     -- 0008: Verified badge support
     ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "is_verified" boolean NOT NULL DEFAULT false;
     UPDATE "users" SET "is_verified" = true WHERE "username" = 'francopolesel99';
+
+    -- 0009: Truco matches (server-authoritative engine state + optimistic version)
+    CREATE TABLE IF NOT EXISTS "truco_matches" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "code" text NOT NULL,
+      "host_player_id" uuid NOT NULL REFERENCES "users"("id"),
+      "guest_player_id" uuid REFERENCES "users"("id"),
+      "status" text DEFAULT 'waiting' NOT NULL,        -- waiting|ready|playing|finished
+      "target_points" integer DEFAULT 30 NOT NULL,
+      "engine_state" jsonb,                            -- null until start deals hand 1
+      "version" integer DEFAULT 0 NOT NULL,
+      "winner_user_id" uuid REFERENCES "users"("id"),
+      "finished_at" timestamp,
+      "created_at" timestamp DEFAULT now() NOT NULL,
+      "updated_at" timestamp DEFAULT now() NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "truco_matches_code_active_idx"
+      ON "truco_matches" ("code") WHERE "status" IN ('waiting','ready','playing');
+    CREATE INDEX IF NOT EXISTS "truco_matches_host_idx" ON "truco_matches" ("host_player_id");
+    CREATE INDEX IF NOT EXISTS "truco_matches_status_updated_idx" ON "truco_matches" ("status", "updated_at");
   `;
   await queryClient.unsafe(sql);
   console.log('[migrations] Applied pending migrations');
