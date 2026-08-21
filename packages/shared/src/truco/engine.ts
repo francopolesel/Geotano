@@ -27,6 +27,7 @@ import type {
   TrucoActionType,
   TrucoCall,
   TrucoEvent,
+  TrucoPendingBet,
   TrucoPhase,
   TrucoState,
 } from './types.js';
@@ -87,9 +88,15 @@ function rejectForPhase(
 ): EngineResult {
   if (phase === 'hand_end') {
     if (TRUCO_CALLS.includes(actionType)) return rejected('E_TRUCO_WINDOW_CLOSED', state);
-    if (ENVIDO_CALLS.includes(actionType) || actionType === 'play_card') {
-      return rejected('E_ENVIDO_WINDOW_CLOSED', state);
-    }
+    if (ENVIDO_CALLS.includes(actionType)) return rejected('E_ENVIDO_WINDOW_CLOSED', state);
+    if (actionType === 'play_card') return rejected('E_STATE_FORBIDDEN', state);
+  }
+  // A card is never an implicit answer: any open bet blocks play first.
+  if (
+    actionType === 'play_card' &&
+    (phase === 'envido_betting' || phase === 'truco_betting')
+  ) {
+    return rejected('E_AWAITING_OWN_BET', state);
   }
   if (ANSWERS.includes(actionType)) return rejected('E_NO_PENDING_BET', state);
   if (actionType === 'sing_retruco' || actionType === 'sing_vale_cuatro') {
@@ -324,13 +331,13 @@ export function applyAction(state: TrucoState, action: TrucoAction, deps: ApplyD
     case 'sing_truco':
       return singTruco(state, action, events);
 
+    case 'sing_retruco':
+    case 'sing_vale_cuatro':
+      return raiseTruco(state, action, events);
+
     case 'quiero':
     case 'no_quiero':
       return answer(state, action, deps, events);
-
-    default:
-      // Remaining truco raises are layered in a dedicated slice.
-      return rejectForPhase(state.phase, action.type, state);
   }
 }
 
@@ -491,6 +498,34 @@ function singTruco(state: TrucoState, action: Extract<TrucoAction, { type: 'sing
   return { ok: true, state: next, events };
 }
 
+/**
+ * Raise right belongs to the ACCEPTER of the previous bet alone: he is the
+ * responder of the pending bet. Retruco raises over level 2, vale cuatro
+ * over level 3 — anything else is an illegal raise order.
+ */
+function raiseTruco(
+  state: TrucoState,
+  action: Extract<TrucoAction, { type: 'sing_retruco' | 'sing_vale_cuatro' }>,
+  events: TrucoEvent[],
+): EngineResult {
+  const bet = state.truco;
+  if (!bet) return rejected('E_NO_PENDING_BET', state);
+  if (action.actor !== bet.responder) return rejected('E_NOT_RESPONDER', state);
+  if (bet.answered) return rejected('E_ALREADY_ANSWERED', state);
+
+  const requiredLevel = action.type === 'sing_retruco' ? 2 : 3;
+  if (bet.level !== requiredLevel) return rejected('E_ILLEGAL_RAISE_ORDER', state);
+
+  const next = structuredClone(state);
+  next.truco = {
+    level: (bet.level + 1) as TrucoPendingBet['level'],
+    singer: action.actor,
+    responder: otherSlot(action.actor),
+  };
+  pushCallSung(next, action.actor, action.type, events);
+  return { ok: true, state: next, events };
+}
+
 /** Dispatches quiero/no_quiero to the active betting sub-phase. */
 function answer(
   state: TrucoState,
@@ -529,6 +564,23 @@ function answer(
       next.playerToAct = bet.singer; // play resumes where it was interrupted
       return { ok: true, state: next, events };
     }
+
+    // ── no_quiero: hand ends NOW; singer collects level − 1 ──
+    const next = structuredClone(state);
+    const answeredEvent: TrucoEvent = {
+      type: 'answered',
+      player: action.actor,
+      answer: 'no_quiero',
+      bet: 'truco',
+    };
+    next.history.push(answeredEvent);
+    events.push(answeredEvent);
+    const reason =
+      bet.level === 2 ? 'truco_refused' : bet.level === 3 ? 'retruco_refused' : 'vale_cuatro_refused';
+    award(next, bet.singer, bet.level - 1, reason, events);
+    next.truco = null;
+    concludeHand(next, bet.singer, deps, events);
+    return { ok: true, state: next, events };
     // Refusals and raises are layered in a dedicated slice.
     return rejectForPhase(state.phase, action.type, state);
   }
