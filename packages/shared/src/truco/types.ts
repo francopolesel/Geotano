@@ -136,6 +136,8 @@ export interface EnvidoSubstate {
   lastCaller: PlayerSlot;
   falta: boolean;
   realRaised: boolean;
+  /** Internal marker used to reject double answers (E_ALREADY_ANSWERED). */
+  answered?: boolean;
 }
 
 /** Pending truco-family bet awaiting its responder's answer. */

@@ -13,16 +13,19 @@
 //   programmer error and throws.
 
 import { DECK_40, shuffle } from './deck.js';
+import { computeEnvido } from './envido.js';
 import { compareCards } from './hierarchy.js';
 import { ERROR_MESSAGES, type TrucoErrorCode } from './errors.js';
 import { otherSlot, TRANSITIONS } from './state.js';
 import type {
   AwardReason,
   CreateMatchOptions,
+  EnvidoCall,
   PlayerSlot,
   Rng,
   TrucoAction,
   TrucoActionType,
+  TrucoCall,
   TrucoEvent,
   TrucoPhase,
   TrucoState,
@@ -58,6 +61,18 @@ const ANSWERS: readonly TrucoActionType[] = ['quiero', 'no_quiero'];
 
 function actorOf(action: TrucoAction): PlayerSlot | undefined {
   return 'actor' in action ? action.actor : undefined;
+}
+
+function isEnvidoCall(type: TrucoActionType): type is EnvidoCall {
+  return type === 'sing_envido' || type === 'sing_real_envido' || type === 'sing_falta_envido';
+}
+
+function isTrucoSing(type: TrucoActionType): type is TrucoCall {
+  return type === 'sing_truco' || type === 'sing_retruco' || type === 'sing_vale_cuatro';
+}
+
+function cardsPlayedThisHand(state: TrucoState): number {
+  return state.playedCards.A.length + state.playedCards.B.length;
 }
 
 /** Rejection carrying the untouched original state reference. */
@@ -301,8 +316,222 @@ export function applyAction(state: TrucoState, action: TrucoAction, deps: ApplyD
       return { ok: true, state: next, events };
     }
 
+    case 'sing_envido':
+    case 'sing_real_envido':
+    case 'sing_falta_envido':
+      return singEnvido(state, action, events);
+
+    case 'sing_truco':
+      return singTruco(state, action, events);
+
+    case 'quiero':
+    case 'no_quiero':
+      return answer(state, action, deps, events);
+
     default:
-      // Envido/truco betting handlers are layered in dedicated slices.
+      // Remaining truco raises are layered in a dedicated slice.
       return rejectForPhase(state.phase, action.type, state);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Envido betting (D5 chain model)
+// ---------------------------------------------------------------------------
+
+function pushCallSung(
+  next: TrucoState,
+  actor: PlayerSlot,
+  call: EnvidoCall | TrucoCall,
+  events: TrucoEvent[],
+): void {
+  const event: TrucoEvent = { type: 'call_sung', actor, call };
+  next.history.push(event);
+  events.push(event);
+}
+
+function openEnvido(
+  next: TrucoState,
+  caller: PlayerSlot,
+  call: EnvidoCall,
+  events: TrucoEvent[],
+): void {
+  next.envido = {
+    stake: call === 'sing_envido' ? 2 : call === 'sing_real_envido' ? 3 : 0,
+    priorStake: 0,
+    awaitingResponder: otherSlot(caller),
+    lastCaller: caller,
+    falta: call === 'sing_falta_envido',
+    realRaised: call === 'sing_real_envido',
+  };
+  next.phase = 'envido_betting';
+  pushCallSung(next, caller, call, events);
+}
+
+/** Envido window: no card played this hand, no accepted truco, betting open. */
+function envidoWindowError(state: TrucoState): TrucoErrorCode | null {
+  if (state.envidoClosed) return 'E_ENVIDO_BETTING_CLOSED';
+  if (cardsPlayedThisHand(state) > 0 || state.trucoAccepted) return 'E_ENVIDO_WINDOW_CLOSED';
+  return null;
+}
+
+function singEnvido(state: TrucoState, action: Extract<TrucoAction, { actor: PlayerSlot }>, events: TrucoEvent[]): EngineResult {
+  const type = action.type as EnvidoCall;
+
+  if (state.phase === 'playing') {
+    if (!isEnvidoCall(action.type)) return rejected('E_STATE_FORBIDDEN', state);
+    const windowError = envidoWindowError(state);
+    if (windowError) return rejected(windowError, state);
+    const next = structuredClone(state);
+    openEnvido(next, action.actor, type, events);
+    return { ok: true, state: next, events };
+  }
+
+  if (state.phase === 'truco_betting') {
+    if (!isEnvidoCall(action.type)) return rejected('E_STATE_FORBIDDEN', state);
+    const bet = state.truco!;
+    // Only the challenged side may answer by opening envido; the singer must
+    // wait for his own pending bet (explicit answers only).
+    if (action.actor !== bet.responder) return rejected('E_AWAITING_OWN_BET', state);
+    if (state.envidoClosed) return rejected('E_ENVIDO_BETTING_CLOSED', state);
+    if (cardsPlayedThisHand(state) > 0) return rejected('E_ENVIDO_WINDOW_CLOSED', state);
+    const next = structuredClone(state);
+    next.parkedTruco = next.truco;
+    next.truco = null;
+    openEnvido(next, action.actor, type, events);
+    return { ok: true, state: next, events };
+  }
+
+  // phase === 'envido_betting' → raise path.
+  const env = state.envido!;
+  if (action.actor !== env.awaitingResponder) return rejected('E_NOT_RESPONDER', state);
+  if (env.answered) return rejected('E_ALREADY_ANSWERED', state);
+  if (env.falta) return rejected('E_ILLEGAL_RAISE_ORDER', state); // falta is terminal
+  if (type === 'sing_envido' && env.realRaised) return rejected('E_ILLEGAL_RAISE_ORDER', state);
+
+  const next = structuredClone(state);
+  const sub = next.envido!;
+  sub.answered = false;
+  sub.priorStake = sub.stake;
+  if (type === 'sing_envido') {
+    sub.stake += 2;
+  } else if (type === 'sing_real_envido') {
+    sub.stake += 3;
+    sub.realRaised = true;
+  } else {
+    sub.falta = true;
+  }
+  sub.lastCaller = action.actor;
+  sub.awaitingResponder = otherSlot(action.actor);
+  pushCallSung(next, action.actor, type, events);
+  return { ok: true, state: next, events };
+}
+
+/**
+ * Settles an envido chain. Winner of the comparison takes the stake; ties go
+ * to mano ("ganar de mano"). Falta pays target − max(scores) computed NOW.
+ * Refusal pays prior accumulation (1 when refusing the first bet).
+ */
+function settleEnvido(next: TrucoState, answer: 'quiero' | 'no_quiero', deps: ApplyDeps, events: TrucoEvent[]): void {
+  const env = next.envido!;
+  const answeredEvent: TrucoEvent = {
+    type: 'answered',
+    player: env.awaitingResponder,
+    answer,
+    bet: 'envido',
+  };
+  next.history.push(answeredEvent);
+  events.push(answeredEvent);
+  next.envidoClosed = true;
+
+  let beneficiary: PlayerSlot;
+  if (answer === 'quiero') {
+    const values = { A: computeEnvido(next.hands.A), B: computeEnvido(next.hands.B) };
+    const winner: PlayerSlot =
+      values.A === values.B ? next.mano : values.A > values.B ? 'A' : 'B';
+    const showdown: TrucoEvent = { type: 'envido_showdown', values, winner };
+    next.history.push(showdown);
+    events.push(showdown);
+    const amount = env.falta
+      ? next.targetPoints - Math.max(next.scores.A, next.scores.B)
+      : env.stake;
+    award(next, winner, amount, 'envido_accepted', events);
+    beneficiary = winner;
+  } else {
+    const payout = env.priorStake === 0 ? 1 : env.priorStake;
+    award(next, env.lastCaller, payout, 'envido_refused', events);
+    beneficiary = env.lastCaller;
+  }
+  next.envido = null;
+
+  if (next.scores[beneficiary] >= next.targetPoints) {
+    // The award ended the match → any parked truco is voided and the hand ends.
+    next.parkedTruco = null;
+    concludeHand(next, beneficiary, deps, events);
+  } else if (next.parkedTruco) {
+    // Pending truco resurfaces with the SAME responder (D5 precedence).
+    next.truco = next.parkedTruco;
+    next.parkedTruco = null;
+    next.phase = 'truco_betting';
+  } else {
+    next.phase = 'playing';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Truco betting (open + accept; refusals/raises land in a dedicated slice)
+// ---------------------------------------------------------------------------
+
+function singTruco(state: TrucoState, action: Extract<TrucoAction, { type: 'sing_truco' }>, events: TrucoEvent[]): EngineResult {
+  if (state.trucoLevel !== 1) return rejected('E_NO_PENDING_BET', state);
+  if (action.actor !== state.playerToAct) return rejected('E_OUT_OF_TURN', state);
+  const next = structuredClone(state);
+  next.truco = { level: 2, singer: action.actor, responder: otherSlot(action.actor) };
+  next.phase = 'truco_betting';
+  pushCallSung(next, action.actor, 'sing_truco', events);
+  return { ok: true, state: next, events };
+}
+
+/** Dispatches quiero/no_quiero to the active betting sub-phase. */
+function answer(
+  state: TrucoState,
+  action: Extract<TrucoAction, { type: 'quiero' | 'no_quiero' }>,
+  deps: ApplyDeps,
+  events: TrucoEvent[],
+): EngineResult {
+  if (state.phase === 'envido_betting') {
+    const env = state.envido!;
+    if (action.actor !== env.awaitingResponder) return rejected('E_NOT_RESPONDER', state);
+    if (env.answered) return rejected('E_ALREADY_ANSWERED', state);
+    const next = structuredClone(state);
+    settleEnvido(next, action.type, deps, events);
+    return { ok: true, state: next, events };
+  }
+
+  if (state.phase === 'truco_betting') {
+    const bet = state.truco!;
+    if (action.actor !== bet.responder) return rejected('E_NOT_RESPONDER', state);
+    if (bet.answered) return rejected('E_ALREADY_ANSWERED', state);
+    if (action.type === 'quiero') {
+      const next = structuredClone(state);
+      const answeredEvent: TrucoEvent = {
+        type: 'answered',
+        player: action.actor,
+        answer: 'quiero',
+        bet: 'truco',
+      };
+      next.history.push(answeredEvent);
+      events.push(answeredEvent);
+      // Accepting locks the level for the hand and closes the envido window.
+      next.trucoLevel = bet.level;
+      next.trucoAccepted = true;
+      next.truco = null;
+      next.phase = 'playing';
+      next.playerToAct = bet.singer; // play resumes where it was interrupted
+      return { ok: true, state: next, events };
+    }
+    // Refusals and raises are layered in a dedicated slice.
+    return rejectForPhase(state.phase, action.type, state);
+  }
+
+  return rejectForPhase(state.phase, action.type, state);
 }
