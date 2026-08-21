@@ -51,9 +51,11 @@ import {
   startTrucoMatch,
   getTrucoMatchView,
   deleteExpiredTrucoMatches,
+  applyTrucoAction,
 } from '../services/trucoService.js';
 import { trucoMatches } from '../db/schema/index.js';
-import type { TrucoState } from '@geotano/shared';
+import { createMatch as createEngineMatch } from '@geotano/shared';
+import type { CardId, TrucoState } from '@geotano/shared';
 
 // Wire the chainables + transaction AFTER the hoisted factory ran.
 const dbChain = makeChainable();
@@ -462,5 +464,242 @@ describe('deleteExpiredTrucoMatches', () => {
     const result = await deleteExpiredTrucoMatches();
 
     expect(result).toEqual({ deleted: 0 });
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// applyTrucoAction — authoritative actions, versioned CAS, replay safety
+// ════════════════════════════════════════════════════════════════════════════
+
+describe('applyTrucoAction', () => {
+  /** Deterministic seeded playing row (mano = A ⇒ playerToAct = A). */
+  async function makePlayingRow(overrides: Record<string, any> = {}) {
+    const { createMatch, mulberry32 } = await import('@geotano/shared');
+    const seeded = createMatch({ targetPoints: 30, mano: 'A' }, mulberry32(7));
+    return makeRow({
+      status: 'playing',
+      guestPlayerId: 'user-2',
+      version: 4,
+      engineState: { schemaVersion: 1, state: seeded },
+      ...overrides,
+    });
+  }
+
+  it('returns 404 for an unknown match', async () => {
+    pendingResults.push([]); // SELECT inside the transaction finds nothing
+
+    const outcome = await applyTrucoAction('nope', 'user-1', 0, {
+      type: 'play_card',
+      card: '1espada',
+    });
+
+    expect(outcome).toMatchObject({ ok: false, httpStatus: 404, errorCode: 'MATCH_NOT_FOUND' });
+    expect(mockDb.transaction).toHaveBeenCalled();
+  });
+
+  it('blocks non-participants with 403 FORBIDDEN', async () => {
+    pushRow(makeRow()); // participant check precedes the engine-state guard
+
+    const outcome = await applyTrucoAction('tm-1', 'user-3', 0, {
+      type: 'play_card',
+      card: '1espada',
+    });
+
+    expect(outcome).toMatchObject({ ok: false, httpStatus: 403, errorCode: 'FORBIDDEN' });
+  });
+
+  it('rejects actions before hand 1 is dealt with 409 match_not_actionable', async () => {
+    pushRow(makeRow()); // waiting — engineState null
+
+    const outcome = await applyTrucoAction('tm-1', 'user-1', 0, {
+      type: 'play_card',
+      card: '1espada',
+    });
+
+    expect(outcome).toMatchObject({ ok: false, httpStatus: 409, errorCode: 'match_not_actionable' });
+  });
+
+  it('rejects out-of-turn plays server-side with 400 E_OUT_OF_TURN and mutates nothing', async () => {
+    const row = await makePlayingRow();
+    pushRow(row);
+    const state = (row.engineState as any).state as TrucoState;
+    expect(state.playerToAct).toBe('A'); // fixture sanity
+
+    const outcome = await applyTrucoAction('tm-1', 'user-2', 4, {
+      type: 'play_card',
+      card: state.hands.B[0]!,
+    });
+
+    expect(outcome).toMatchObject({ ok: false, httpStatus: 400, errorCode: 'E_OUT_OF_TURN' });
+    expect(mockDb.set).not.toHaveBeenCalled();
+    expect(txChain.set).not.toHaveBeenCalled();
+  });
+
+  it('rejects playing a card the actor does not hold with 400 E_CARD_NOT_OWNED', async () => {
+    const row = await makePlayingRow();
+    pushRow(row);
+    const state = (row.engineState as any).state as TrucoState;
+    const foreign = state.hands.B.find((c) => !state.hands.A.includes(c))!;
+
+    const outcome = await applyTrucoAction('tm-1', 'user-1', 4, {
+      type: 'play_card',
+      card: foreign,
+    });
+
+    expect(outcome).toMatchObject({ ok: false, httpStatus: 400, errorCode: 'E_CARD_NOT_OWNED' });
+    expect(txChain.set).not.toHaveBeenCalled();
+  });
+
+  it('applies a legal play atomically: bumped version, wrapped new state, redacted view', async () => {
+    const row = await makePlayingRow();
+    pushRow(row);
+    pendingResults.push({ count: 1 }); // CAS update succeeds
+    const state = (row.engineState as any).state as TrucoState;
+    const aCard = state.hands.A[0]!;
+
+    // The client spoofs actor:'B' — the service MUST override it with the slot
+    // derived from the authenticated user. Acceptance proves the injection.
+    const outcome = await applyTrucoAction('tm-1', 'user-1', 4, {
+      type: 'play_card',
+      actor: 'B',
+      card: aCard,
+    } as any);
+
+    if (!outcome.ok) throw new Error(`expected success, got ${JSON.stringify(outcome)}`);
+    expect(outcome.matchId).toBe('tm-1');
+    expect(outcome.version).toBe(5);
+    expect(outcome.matchEnded).toBe(false);
+    expect(outcome.view.myHand).not.toContain(aCard);
+
+    // Redaction firewall on the action response too.
+    const serialized = JSON.stringify(outcome.view);
+    for (const card of state.hands.B) {
+      expect(serialized).not.toContain(`"${card}"`);
+    }
+
+    const setArg = txChain.set.mock.calls[0][0];
+    expect(setArg.version).toBe(5);
+    expect(setArg.status).toBe('playing');
+    expect(setArg.engineState.schemaVersion).toBe(1);
+    const next = setArg.engineState.state as TrucoState;
+    expect(next.hands.A).toHaveLength(2);
+    expect(next.openBazaPlays.some((p) => p.player === 'A' && p.card === aCard)).toBe(true);
+  });
+
+  it('maps a lost CAS race to 409 version_conflict', async () => {
+    const row = await makePlayingRow();
+    pushRow(row);
+    pendingResults.push({ count: 0 }); // concurrent commit won between SELECT and UPDATE
+    const card = ((row.engineState as any).state as TrucoState).hands.A[0]!;
+
+    const outcome = await applyTrucoAction('tm-1', 'user-1', 4, { type: 'play_card', card });
+
+    expect(outcome).toMatchObject({ ok: false, httpStatus: 409, errorCode: 'version_conflict' });
+  });
+
+  it('replay safety: verbatim retry after success hits 409 and never double-applies', async () => {
+    // First submission commits version 4 → 5.
+    const row = await makePlayingRow();
+    pushRow(row);
+    pendingResults.push({ count: 1 });
+    const card = ((row.engineState as any).state as TrucoState).hands.A[0]!;
+    const first = await applyTrucoAction('tm-1', 'user-1', 4, { type: 'play_card', card });
+    if (!first.ok) throw new Error('first submission should succeed');
+
+    // Verbatim retry with the now-stale expectedVersion against stored v5.
+    const persisted = (txChain.set.mock.calls[0][0] as any).engineState.state as TrucoState;
+    pendingResults.push([
+      makeRow({
+        status: 'playing',
+        guestPlayerId: 'user-2',
+        version: 5,
+        engineState: { schemaVersion: 1, state: persisted },
+      }),
+    ]);
+    pendingResults.push({ count: 0 }); // only consumed if impl reaches the UPDATE
+    const retry = await applyTrucoAction('tm-1', 'user-1', 4, { type: 'play_card', card });
+
+    expect(retry).toMatchObject({ ok: false, httpStatus: 409, errorCode: 'version_conflict' });
+    // Exactly ONE mutation across both submissions — the action never re-applied.
+    expect(txChain.set).toHaveBeenCalledTimes(1);
+  });
+
+  it('drives a match to match_end through legal plays, persisting winner/finishedAt/status finished', async () => {
+    const { createMatch, mulberry32 } = await import('@geotano/shared');
+    const s0 = createMatch({ targetPoints: 30, mano: 'A' }, mulberry32(7));
+    // Fixture surgery: one point from victory, machos in A's hand. A wins both
+    // bazas → hand concludes → 29 + 1 ≥ 30 ⇒ match_end.
+    s0.hands = {
+      A: ['1espada' as CardId, '1basto' as CardId, '3oro' as CardId],
+      B: ['4oro' as CardId, '5copa' as CardId, '6basto' as CardId],
+    };
+    s0.scores = { A: 29, B: 0 };
+
+    const script: Array<{ userId: string; card: CardId }> = [
+      { userId: 'user-1', card: '1espada' }, // baza 1 → A (macho beats everything)
+      { userId: 'user-2', card: '4oro' },
+      { userId: 'user-1', card: '1basto' }, // baza 2 → A ⇒ cascade ends the hand
+      { userId: 'user-2', card: '5copa' },
+    ];
+
+    let state = s0;
+    let version = 4;
+    let lastEnded = false;
+    for (const step of script) {
+      pendingResults.push([
+        makeRow({
+          status: 'playing',
+          guestPlayerId: 'user-2',
+          version,
+          engineState: { schemaVersion: 1, state },
+        }),
+      ]);
+      pendingResults.push({ count: 1 }); // CAS succeeds every time
+      const outcome = await applyTrucoAction('tm-1', step.userId, version, {
+        type: 'play_card',
+        card: step.card,
+      });
+      if (!outcome.ok) throw new Error(`step ${step.card} failed: ${JSON.stringify(outcome)}`);
+      state = (txChain.set.mock.calls.at(-1)![0] as any).engineState.state as TrucoState;
+      version += 1;
+      lastEnded = outcome.matchEnded;
+    }
+
+    expect(state.phase).toBe('match_end');
+    expect(state.winner).toBe('A');
+    expect(lastEnded).toBe(true);
+
+    const finalSet = txChain.set.mock.calls.at(-1)![0];
+    expect(finalSet.status).toBe('finished');
+    expect(finalSet.winnerUserId).toBe('user-1');
+    expect(finalSet.finishedAt).toBeTruthy();
+    expect(finalSet.version).toBe(8); // four actions from version 4
+  });
+
+  it('passes E_MATCH_FINISHED through as 400 on an already-finished match', async () => {
+    const { createMatch, mulberry32 } = await import('@geotano/shared');
+    const finished = {
+      ...createMatch({ targetPoints: 30, mano: 'A' }, mulberry32(7)),
+      phase: 'match_end' as const,
+      winner: 'A' as const,
+    };
+    pushRow(
+      makeRow({
+        status: 'finished',
+        guestPlayerId: 'user-2',
+        winnerUserId: 'user-1',
+        finishedAt: new Date(),
+        version: 9,
+        engineState: { schemaVersion: 1, state: finished },
+      }),
+    );
+
+    const outcome = await applyTrucoAction('tm-1', 'user-1', 9, {
+      type: 'play_card',
+      card: '1espada',
+    });
+
+    expect(outcome).toMatchObject({ ok: false, httpStatus: 400, errorCode: 'E_MATCH_FINISHED' });
+    expect(txChain.set).not.toHaveBeenCalled();
   });
 });

@@ -17,6 +17,7 @@ import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { friends, trucoMatches, users } from '../db/schema/index.js';
 import {
+  applyAction,
   buildView,
   createMatch as createEngineMatch,
 } from '@geotano/shared';
@@ -332,6 +333,107 @@ export async function startTrucoMatch(matchId: string, userId: string): Promise<
     hostPlayerId: row.hostPlayerId,
     guestPlayerId: row.guestPlayerId!,
   };
+}
+
+// ─── Authoritative actions (D8) ─────────────────────────────────────────────
+
+export type ApplyTrucoActionOutcome =
+  | {
+      ok: true;
+      matchId: string;
+      version: number;
+      matchEnded: boolean;
+      winnerUserId: string | null;
+      hostPlayerId: string;
+      guestPlayerId: string | null;
+      /** Redacted per-viewer DTO — same firewall as reads. */
+      view: TrucoView & { matchId: string; version: number };
+    }
+  | TrucoServiceError;
+
+/**
+ * Applies ONE client action inside a transaction:
+ * SELECT row → participant/state guards → engine step → CAS UPDATE.
+ *
+ * - The actor is ALWAYS the slot derived from the authenticated user; anything
+ *   the client sent in `action.actor` is overwritten before the engine sees it.
+ * - The CAS binds the CLIENT's expectedVersion, so a verbatim replay after a
+ *   successful commit hits 409 instead of double-applying.
+ * - Engine rejections pass through untouched as 400 with their E_* taxonomy
+ *   and the original state is never persisted.
+ */
+export async function applyTrucoAction(
+  matchId: string,
+  userId: string,
+  expectedVersion: number,
+  action: Record<string, unknown>,
+): Promise<ApplyTrucoActionOutcome> {
+  return db.transaction(async (tx): Promise<ApplyTrucoActionOutcome> => {
+    const [row] = await tx
+      .select()
+      .from(trucoMatches)
+      .where(eq(trucoMatches.id, matchId))
+      .limit(1);
+    if (!row) {
+      return fail(404, 'MATCH_NOT_FOUND', 'Match not found');
+    }
+
+    const slot = slotOf(row, userId);
+    if (slot === null) {
+      return fail(403, 'FORBIDDEN', 'You are not a participant in this match');
+    }
+    // waiting/ready rows carry no engine_state yet; finished matches DO and are
+    // rejected by the engine itself with E_MATCH_FINISHED (D8 passthrough).
+    if (!row.engineState) {
+      return fail(409, 'match_not_actionable', 'No hand is in progress for this match');
+    }
+    if (expectedVersion !== row.version) {
+      return fail(409, 'version_conflict', 'Your view of the match is stale — refresh and retry');
+    }
+
+    const serverAction = { ...action, actor: slot } as unknown as TrucoAction;
+    const result = applyAction(unwrapEngineState(row.engineState), serverAction, {
+      rng: cryptoRng(),
+    });
+    if (!result.ok) {
+      return fail(400, result.errorCode, result.message);
+    }
+
+    const newState = result.state;
+    const newVersion = row.version + 1;
+    const matchEnded = newState.phase === 'match_end';
+    const winnerUserId = matchEnded
+      ? newState.winner === 'A'
+        ? row.hostPlayerId
+        : row.guestPlayerId
+      : null;
+
+    const updated: any = await tx
+      .update(trucoMatches)
+      .set({
+        engineState: wrapEngineState(newState),
+        version: newVersion,
+        status: matchEnded ? 'finished' : 'playing',
+        ...(matchEnded ? { winnerUserId, finishedAt: sql`NOW()` } : {}),
+        updatedAt: sql`NOW()`,
+      })
+      .where(and(eq(trucoMatches.id, row.id), eq(trucoMatches.version, expectedVersion)));
+
+    if (Number(updated?.count ?? 0) === 0) {
+      return fail(409, 'version_conflict', 'Concurrent update detected — refresh and retry');
+    }
+
+    return {
+      ok: true,
+      matchId: row.id,
+      version: newVersion,
+      matchEnded,
+      winnerUserId,
+      hostPlayerId: row.hostPlayerId,
+      guestPlayerId: row.guestPlayerId,
+      view: { ...buildView(newState, slot), matchId: row.id, version: newVersion },
+    };
+  });
 }
 
 // ─── Per-viewer read model ──────────────────────────────────────────────────
