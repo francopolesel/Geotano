@@ -146,6 +146,11 @@ export interface TrucoPendingBet {
   level: 2 | 3 | 4;
   singer: PlayerSlot;
   responder: PlayerSlot;
+  /**
+   * Turn to restore on acceptance: whoever was to act when the bet chain
+   * OPENED (raises ride on the pending bet and keep this unchanged).
+   */
+  resumeTurn: PlayerSlot;
   /** Internal marker used to reject double answers (E_ALREADY_ANSWERED). */
   answered?: boolean;
 }
@@ -212,4 +217,62 @@ export interface TrucoPublicContext {
   envidoClosed: boolean;
   /** Accepted hand prize level so callers know which raises remain legal. */
   acceptedTrucoLevel: 1 | 2 | 3 | 4;
+}
+
+// ---------------------------------------------------------------------------
+// Per-viewer DTOs (D9 redaction rule / D10 CPU firewall)
+// ---------------------------------------------------------------------------
+
+/** REST DTO: viewer's own hand in full, opponent reduced to a count. */
+export interface TrucoView {
+  phase: TrucoPhase;
+  playerToAct: PlayerSlot;
+  mano: PlayerSlot;
+  targetPoints: 15 | 30;
+  scores: Record<PlayerSlot, number>;
+  bazaNumber: number;
+  bazaLeader: PlayerSlot;
+  openBazaPlays: BazaPlay[];
+  cardsPlayedThisHand: number;
+  myHand: CardId[];
+  opponentHandCount: number;
+  envidoAwaiting: { responder: PlayerSlot; falta: boolean; realRaised: boolean } | null;
+  trucoAwaiting: { responder: PlayerSlot; level: 2 | 3 | 4 } | null;
+  trucoAcceptedThisHand: boolean;
+  envidoClosed: boolean;
+  acceptedTrucoLevel: 1 | 2 | 3 | 4;
+  handNumber: number;
+  playedCards: Record<PlayerSlot, CardId[]>;
+  bazas: BazaRecord[];
+  history: TrucoEvent[];
+  winner?: PlayerSlot;
+}
+
+/**
+ * Hard information firewall (D10): everything a CPU decider may see.
+ * Structurally EXCLUDES the opponent hand, deck order and private bet
+ * internals — a runtime test asserts key absence on the built object.
+ */
+export interface CpuDecisionInput {
+  phase: TrucoPhase;
+  playerToAct: PlayerSlot;
+  mano: PlayerSlot;
+  targetPoints: 15 | 30;
+  scores: Record<PlayerSlot, number>;
+  bazaNumber: number;
+  bazaLeader: PlayerSlot;
+  openBazaPlays: BazaPlay[];
+  cardsPlayedThisHand: number;
+  myHand: CardId[];
+  opponentHandCount: number;
+  envidoAwaiting: { responder: PlayerSlot; falta: boolean; realRaised: boolean } | null;
+  trucoAwaiting: { responder: PlayerSlot; level: 2 | 3 | 4 } | null;
+  trucoAcceptedThisHand: boolean;
+  envidoClosed: boolean;
+  acceptedTrucoLevel: 1 | 2 | 3 | 4;
+  handNumber: number;
+  playedCards: Record<PlayerSlot, CardId[]>;
+  bazas: BazaRecord[];
+  history: TrucoEvent[];
+  winner: PlayerSlot | null;
 }

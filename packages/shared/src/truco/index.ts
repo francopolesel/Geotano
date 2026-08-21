@@ -10,6 +10,8 @@ export * from './envido.js';
 export * from './errors.js';
 export * from './events.js';
 export * from './hierarchy.js';
+export * from './legalActions.js';
 export * from './rng.js';
 export * from './state.js';
 export * from './types.js';
+export * from './view.js';

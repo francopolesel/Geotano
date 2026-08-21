@@ -492,7 +492,7 @@ function singTruco(state: TrucoState, action: Extract<TrucoAction, { type: 'sing
   if (state.trucoLevel !== 1) return rejected('E_NO_PENDING_BET', state);
   if (action.actor !== state.playerToAct) return rejected('E_OUT_OF_TURN', state);
   const next = structuredClone(state);
-  next.truco = { level: 2, singer: action.actor, responder: otherSlot(action.actor) };
+  next.truco = { level: 2, singer: action.actor, responder: otherSlot(action.actor), resumeTurn: action.actor };
   next.phase = 'truco_betting';
   pushCallSung(next, action.actor, 'sing_truco', events);
   return { ok: true, state: next, events };
@@ -521,6 +521,7 @@ function raiseTruco(
     level: (bet.level + 1) as TrucoPendingBet['level'],
     singer: action.actor,
     responder: otherSlot(action.actor),
+    resumeTurn: bet.resumeTurn, // raises never move the resumption point
   };
   pushCallSung(next, action.actor, action.type, events);
   return { ok: true, state: next, events };
@@ -561,7 +562,8 @@ function answer(
       next.trucoAccepted = true;
       next.truco = null;
       next.phase = 'playing';
-      next.playerToAct = bet.singer; // play resumes where it was interrupted
+      // Resume where the chain OPENED, not where the last raise left it.
+      next.playerToAct = bet.resumeTurn;
       return { ok: true, state: next, events };
     }
 
