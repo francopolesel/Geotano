@@ -31,8 +31,9 @@ export function TrucoTable({
   onAction,
 }: TrucoTableProps) {
   const rivalSlot: PlayerSlot = mySlot === 'A' ? 'B' : 'A';
-  const names: Record<PlayerSlot, string> = { [mySlot]: myName, [rivalSlot]: opponentName };
-
+  // Computed keys defeat Record inference in TS; branch explicitly instead.
+  const names: Record<PlayerSlot, string> =
+    mySlot === 'A' ? { A: myName, B: opponentName } : { A: opponentName, B: myName };
   // Legality comes ONLY from the engine, evaluated over the public context.
   const actions = legalActions(view, mySlot);
 
