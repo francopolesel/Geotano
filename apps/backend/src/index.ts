@@ -2,9 +2,10 @@ import Fastify from 'fastify';
 import { env } from './config/index.js';
 import { registerCors } from './plugins/index.js';
 import { runMigrations } from './db/index.js';
-import { healthRoutes, authRoutes, quizRoutes, countriesRoutes, friendsRoutes, chatRoutes, rankingsRoutes, profileRoutes, notificationsRoutes, matchRoutes } from './routes/index.js';
+import { healthRoutes, authRoutes, quizRoutes, countriesRoutes, friendsRoutes, chatRoutes, rankingsRoutes, profileRoutes, notificationsRoutes, matchRoutes, trucoRoutes } from './routes/index.js';
 import { initSocket } from './socket/index.js';
 import { deleteExpiredMatches } from './services/matchService.js';
+import { deleteExpiredTrucoMatches } from './services/trucoService.js';
 
 // Stale multiplayer matches (pending/in_progress older than 24h) are
 // permanently deleted every hour so no record of them survives.
@@ -41,6 +42,7 @@ async function buildApp() {
   await app.register(profileRoutes);
   await app.register(notificationsRoutes);
   await app.register(matchRoutes);
+  await app.register(trucoRoutes);
 
   return app;
 }
@@ -54,11 +56,15 @@ async function start() {
     // Initialize Socket.io after server is listening
     initSocket(app);
 
-    // Clean up stale multiplayer matches on boot and hourly
-    const runCleanup = () =>
+    // Clean up stale multiplayer matches on boot and hourly (quiz + truco).
+    const runCleanup = () => {
       deleteExpiredMatches().catch((err) =>
         app.log.error({ err }, 'match cleanup failed'),
       );
+      deleteExpiredTrucoMatches().catch((err) =>
+        app.log.error({ err }, 'truco cleanup failed'),
+      );
+    };
     await runCleanup();
     // unref so the timer never keeps the process alive on shutdown
     const cleanupTimer = setInterval(runCleanup, MATCH_CLEANUP_INTERVAL_MS);

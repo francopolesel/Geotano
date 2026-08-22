@@ -345,7 +345,8 @@ export type ApplyTrucoActionOutcome =
       matchEnded: boolean;
       winnerUserId: string | null;
       hostPlayerId: string;
-      guestPlayerId: string | null;
+      /** Always set here: actions require engine_state ⇒ the guest seat is filled. */
+      guestPlayerId: string;
       /** Redacted per-viewer DTO — same firewall as reads. */
       view: TrucoView & { matchId: string; version: number };
     }
@@ -430,7 +431,7 @@ export async function applyTrucoAction(
       matchEnded,
       winnerUserId,
       hostPlayerId: row.hostPlayerId,
-      guestPlayerId: row.guestPlayerId,
+      guestPlayerId: row.guestPlayerId!, // engine_state exists ⇒ seat is filled
       view: { ...buildView(newState, slot), matchId: row.id, version: newVersion },
     };
   });
@@ -503,6 +504,31 @@ export async function deleteExpiredTrucoMatches(): Promise<{ deleted: number }> 
     .delete(trucoMatches)
     .where(lt(trucoMatches.updatedAt, cutoff));
   return { deleted: Number(deleted?.count ?? 0) };
+}
+
+// ─── S3 additive convenience pre-check ──────────────────────────────────────
+
+/**
+ * S3 (gate finding): public-minimal code lookup for the join screen BEFORE a
+ * seat claim is attempted. Mirrors `joinByCode`'s active-status filter and
+ * case-insensitive handling; the payload carries {matchId, status} ONLY —
+ * no players, no state. Intentional documented surface for archive.
+ */
+export async function findActiveTrucoMatchByCode(
+  code: string,
+): Promise<{ matchId: string; status: string } | null> {
+  const [row] = await db
+    .select({ id: trucoMatches.id, status: trucoMatches.status })
+    .from(trucoMatches)
+    .where(
+      and(
+        eq(trucoMatches.code, code.toUpperCase()),
+        inArray(trucoMatches.status, [...ACTIVE_STATUSES]),
+      ),
+    )
+    .orderBy(sql`${trucoMatches.createdAt} DESC`)
+    .limit(1);
+  return row ? { matchId: row.id, status: row.status } : null;
 }
 
 // Re-exported for route-layer typing convenience (kept close to usage).

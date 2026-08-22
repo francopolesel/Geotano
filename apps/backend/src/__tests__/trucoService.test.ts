@@ -52,6 +52,7 @@ import {
   getTrucoMatchView,
   deleteExpiredTrucoMatches,
   applyTrucoAction,
+  findActiveTrucoMatchByCode,
 } from '../services/trucoService.js';
 import { trucoMatches } from '../db/schema/index.js';
 import { createMatch as createEngineMatch } from '@geotano/shared';
@@ -464,6 +465,28 @@ describe('deleteExpiredTrucoMatches', () => {
     const result = await deleteExpiredTrucoMatches();
 
     expect(result).toEqual({ deleted: 0 });
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// findActiveTrucoMatchByCode — S3 additive convenience pre-check
+// ════════════════════════════════════════════════════════════════════════════
+
+describe('findActiveTrucoMatchByCode', () => {
+  it('returns the public-minimal {matchId, status} of the newest active match (case-insensitive code)', async () => {
+    pushRow(makeRow({ status: 'ready', guestPlayerId: 'user-2' }));
+
+    const found = await findActiveTrucoMatchByCode('abc234'); // lowercase input
+
+    expect(found).toEqual({ matchId: 'tm-1', status: 'ready' });
+  });
+
+  it('returns null when no active match carries the code', async () => {
+    pushRow(null);
+
+    const found = await findActiveTrucoMatchByCode('ZZZ999');
+
+    expect(found).toBeNull();
   });
 });
 
