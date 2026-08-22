@@ -8,7 +8,7 @@
 // - Projects public snapshots via buildView; emits raw event batches so the
 //   page layer can drive sounds/analytics without re-deriving them.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   PlayerSlot,
   Rng,
@@ -36,6 +36,8 @@ export interface UseTruCpuGameOptions {
   targetPoints: 15 | 30;
   /** Deterministic seed (tests); defaults to wall-clock entropy. */
   seed?: number;
+  /** Manual persona pick (menu); falls back to the seeded roster entry. */
+  personaOverride?: Persona;
   /** Raw engine event batches, emitted after every successful applyAction. */
   onEvents?: (events: readonly TrucoEvent[]) => void;
 }
@@ -83,6 +85,7 @@ export function useTruCpuGame({
   difficulty,
   targetPoints,
   seed,
+  personaOverride,
   onEvents,
 }: UseTruCpuGameOptions) {
   const aiRef = useRef(createAi(difficulty));
@@ -105,7 +108,7 @@ export function useTruCpuGame({
     snapshotOf(stateRef.current as TrucoState),
   );
 
-  const persona: Persona = useMemo(() => pickPersona(initialSeed), [initialSeed]);
+  const persona: Persona = personaOverride ?? pickPersona(initialSeed);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
