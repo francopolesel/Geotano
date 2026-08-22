@@ -17,11 +17,63 @@ type NotificationHandler = (notification: Notification) => void;
 
 export type MatchFinishedHandler = (payload: { matchId: string; status: string }) => void;
 
+// ─── Truco pushes (CU6, design D9) ──────────────────────────────────────────
+
+export interface TrucoStateChangePayload {
+  matchId: string;
+  version: number;
+  reason: 'start' | 'action' | 'finish';
+}
+
+export interface TrucoInvitePayload {
+  matchId: string;
+  code: string;
+  fromUser: string;
+}
+
+export interface TrucoPlayerRef {
+  userId: string;
+  nickname: string;
+}
+
+export interface TrucoPlayerJoinedPayload {
+  matchId: string;
+  players: TrucoPlayerRef[];
+}
+
+export interface TrucoFinishedPayload {
+  matchId: string;
+  winnerUserId: string | null;
+}
+
+/** ONE handler object for every truco push (mirror of setMatchFinishedHandler). */
+export interface TrucoHandlers {
+  onStateChanged?: (payload: TrucoStateChangePayload) => void;
+  onInvite?: (payload: TrucoInvitePayload) => void;
+  onPlayerJoined?: (payload: TrucoPlayerJoinedPayload) => void;
+  onFinished?: (payload: TrucoFinishedPayload) => void;
+}
+
+/**
+ * Redaction guard mirrored client-side (D9): server pushes carry
+ * IDs/version/reason ONLY — hands travel exclusively through the per-viewer
+ * REST DTO. Any push smuggling hand-shaped data is dropped before feature
+ * code can ever see it.
+ */
+const HAND_DATA_KEYS: readonly string[] = ['hands', 'myHand', 'opponentHand', 'deckRemaining'];
+
+function carriesHandData(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') return false;
+  const record = payload as Record<string, unknown>;
+  return HAND_DATA_KEYS.some((key) => key in record);
+}
+
 let onChatMessage: ChatMessageHandler | null = null;
 let onUserOnline: UserStatusHandler | null = null;
 let onUserOffline: UserStatusHandler | null = null;
 let onNotification: NotificationHandler | null = null;
 let onMatchFinished: MatchFinishedHandler | null = null;
+let trucoHandlers: TrucoHandlers | null = null;
 
 // If VITE_API_URL has an /api suffix (common in production), strip it for socket.io
 // Socket.io needs the root server URL, not the API prefix.
@@ -100,6 +152,29 @@ export function connectSocket(token: string): Socket {
     }
   });
 
+  // CU6 additive truco:* listeners — same register-on-connect setter pattern:
+  // pages swap ONE handler object via setTrucoHandlers, so remounts and
+  // reconnects keep exactly one delegation point per live socket.
+  socket.on('truco:state-changed', (data: TrucoStateChangePayload) => {
+    if (carriesHandData(data)) return;
+    trucoHandlers?.onStateChanged?.(data);
+  });
+
+  socket.on('truco:invite', (data: TrucoInvitePayload) => {
+    if (carriesHandData(data)) return;
+    trucoHandlers?.onInvite?.(data);
+  });
+
+  socket.on('truco:player-joined', (data: TrucoPlayerJoinedPayload) => {
+    if (carriesHandData(data)) return;
+    trucoHandlers?.onPlayerJoined?.(data);
+  });
+
+  socket.on('truco:finished', (data: TrucoFinishedPayload) => {
+    if (carriesHandData(data)) return;
+    trucoHandlers?.onFinished?.(data);
+  });
+
   return socket;
 }
 
@@ -134,6 +209,10 @@ export function setNotificationHandler(handler: NotificationHandler) {
 
 export function setMatchFinishedHandler(handler: MatchFinishedHandler | null) {
   onMatchFinished = handler;
+}
+
+export function setTrucoHandlers(handlers: TrucoHandlers | null) {
+  trucoHandlers = handlers;
 }
 
 
