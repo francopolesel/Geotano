@@ -15,6 +15,7 @@ const navItems = [
   { to: '/rankings', label: 'rankings.title' },
   { to: '/friends', label: 'friends.title' },
   { to: '/match-history', label: 'multiplayer.matchHistory' },
+  { to: '/truco', label: 'truco.title' },
   { to: '/my-profile', label: 'nav.myProfile' },
   { to: '/settings', label: 'settings.title' },
 ];

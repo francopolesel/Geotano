@@ -121,6 +121,15 @@ export function HomePage() {
           {t('home.greeting', { username: user?.displayName ?? user?.username ?? '' })}
         </h1>
         <p className="mt-1 text-[var(--color-muted-foreground)]">{t('home.subtitle')}</p>
+        {/* Cross-game entry — Truco Argentino */}
+        <button
+          type="button"
+          data-testid="home-play-truco"
+          onClick={() => navigate('/truco')}
+          className="mt-4 min-h-[44px] rounded-md border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-muted)]"
+        >
+          {t('truco.menu.playTruco')}
+        </button>
       </div>
 
       {/* Mode cards grid */}

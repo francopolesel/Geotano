@@ -17,6 +17,9 @@ import { MyProfilePage } from '../features/profile/MyProfilePage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import { MultiplayerPage } from '../features/multiplayer/MultiplayerPage';
 import { MatchHistoryPage } from '../features/multiplayer/MatchHistoryPage';
+import { TrucoMenuPage } from '../features/truco/TrucoMenuPage';
+import { TruCpuPage } from '../features/truco/TruCpuPage';
+import { TrucoMatchPage } from '../features/truco/TrucoMatchPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +61,9 @@ const router = createBrowserRouter([
           { path: 'my-profile', element: <MyProfilePage /> },
           { path: 'multiplayer/:matchId', element: <MultiplayerPage /> },
           { path: 'match-history', element: <MatchHistoryPage /> },
+          { path: 'truco', element: <TrucoMenuPage /> },
+          { path: 'truco/cpu', element: <TruCpuPage /> },
+          { path: 'truco/match/:matchId', element: <TrucoMatchPage /> },
         ],
       },
     ],

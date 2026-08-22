@@ -329,6 +329,13 @@
   "multiplayer.leaveStay": "Stay — keep playing",
   "multiplayer.leaveAnyway": "Leave anyway",
 
+  "truco.title": "Truco",
+  "truco.menu.playTruco": "Play Truco",
+  "truco.menu.vsCpu": "Play vs CPU",
+  "truco.menu.vsFriend": "Play vs a friend",
+  "truco.menu.comingSoon": "Coming soon",
+  "truco.action.geotano": "Play Geotano",
+
   "errors.common.sessionExpired": "Session expired. Please log in again.",
   "errors.common.loginFailed": "Login failed",
   "errors.common.registrationFailed": "Registration failed",

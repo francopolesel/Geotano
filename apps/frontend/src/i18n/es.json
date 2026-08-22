@@ -329,6 +329,13 @@
   "multiplayer.leaveStay": "Quedarse — seguir jugando",
   "multiplayer.leaveAnyway": "Salir igual",
 
+  "truco.title": "Truco",
+  "truco.menu.playTruco": "Jugar al Truco",
+  "truco.menu.vsCpu": "Jugar contra la CPU",
+  "truco.menu.vsFriend": "Jugar con un amigo",
+  "truco.menu.comingSoon": "Próximamente",
+  "truco.action.geotano": "Jugar a Geotano",
+
   "errors.common.sessionExpired": "Sesión expirada. Iniciá sesión de nuevo.",
   "errors.common.loginFailed": "Error al iniciar sesión",
   "errors.common.registrationFailed": "Error al registrarse",
