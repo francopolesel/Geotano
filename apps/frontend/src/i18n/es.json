@@ -335,6 +335,12 @@
   "truco.menu.vsFriend": "Jugar con un amigo",
   "truco.menu.comingSoon": "Próximamente",
   "truco.action.geotano": "Jugar a Geotano",
+  "truco.suit.oro": "oros",
+  "truco.suit.copa": "copas",
+  "truco.suit.espada": "espadas",
+  "truco.suit.basto": "bastos",
+  "truco.card.alt": "{{rank}} de {{suit}}",
+  "truco.card.back": "Carta boca abajo",
 
   "errors.common.sessionExpired": "Sesión expirada. Iniciá sesión de nuevo.",
   "errors.common.loginFailed": "Error al iniciar sesión",

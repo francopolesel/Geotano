@@ -335,6 +335,12 @@
   "truco.menu.vsFriend": "Play vs a friend",
   "truco.menu.comingSoon": "Coming soon",
   "truco.action.geotano": "Play Geotano",
+  "truco.suit.oro": "coins",
+  "truco.suit.copa": "cups",
+  "truco.suit.espada": "swords",
+  "truco.suit.basto": "clubs",
+  "truco.card.alt": "{{rank}} of {{suit}}",
+  "truco.card.back": "Face-down card",
 
   "errors.common.sessionExpired": "Session expired. Please log in again.",
   "errors.common.loginFailed": "Login failed",
