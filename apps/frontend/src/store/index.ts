@@ -5,3 +5,6 @@ export { useFriendsStore } from './friendsStore';
 export { useNotificationStore } from './notificationStore';
 export { useSoundStore } from './soundStore';
 export { useMultiplayerStore } from './multiplayerStore';
+export { useTrucoPrefsStore } from './trucoPrefsStore';
+export { useTruCpuStatsStore, selectWinRate, selectMostPlayedDifficulty } from './truCpuStatsStore';
+export type { TrucoDifficulty, TrucoTargetPoints } from './trucoPrefsStore';
