@@ -58,6 +58,13 @@ const TRUCO_CALLS: readonly TrucoActionType[] = [
   'sing_retruco',
   'sing_vale_cuatro',
 ];
+
+// Envido stake values, spec-pinned (specs/truco-engine/spec.md "Envido betting
+// chain and exact stake matrix"): first bets envido=2 / realEnvido=3, raises
+// add +2 / +3 respectively. faltaEnvido carries no numeric stake here — its
+// payout is computed at settlement from the target.
+const ENVIDO_STAKE = 2;
+const REAL_ENVIDO_STAKE = 3;
 const ANSWERS: readonly TrucoActionType[] = ['quiero', 'no_quiero'];
 
 function actorOf(action: TrucoAction): PlayerSlot | undefined {
@@ -363,7 +370,7 @@ function openEnvido(
   events: TrucoEvent[],
 ): void {
   next.envido = {
-    stake: call === 'sing_envido' ? 2 : call === 'sing_real_envido' ? 3 : 0,
+    stake: call === 'sing_envido' ? ENVIDO_STAKE : call === 'sing_real_envido' ? REAL_ENVIDO_STAKE : 0,
     priorStake: 0,
     awaitingResponder: otherSlot(caller),
     lastCaller: caller,
@@ -416,6 +423,9 @@ function singEnvido(state: TrucoState, action: Extract<TrucoAction, { actor: Pla
   // phase === 'envido_betting' → raise path.
   const env = state.envido!;
   if (action.actor !== env.awaitingResponder) return rejected('E_NOT_RESPONDER', state);
+  // Defense-in-depth: legalActions never offers an answer to an already
+  // answered bet, so this guard is unreachable through the UI — it exists for
+  // direct/applyAction callers and future surfaces (synthetic reachability).
   if (env.answered) return rejected('E_ALREADY_ANSWERED', state);
   if (env.falta) return rejected('E_ILLEGAL_RAISE_ORDER', state); // falta is terminal
   if (type === 'sing_envido' && env.realRaised) return rejected('E_ILLEGAL_RAISE_ORDER', state);
@@ -425,9 +435,9 @@ function singEnvido(state: TrucoState, action: Extract<TrucoAction, { actor: Pla
   sub.answered = false;
   sub.priorStake = sub.stake;
   if (type === 'sing_envido') {
-    sub.stake += 2;
+    sub.stake += ENVIDO_STAKE;
   } else if (type === 'sing_real_envido') {
-    sub.stake += 3;
+    sub.stake += REAL_ENVIDO_STAKE;
     sub.realRaised = true;
   } else {
     sub.falta = true;
@@ -551,6 +561,9 @@ function answer(
   if (state.phase === 'truco_betting') {
     const bet = state.truco!;
     if (action.actor !== bet.responder) return rejected('E_NOT_RESPONDER', state);
+    // Defense-in-depth: legalActions never offers an answer to an already
+    // answered bet, so this guard is unreachable through the UI — it exists
+    // for direct/applyAction callers (synthetic reachability).
     if (bet.answered) return rejected('E_ALREADY_ANSWERED', state);
     if (action.type === 'quiero') {
       const next = structuredClone(state);
@@ -588,8 +601,6 @@ function answer(
     next.truco = null;
     concludeHand(next, bet.singer, deps, events);
     return { ok: true, state: next, events };
-    // Refusals and raises are layered in a dedicated slice.
-    return rejectForPhase(state.phase, action.type, state);
   }
 
   return rejectForPhase(state.phase, action.type, state);

@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // Truco Argentino — legal action enumeration (spec: "Explicit state machine")
 // ---------------------------------------------------------------------------
-// Derived from the TRANSITIONS table + window guards evaluated over the
-// PUBLIC context only — never hidden information. Returned player-actions
+// Mirrors the TRANSITIONS windows: phase cases + window guards evaluated over
+// the PUBLIC context only — never hidden information. Returned player-actions
 // carry `actor` prefilled so they are directly applicable via applyAction.
 
 import type { PlayerSlot, TrucoAction, TrucoPublicContext } from './types.js';

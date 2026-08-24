@@ -41,9 +41,6 @@ export const TRANSITIONS: Record<TrucoPhase, readonly TrucoActionType[]> = {
   match_end: [],
 };
 
-/** The two participant slots. */
-export const SLOTS: readonly ['A', 'B'] = ['A', 'B'];
-
 export function otherSlot(slot: PlayerSlot): PlayerSlot {
   return slot === 'A' ? 'B' : 'A';
 }
