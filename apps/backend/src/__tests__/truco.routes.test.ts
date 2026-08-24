@@ -175,6 +175,15 @@ describe('POST /api/truco/matches', () => {
 // ════════════════════════════════════════════════════════════════════════════
 
 describe('GET /api/truco/matches/code/:code (S3 convenience)', () => {
+  it('rejects unauthenticated requests with 401 (participant-surface parity)', async () => {
+    authenticateAs(null);
+
+    const res = await app.inject({ method: 'GET', url: '/api/truco/matches/code/ABC234' });
+
+    expect(res.statusCode).toBe(401);
+    expect(mockFindActiveByCode).not.toHaveBeenCalled();
+  });
+
   it('returns the public-minimal {matchId, status} for a known code', async () => {
     mockFindActiveByCode.mockResolvedValueOnce({ matchId: 'tm-1', status: 'waiting' });
 

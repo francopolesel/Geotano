@@ -196,6 +196,15 @@ describe('createTrucoMatch', () => {
     expect(mockDb.values).not.toHaveBeenCalled();
   });
 
+  it('rejects a non-string friendId with 400 MISSING_FIELD before any query runs', async () => {
+    const outcome = await createTrucoMatch('user-1', { friendId: 42 as unknown as string });
+
+    expect(outcome).toMatchObject({ ok: false, httpStatus: 400, errorCode: 'MISSING_FIELD' });
+    // Type garbage must be refused BEFORE the friendship lookup touches the db.
+    expect(mockDb.select).not.toHaveBeenCalled();
+    expect(mockDb.values).not.toHaveBeenCalled();
+  });
+
   it('requires friendship on the friendId invite path — 403 NOT_FRIENDS, no insert', async () => {
     pendingResults.push([]); // friendship lookup → none
 
@@ -283,9 +292,17 @@ describe('joinByCode', () => {
       { userId: 'user-1', nickname: 'Hosty' },
       { userId: 'user-2', nickname: 'guest' },
     ]);
-    // Seat claim must be conditional on still-waiting + empty seat.
+    // Seat claim must be conditional on still-waiting + empty seat — asserted
+    // STRUCTURALLY so dropping any condition breaks this test (remediation #6).
     const whereArg = mockDb.where.mock.calls.at(-1)?.[0];
-    expect(whereArg).toBeDefined();
+    const { and, eq, isNull } = await import('drizzle-orm');
+    expect(whereArg).toEqual(
+      and(
+        eq(trucoMatches.id, 'tm-1'),
+        eq(trucoMatches.status, 'waiting'),
+        isNull(trucoMatches.guestPlayerId),
+      ),
+    );
     expect(mockDb.set).toHaveBeenCalledWith(
       expect.objectContaining({ guestPlayerId: 'user-2', status: 'ready' }),
     );
@@ -434,6 +451,59 @@ describe('getTrucoMatchView', () => {
       expect(serialized).not.toContain(`"${card}"`);
     }
   });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Corrupt engine_state resilience — reads degrade, actions refuse (remediation)
+// ════════════════════════════════════════════════════════════════════════════
+
+describe('corrupt engine_state resilience', () => {
+  const CORRUPT_PAYLOADS: Array<[string, unknown]> = [
+    ['an empty object', {}],
+    ['a non-numeric schemaVersion', { schemaVersion: 'one', state: {} }],
+    ['a missing state body', { schemaVersion: 1 }],
+    ['a foreign future schemaVersion', { schemaVersion: 999, state: { phase: 'playing' } }],
+  ];
+
+  it.each(CORRUPT_PAYLOADS)(
+    'getTrucoMatchView degrades to a terminal snapshot for %s',
+    async (_name, corrupt) => {
+      pushRow(
+        makeRow({ status: 'playing', guestPlayerId: 'user-2', version: 4, engineState: corrupt }),
+      );
+
+      const outcome = await getTrucoMatchView('tm-1', 'user-1');
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      // Terminal-shaped so clients stop treating the match as live…
+      expect(outcome.status).toBe('finished');
+      expect(outcome.view).toBeNull();
+      // …while the additive flag preserves the truth for diagnostics.
+      expect(outcome.degraded).toBe(true);
+      // A corrupt read path must never attempt a mutation.
+      expect(mockDb.set).not.toHaveBeenCalled();
+      expect(mockDb.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(CORRUPT_PAYLOADS)(
+    'applyTrucoAction refuses %s with 409 STATE_CORRUPT and persists nothing',
+    async (_name, corrupt) => {
+      pushRow(
+        makeRow({ status: 'playing', guestPlayerId: 'user-2', version: 4, engineState: corrupt }),
+      );
+
+      const outcome = await applyTrucoAction('tm-1', 'user-1', 4, {
+        type: 'play_card',
+        card: '1espada',
+      });
+
+      expect(outcome).toMatchObject({ ok: false, httpStatus: 409, errorCode: 'STATE_CORRUPT' });
+      expect(txChain.set).not.toHaveBeenCalled();
+      expect(txChain.update).not.toHaveBeenCalled();
+    },
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -607,6 +677,14 @@ describe('applyTrucoAction', () => {
     const next = setArg.engineState.state as TrucoState;
     expect(next.hands.A).toHaveLength(2);
     expect(next.openBazaPlays.some((p) => p.player === 'A' && p.card === aCard)).toBe(true);
+
+    // CAS binding asserted STRUCTURALLY: the UPDATE may only land while the row
+    // still carries the client's expectedVersion (remediation #6).
+    const whereArg = txChain.where.mock.calls.at(-1)?.[0];
+    const { and, eq } = await import('drizzle-orm');
+    expect(whereArg).toEqual(
+      and(eq(trucoMatches.id, 'tm-1'), eq(trucoMatches.version, 4)),
+    );
   });
 
   it('maps a lost CAS race to 409 version_conflict', async () => {

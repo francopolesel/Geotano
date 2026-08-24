@@ -64,7 +64,9 @@ export async function trucoRoutes(app: FastifyInstance) {
   // S3 ADDITIVE CONVENIENCE ENDPOINT (beyond the delta-spec minimum): kept for
   // the join-UX pre-check; public-minimal {matchId,status} only. Intentional
   // documented surface for archive.
-  app.get('/api/truco/matches/code/:code', async (request, reply) => {
+  // Remediation #4: authenticated like every other truco route — the payload
+  // is minimal but the surface must not be anonymously enumerable.
+  app.get('/api/truco/matches/code/:code', { preHandler: authGuard }, async (request, reply) => {
     const { code } = request.params as { code: string };
 
     const found = await findActiveTrucoMatchByCode(code);

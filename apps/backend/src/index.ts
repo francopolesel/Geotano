@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { env } from './config/index.js';
 import { registerCors } from './plugins/index.js';
 import { runMigrations } from './db/index.js';
@@ -29,6 +30,23 @@ async function buildApp() {
     reply.header('Expires', '0');
     reply.header('Vary', '*');
     return payload;
+  });
+
+  // Global error handler (remediation #3): 4xx errors keep Fastify's default
+  // serialization (passing the Error through reply.send reproduces it exactly);
+  // anything 5xx or unclassified is logged server-side and answered with an
+  // opaque body so stack traces / driver messages never reach clients.
+  app.setErrorHandler((err: FastifyError, request: FastifyRequest, reply: FastifyReply) => {
+    const statusCode =
+      typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 500
+        ? err.statusCode
+        : null;
+    if (statusCode !== null) {
+      reply.status(statusCode).send(err);
+      return;
+    }
+    request.log.error({ err }, `Unhandled error on ${request.method} ${request.url}`);
+    void reply.status(500).send({ message: 'Internal server error', errorCode: 'INTERNAL' });
   });
 
   // Routes

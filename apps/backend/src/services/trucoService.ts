@@ -88,6 +88,19 @@ function unwrapEngineState(raw: unknown): TrucoState {
   return migrateState(wrapper.schemaVersion, wrapper.state);
 }
 
+/**
+ * Corruption-safe unwrap (remediation): persisted JSONB can be hand-migrated,
+ * partially written or carry a schema this build cannot read. Callers decide
+ * the recovery posture instead of crashing the request.
+ */
+function tryUnwrapEngineState(raw: unknown): TrucoState | null {
+  try {
+    return unwrapEngineState(raw);
+  } catch {
+    return null;
+  }
+}
+
 // ─── Room codes ─────────────────────────────────────────────────────────────
 
 /**
@@ -158,6 +171,10 @@ export async function createTrucoMatch(
   }
 
   // Invite path mirrors the quiz challenge flow: friendship REQUIRED.
+  // Type garbage is refused BEFORE any query runs (remediation #5).
+  if (body.friendId !== undefined && typeof body.friendId !== 'string') {
+    return fail(400, 'MISSING_FIELD', 'friendId must be a string');
+  }
   if (body.friendId) {
     const [friendship] = await db
       .select()
@@ -392,8 +409,16 @@ export async function applyTrucoAction(
       return fail(409, 'version_conflict', 'Your view of the match is stale — refresh and retry');
     }
 
+    // Corrupt/foreign-schema persisted state cannot be advanced: refuse with a
+    // client-recoverable 409 instead of an opaque transaction crash (#2). The
+    // read path degrades to a terminal snapshot so clients stop retrying.
+    const currentState = tryUnwrapEngineState(row.engineState);
+    if (!currentState) {
+      return fail(409, 'STATE_CORRUPT', 'Stored match state is unreadable — the match cannot continue');
+    }
+
     const serverAction = { ...action, actor: slot } as unknown as TrucoAction;
-    const result = applyAction(unwrapEngineState(row.engineState), serverAction, {
+    const result = applyAction(currentState, serverAction, {
       rng: cryptoRng(),
     });
     if (!result.ok) {
@@ -453,6 +478,12 @@ export interface TrucoMatchSnapshot {
   updatedAt: string;
   /** Redacted per-viewer DTO; null until hand 1 is dealt. */
   view: (TrucoView & { matchId: string; version: number }) | null;
+  /**
+   * True when the persisted engine_state could not be read (remediation #2):
+   * the snapshot degrades to a terminal shape — status 'finished', view null —
+   * so clients treat the match as over instead of crash-looping.
+   */
+  degraded?: true;
 }
 
 export type GetTrucoMatchViewOutcome = TrucoMatchSnapshot | TrucoServiceError;
@@ -471,9 +502,29 @@ export async function getTrucoMatchView(
   }
 
   // Redaction rule: hands NEVER leave the server raw — buildView whitelists
-  // public info and reduces the opponent hand to a count.
-  const view = row.engineState
-    ? { ...buildView(unwrapEngineState(row.engineState), slot), matchId: row.id, version: row.version }
+  // public info and reduces the opponent hand to a count. A corrupt payload
+  // degrades to a terminal snapshot instead of crashing the read (#2).
+  const engineState = row.engineState ? tryUnwrapEngineState(row.engineState) : undefined;
+  if (engineState === null) {
+    return {
+      ok: true,
+      matchId: row.id,
+      code: row.code,
+      status: 'finished',
+      version: row.version,
+      targetPoints: row.targetPoints,
+      hostPlayerId: row.hostPlayerId,
+      guestPlayerId: row.guestPlayerId,
+      winnerUserId: row.winnerUserId,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      view: null,
+      degraded: true,
+    };
+  }
+
+  const view = engineState
+    ? { ...buildView(engineState, slot), matchId: row.id, version: row.version }
     : null;
 
   return {

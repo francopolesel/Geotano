@@ -122,6 +122,36 @@ describe('buildApp', () => {
   });
 });
 
+describe('global error handler (remediation #3)', () => {
+  it('maps unexpected handler crashes to an opaque 500 JSON body without leaking internals', async () => {
+    const app = await buildApp();
+    // Registered before first inject ⇒ before app.ready().
+    app.get('/api/__boom', async () => {
+      throw new Error('db password hunter2 leaked');
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/api/__boom' });
+
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({ message: 'Internal server error', errorCode: 'INTERNAL' });
+    // The raw error text must NOT reach the client.
+    expect(res.body).not.toContain('hunter2');
+    await app.close();
+  });
+
+  it('preserves Fastify default semantics for client errors (404 shape intact)', async () => {
+    const app = await buildApp();
+
+    const res = await app.inject({ method: 'GET', url: '/api/definitely-not-a-route' });
+
+    expect(res.statusCode).toBe(404);
+    const body = res.json();
+    expect(body.error).toBe('Not Found');
+    expect(body.message).toContain('/api/definitely-not-a-route');
+    await app.close();
+  });
+});
+
 describe('POST /api/matches/challenge — pending challenge replacement', () => {
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
