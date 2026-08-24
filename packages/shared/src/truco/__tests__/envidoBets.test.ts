@@ -231,11 +231,12 @@ describe('Falta envido settlement (formula computed at settlement time)', () => 
       ['5oro', '3oro', '12espada'], // 28
       ['5copa', '3copa', '11basto'], // 28
     );
-    const opened = applyAction(tied, { type: 'sing_falta_envido', actor: 'A' }, DEPS());
+    const opened = applyAction(tied, { type: 'sing_falta_envido', actor: 'B' }, DEPS());
     if (!opened.ok) throw new Error(opened.errorCode);
-    const settled = applyAction(opened.state, { type: 'quiero', actor: 'B' }, DEPS());
+    const settled = applyAction(opened.state, { type: 'quiero', actor: 'A' }, DEPS());
     if (!settled.ok) throw new Error(settled.errorCode);
     // Mano is B; falta amount = 30 − max(10,10) = 20 → B reaches 30.
+    // (B opens because playerToAct = mano; A answers as responder.)
     expect(settled.state.winner).toBe('B');
     expect(settled.state.scores.B).toBe(30);
     const showdown = settled.state.history.find((e) => e.type === 'envido_showdown');
@@ -244,6 +245,32 @@ describe('Falta envido settlement (formula computed at settlement time)', () => 
 });
 
 describe('Envido timing windows', () => {
+  it('envido OPENING from the waiting seat is rejected with E_OUT_OF_TURN and leaves state untouched', () => {
+    // Fresh hand, no cards played, windows fully open — the ONLY blocker is
+    // turn order: playerToAct = A (mano), so B may not open the bet.
+    const state = makeState({ mano: 'A' });
+    expect(state.playerToAct).toBe('A');
+    const attempt = applyAction(state, { type: 'sing_envido', actor: 'B' }, DEPS());
+    if (attempt.ok) throw new Error('must reject');
+    expect(attempt.errorCode).toBe('E_OUT_OF_TURN');
+    expect(attempt.state).toBe(state);
+  });
+
+  it('every envido opening variant is turn-guarded, while the on-turn seat still opens fine', () => {
+    const waiting = makeState({ mano: 'A' });
+    for (const type of ['sing_real_envido', 'sing_falta_envido'] as const) {
+      const attempt = applyAction(waiting, { type, actor: 'B' }, DEPS());
+      if (attempt.ok) throw new Error(`must reject ${type}`);
+      expect(attempt.errorCode).toBe('E_OUT_OF_TURN');
+    }
+    // Triangulation: the on-turn seat (playerToAct = B) opens without issue.
+    const onTurn = makeState({ mano: 'B' });
+    const opened = applyAction(onTurn, { type: 'sing_envido', actor: 'B' }, DEPS());
+    if (!opened.ok) throw new Error(opened.errorCode);
+    expect(opened.state.phase).toBe('envido_betting');
+    expect(opened.state.envido?.lastCaller).toBe('B');
+  });
+
   it('after the first card hits the table, envido initiation is rejected and state unchanged', () => {
     const state = makeState();
     const led = applyAction(state, { type: 'play_card', actor: 'A', card: state.hands.A[0]! }, DEPS());

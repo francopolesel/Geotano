@@ -387,7 +387,12 @@ function singEnvido(state: TrucoState, action: Extract<TrucoAction, { actor: Pla
   if (state.phase === 'playing') {
     if (!isEnvidoCall(action.type)) return rejected('E_STATE_FORBIDDEN', state);
     const windowError = envidoWindowError(state);
+    // Window closure outranks turn order: once envido is unavailable it is
+    // unavailable to EVERYONE (determinism sweep pins this precedence).
     if (windowError) return rejected(windowError, state);
+    // Opening is a bet initiation like sing_truco: only the seat owing the
+    // next move may start one (server-authoritative anti-spoof parity).
+    if (action.actor !== state.playerToAct) return rejected('E_OUT_OF_TURN', state);
     const next = structuredClone(state);
     openEnvido(next, action.actor, type, events);
     return { ok: true, state: next, events };
