@@ -90,11 +90,15 @@ describe('cross-game navigation (Geotano ↔ Truco)', () => {
     expect(screen.getByTestId('truco-cpu-route-probe')).toBeDefined();
   });
 
-  it('menu keeps the friend-mode entry as a disabled placeholder until multiplayer lands', () => {
+  it('friend-mode entry is live and opens the CU6 friend lobby panel', () => {
     renderCrossGame('/truco');
 
     const vsFriend = screen.getByTestId('truco-menu-vs-friend');
-    expect(vsFriend).toBeDefined();
-    expect(vsFriend).toHaveProperty('disabled', true);
+    expect(vsFriend).toHaveProperty('disabled', false);
+
+    // Multiplayer landed in CU6: the entry reveals the lobby instead of
+    // staying a disabled placeholder (supersedes the Batch D pin).
+    fireEvent.click(vsFriend);
+    expect(screen.getByTestId('truco-menu-friend')).toBeDefined();
   });
 });
