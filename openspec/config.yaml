@@ -4,7 +4,8 @@ schema: spec-driven
 context: |
   Tech stack: Node.js + React (frontend) + PostgreSQL (database)
   Architecture: Monorepo with React SPA frontend and Node.js REST API backend
-  Testing: None detected (greenfield project)
+  Testing: Vitest v3 across all packages (@geotano/shared, @geotano/backend,
+  @geotano/frontend) orchestrated by Turborepo; strict TDD for SDD changes.
   Style: Standard JavaScript/TypeScript conventions, component-based React
 
 rules:
@@ -21,23 +22,23 @@ rules:
     - Keep tasks completable in one session
   apply:
     - Follow existing code patterns
-    tdd: false
-    test_command: ""
+    tdd: true
+    test_command: pnpm test
   verify:
-    test_command: ""
-    build_command: ""
+    test_command: pnpm test
+    build_command: pnpm build
     coverage_threshold: 0
   archive:
     - Warn before merging destructive deltas
 
-strict_tdd: false
+strict_tdd: true
 
 testing:
-  runner: null
-  unit: null
-  integration: null
+  runner: vitest@3
+  unit: pnpm test
+  integration: pnpm test:backend
   e2e: null
   coverage: null
   linter: null
-  type_checker: null
-  formatter: null
+  type_checker: pnpm check-types
+  formatter: pnpm format
