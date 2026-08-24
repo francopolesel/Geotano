@@ -1,4 +1,4 @@
-﻿# Tasks: Truco Argentino
+# Tasks: Truco Argentino
 
 > Session preflight: auto Â· hybrid store Â· SINGLE PR with work-unit commits Â· unlimited review budget Â· STRICT TDD (Vitest v3). Session preflight overrides `openspec/config.yaml` `tdd: false`.
 > Phasing: batches follow design Â§Work-unit commit plan (TDD-safe order: pure engine â†’ backend â†’ frontend). `P#` tags mark which proposal phase (P1â€“P7) each task serves; P1's "route skeleton + nav entry" lands in CU4 as the first frontend commit because strict TDD pins the engine GWT suite before any UI/backend consumption.
@@ -237,6 +237,8 @@ Every task = RED (failing GWT cases in `packages/shared/src/truco/__tests__/`) �
 ## Phase 8 â€” Final verification gate (no commit) â€” maps to PRD Â§33 acceptance
 
 > Status note (apply batch G): AUTOMATED gates executed post-CU7 â€” root `pnpm test` green (1,358: shared 143 + backend 471 + frontend 744), `pnpm build` green, `pnpm check-types` green. MANUAL gates PENDING for verify/human: two-browser multiplayer walkthrough (#6), full CPU matches on all three difficulties by hand (#3 partial â AI contract suites green), devtools illegal-action probe (#7 manual half), and the 360Ã—640 visual walkthrough with desktop scale-up (#10). Not checked here; verify phase owns them.
+>
+> Status note (remediation, complete): consolidated review fixes landed as fb24b2a (CI gate), 19ad9cf + cb7e9ea (engine envido turn guard, backend corrupt-state degrade / friendId guard / opaque 500s), 894e3a1 + 08c1b12 + 933ee20 (personaAt centralization, rival avatar slot + hard-AI per-hand think delays, global invite banner), bb147ca (start-CAS WHERE structural pin), 13d8b6a (shared turn-query helper isAwaitingOpponent, stale-board banner, benign-race amber recovery for E_OUT_OF_TURN / E_STATE_FORBIDDEN, rematch error banner), 1a66de0 + 75f28d4 (envido stake constants with spec citation, unreachable branch + dead export removal, statusOf + TRUCO_DIFFICULTIES single-sourcing), 709b7d3 (docs touch-up). Post-remediation automated gates re-run green: shared 145 + backend 483 + frontend 768 = 1,396 tests, check-types 3/3, build green. Manual gates above remain pending.
 
 1. **Geotano intact** â€” full `pnpm test` green; pre-existing 988 quiz tests unmodified; additive-only diff audit (quiz surfaces touched: `HomePage.tsx` one button only).
 2. **Nav both ways** â€” AppShell item â†’ `/truco` renders; HomePage button; `/truco` reciprocal Geotano button â†’ `/` (tests + manual click-through).
