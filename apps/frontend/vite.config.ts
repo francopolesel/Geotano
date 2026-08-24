@@ -29,5 +29,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // CI gate parity: an accidentally skipped suite must fail the run.
+    forbidOnly: true,
   },
 });
