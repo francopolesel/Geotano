@@ -78,7 +78,7 @@ export function TruCpuPage() {
   }
 
   return (
-    <div data-testid="truco-cpu-page" className="mx-auto w-full max-w-2xl min-w-0 px-2">
+    <div data-testid="truco-cpu-page" className="mx-auto w-full max-w-3xl min-w-0 px-2">
       <TrucoTable
         view={game.view}
         mySlot={MY_SLOT}

@@ -35,6 +35,29 @@ const socketMocks = vi.hoisted(() => ({
 
 vi.mock('../../../lib/socket', () => socketMocks);
 
+// Sound pipeline is mocked at the module boundary so tests can spy on the
+// shared sink and the event→sound mapping without touching real audio.
+const soundMocks = vi.hoisted(() => {
+  const sink = {
+    cardPlayed: vi.fn(),
+    callEnvido: vi.fn(),
+    callTruco: vi.fn(),
+    quiero: vi.fn(),
+    noQuiero: vi.fn(),
+    bazaWon: vi.fn(),
+    handEnded: vi.fn(),
+    matchWon: vi.fn(),
+    matchLost: vi.fn(),
+  };
+  return {
+    sink,
+    createSoundSink: vi.fn(() => sink),
+    mapEventsToSounds: vi.fn(),
+  };
+});
+
+vi.mock('../lib/soundTriggers', () => soundMocks);
+
 import { useAuthStore } from '../../../store/authStore';
 import { useFriendsStore } from '../../../store/friendsStore';
 import { TrucoMatchPage, REMATCH_ERROR_FALLBACK_MS } from '../TrucoMatchPage';
@@ -348,6 +371,63 @@ describe('TrucoMatchPage — game view (CU6 slice 6c)', () => {
 
     expect(screen.getByTestId('truco-table')).toBeTruthy();
     await screen.findByTestId('truco-match-stale');
+  });
+});
+
+describe('TrucoMatchPage — multiplayer sound watermark dedupe', () => {
+  beforeEach(() => {
+    seedViewer(HOST_ID);
+    useFriendsStore.setState({ friends: [], onlineUsers: new Set<string>() });
+    vi.clearAllMocks();
+  });
+  afterEach(cleanup);
+
+  // Append-only server log: these events stand in for real engine history.
+  const evPlayed = { type: 'card_played', player: 'B', card: '1oro' };
+  const evBaza = { type: 'baza_resolved', baza: 1, winner: 'A' };
+  const evHand = { type: 'hand_ended', winner: 'B' };
+
+  function playingWithHistory(history: unknown[], version = 3) {
+    return makeSnapshot('playing', { version, view: { ...makeView(version), history } });
+  }
+
+  async function setSnapshot(queryClient: QueryClient, snapshot: Record<string, unknown>) {
+    await act(async () => {
+      queryClient.setQueryData(['truco-match', 'm-1'], snapshot);
+    });
+  }
+
+  it('anchors silently on first sight, no-ops on equal-length refetches, fires only the appended suffix', async () => {
+    apiMock.get.mockResolvedValue(playingWithHistory([evPlayed]));
+    const { queryClient } = renderMatchPage();
+    await screen.findByTestId('truco-table');
+
+    // Fresh matchId first render (mount/reload/rematch): anchor silently —
+    // the backlog must NEVER replay as a wall of cues.
+    expect(soundMocks.mapEventsToSounds).not.toHaveBeenCalled();
+
+    // Same-length refetch (10s poll / socket invalidation of an unchanged
+    // log): watermark equal ⇒ nothing fires, even with different content.
+    await setSnapshot(queryClient, playingWithHistory([evHand], 4));
+    // Let any pending work settle, then confirm nothing fired.
+    await act(async () => {});
+    expect(soundMocks.mapEventsToSounds).not.toHaveBeenCalled();
+
+    // Longer history: exactly the appended suffix reaches the sound mapping,
+    // once — never the already-seen prefix.
+    await setSnapshot(
+      queryClient,
+      playingWithHistory([evPlayed, evHand, evBaza], 5),
+    );
+    await waitFor(() => {
+      expect(soundMocks.mapEventsToSounds).toHaveBeenCalledTimes(1);
+    });
+    expect(soundMocks.mapEventsToSounds).toHaveBeenCalledWith(
+      [evHand, evBaza],
+      'A',
+      soundMocks.sink,
+    );
+    expect(soundMocks.sink.bazaWon).not.toHaveBeenCalled(); // mapping itself is mocked
   });
 });
 

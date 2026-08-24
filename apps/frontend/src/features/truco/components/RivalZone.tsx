@@ -1,24 +1,43 @@
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
+import { Scoreboard } from './Scoreboard';
 
-/** TOP zone: opponent avatar, nickname, score/target, face-down count, turn indicator. */
+/**
+ * TOP zone: opponent avatar, nickname, scoreboard with progress toward the
+ * target, face-down hand count. Turn presence is shown via an ambient glow
+ * ring on this panel — the explicit pill moved to the shared TurnBanner.
+ */
 export interface RivalZoneProps {
   name: string;
   score: number;
   targetPoints: number;
   handCount: number;
   isTurn: boolean;
+  isMano: boolean;
   /** Custom avatar node (CPU persona emoji); monogram initial when absent. */
   avatar?: ReactNode;
 }
 
-export function RivalZone({ name, score, targetPoints, handCount, isTurn, avatar }: RivalZoneProps) {
+export function RivalZone({
+  name,
+  score,
+  targetPoints,
+  handCount,
+  isTurn,
+  isMano,
+  avatar,
+}: RivalZoneProps) {
   const { t } = useTranslation();
 
   return (
     <div
       data-testid="truco-rival-zone"
-      className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2"
+      className={[
+        'flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 transition-shadow',
+        isTurn
+          ? 'border-emerald-400/60 bg-[var(--color-card)] truco-turn-glow'
+          : 'border-[var(--color-border)] bg-[var(--color-card)]',
+      ].join(' ')}
     >
       <div className="flex min-w-0 items-center gap-2">
         {/* Avatar: custom node when supplied (CPU personas), else the
@@ -33,9 +52,12 @@ export function RivalZone({ name, score, targetPoints, handCount, isTurn, avatar
           <p data-testid="rival-name" className="truncate text-sm font-semibold">
             {name}
           </p>
-          <p data-testid="rival-score" className="text-xs tabular-nums text-[var(--color-muted-foreground)]">
-            {score} / {targetPoints}
-          </p>
+          <Scoreboard
+            score={score}
+            targetPoints={targetPoints}
+            tone="rival"
+            isMano={isMano}
+          />
         </div>
       </div>
 
@@ -47,14 +69,6 @@ export function RivalZone({ name, score, targetPoints, handCount, isTurn, avatar
         >
           🂠 ×{handCount}
         </span>
-        {isTurn ? (
-          <span
-            data-testid="rival-turn-indicator"
-            className="animate-pulse rounded-full bg-[var(--color-primary)] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white transition-opacity"
-          >
-            {t('truco.turn.opponent')}
-          </span>
-        ) : null}
       </div>
     </div>
   );
