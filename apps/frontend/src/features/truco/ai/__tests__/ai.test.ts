@@ -15,7 +15,7 @@ import type {
   TrucoAction,
   TrucoState,
 } from '@geotano/shared';
-import { PERSONAS, createAi, pickPersona } from '../index';
+import { PERSONAS, createAi, pickPersona, personaAt, normalizePersonaIndex } from '../index';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -490,5 +490,17 @@ describe('CPU personas', () => {
   it('spreads seeds across several distinct personas', () => {
     const distinct = new Set(Array.from({ length: 40 }, (_, i) => pickPersona(i * 37 + 11).name));
     expect(distinct.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it('personaAt / normalizePersonaIndex wrap ANY numeric index — negative, float, huge (remediation #8)', () => {
+    expect(normalizePersonaIndex(-1)).toBe(PERSONAS.length - 1);
+    expect(normalizePersonaIndex(4.7)).toBe(4);
+    expect(normalizePersonaIndex(99)).toBe(99 % PERSONAS.length);
+
+    for (const i of [-1, -9, -25, 0.5, 7.999, 99, 1e9]) {
+      expect(PERSONAS).toContain(personaAt(i));
+      // One rule powers both entry points.
+      expect(personaAt(i)).toEqual(pickPersona(i));
+    }
   });
 });

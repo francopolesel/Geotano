@@ -18,7 +18,7 @@ import {
   joinTrucoMatchByCode,
   lookupTrucoMatchByCode,
 } from '../../lib/trucoApi';
-import { PERSONAS } from './ai';
+import { personaAt, normalizePersonaIndex } from './ai';
 
 /**
  * Truco menu — mode selection + CPU config + friend lobby (design D11 tree).
@@ -78,14 +78,11 @@ export function TrucoMenuPage() {
   const setTargetPoints = useTrucoPrefsStore((state) => state.setTargetPoints);
   const setPersonaIndex = useTrucoPrefsStore((state) => state.setPersonaIndex);
 
-  const personaCount = PERSONAS.length;
-  // Safe modulo keeps negative wrap-arounds (prev from 0) inside the roster.
-  type PersonaEntry = (typeof PERSONAS)[number];
-  const persona = PERSONAS[
-    ((personaIndex % personaCount) + personaCount) % personaCount
-  ] as PersonaEntry;
+  // Safe indexing is centralized in personaAt / normalizePersonaIndex (the
+  // store clamps on hydrate/set too — this covers direct navigation states).
+  const persona = personaAt(personaIndex);
   const cyclePersona = (delta: number) => {
-    setPersonaIndex(((personaIndex + delta) % personaCount + personaCount) % personaCount);
+    setPersonaIndex(normalizePersonaIndex(personaIndex + delta));
   };
   const stats = useTruCpuStatsStore((state) => state.stats);
   const winRate = selectWinRate(stats);

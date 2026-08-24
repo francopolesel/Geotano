@@ -26,10 +26,24 @@ export const PERSONAS: readonly Persona[] = [
   { name: 'Don Juan', avatar: '🎸' },
 ] as const;
 
+/**
+ * Canonical safe wrap of ANY numeric index into [0, PERSONAS.length) —
+ * negatives, floats and huge values all land on a real persona (remediation
+ * #8: one rule, every entry point).
+ */
+export function normalizePersonaIndex(index: number): number {
+  const count = PERSONAS.length;
+  return ((Math.trunc(index) % count) + count) % count;
+}
+
+/** Persona lookup that can never yield undefined for a numeric index. */
+export function personaAt(index: number): Persona {
+  return PERSONAS[normalizePersonaIndex(index)] as Persona;
+}
+
 /** Deterministic persona selection from a seed. */
 export function pickPersona(seed: number): Persona {
-  const count = PERSONAS.length;
-  return PERSONAS[((seed % count) + count) % count] as Persona;
+  return personaAt(seed);
 }
 
 export function createAi(difficulty: Difficulty): TrucoAi {

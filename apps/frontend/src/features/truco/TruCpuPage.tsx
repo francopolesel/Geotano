@@ -13,7 +13,7 @@ import type { PlayerSlot, TrucoEvent } from '@geotano/shared';
 import { TrucoTable } from './components/TrucoTable';
 import { EndScreen } from './components/EndScreen';
 import { useTruCpuGame } from './hooks/useTruCpuGame';
-import { PERSONAS } from './ai';
+import { personaAt } from './ai';
 import {
   createSoundSink,
   mapEventsToSounds,
@@ -31,9 +31,7 @@ export function TruCpuPage() {
   const difficulty = useTrucoPrefsStore((state) => state.difficulty);
   const targetPoints = useTrucoPrefsStore((state) => state.targetPoints);
   const personaIndex = useTrucoPrefsStore((state) => state.personaIndex);
-  const personaOverride = PERSONAS[personaIndex % PERSONAS.length] as (
-    typeof PERSONAS
-  )[number];
+  const personaOverride = personaAt(personaIndex);
 
   // Sound sink is store-gated internally; create it once per mount.
   const sinkRef = useRef<TrucoSoundSink | null>(null);

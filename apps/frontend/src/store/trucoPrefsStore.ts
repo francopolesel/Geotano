@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+// Single source of truth for safe persona indexing lives with the roster
+// (remediation #8): the store never persists or exposes an unsafe index.
+import { normalizePersonaIndex } from '../features/truco/ai';
 
 export type TrucoDifficulty = 'easy' | 'medium' | 'hard';
 export type TrucoTargetPoints = 15 | 30;
@@ -58,7 +61,7 @@ export const useTrucoPrefsStore = create<TrucoPrefsState>((set, get) => ({
           : get().targetPoints,
         personaIndex:
           typeof parsed.personaIndex === 'number' && Number.isFinite(parsed.personaIndex)
-            ? parsed.personaIndex
+            ? normalizePersonaIndex(parsed.personaIndex)
             : get().personaIndex,
       });
     } catch {
@@ -81,7 +84,7 @@ export const useTrucoPrefsStore = create<TrucoPrefsState>((set, get) => ({
   },
 
   setPersonaIndex: (personaIndex) => {
-    const prefs = { ...get(), personaIndex };
+    const prefs = { ...get(), personaIndex: normalizePersonaIndex(personaIndex) };
     persist(prefs);
     set(prefs);
   },

@@ -20,6 +20,7 @@ import {
   useTrucoPrefsStore,
   TRUCO_PREFS_KEY,
 } from '../store/trucoPrefsStore';
+import { PERSONAS } from '../features/truco/ai';
 import {
   useTruCpuStatsStore,
   selectWinRate,
@@ -118,6 +119,32 @@ describe('trucoPrefsStore', () => {
     expect(s.difficulty).toBe('hard');
     expect(s.targetPoints).toBe(30); // invalid value rejected → default kept
     expect(s.personaIndex).toBe(0); // invalid type rejected → default kept
+  });
+
+  it('hydrate clamps negative / out-of-range / float personaIndex onto a valid slot (remediation #8)', () => {
+    const cases: Array<[number, number]> = [
+      [-1, PERSONAS.length - 1],
+      [99, 99 % PERSONAS.length],
+      [4.7, 4],
+    ];
+    for (const [stored, expected] of cases) {
+      localStorageMock.setItem(
+        TRUCO_PREFS_KEY,
+        JSON.stringify({ difficulty: 'easy', targetPoints: 30, personaIndex: stored }),
+      );
+      useTrucoPrefsStore.setState({ personaIndex: 0 });
+      useTrucoPrefsStore.getState().hydrate();
+      expect(useTrucoPrefsStore.getState().personaIndex).toBe(expected);
+    }
+  });
+
+  it('setPersonaIndex normalizes before persisting so storage never holds an unsafe index', () => {
+    useTrucoPrefsStore.getState().setPersonaIndex(-1);
+
+    expect(useTrucoPrefsStore.getState().personaIndex).toBe(PERSONAS.length - 1);
+    expect(JSON.parse(localStorageMock.getItem(TRUCO_PREFS_KEY)!).personaIndex).toBe(
+      PERSONAS.length - 1,
+    );
   });
 });
 
