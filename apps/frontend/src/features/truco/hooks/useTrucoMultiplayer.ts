@@ -153,8 +153,10 @@ export function useTrucoMultiplayer(matchId: string) {
 
   // Presence is only KNOWABLE for tracked friends (server gates presence
   // events by friendship); anything else stays honestly unknown.
+  // Identity note: GET /friends rows carry { id: friendshipRowId,
+  // friendId: friendUserId } — matching MUST use friendId (routes/friends.ts).
   let opponentPresence: OpponentPresence = 'unknown';
-  if (opponentUserId && friends.some((friend) => friend.id === opponentUserId)) {
+  if (opponentUserId && friends.some((friend) => friend.friendId === opponentUserId)) {
     opponentPresence = onlineUsers.has(opponentUserId) ? 'online' : 'offline';
   }
 

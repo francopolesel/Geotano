@@ -12,6 +12,8 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { startTrucoMatch } from '../../lib/trucoApi';
 import { useTrucoMultiplayer } from './hooks/useTrucoMultiplayer';
+import { useFriendsStore } from '../../store/friendsStore';
+import { TrucoTable } from './components/TrucoTable';
 
 /** Thrown values are ApiError-shaped ({status}); map without instanceof so
  * module-mocked api clients in tests behave identically to production. */
@@ -25,12 +27,35 @@ export function TrucoMatchPage() {
 
   const {
     snapshot,
+    view,
+    mySlot,
+    opponentUserId,
+    opponentPresence,
+    postAction,
+    actionError,
     isLoading,
     isError,
     error,
     refetch,
     currentUserId,
   } = useTrucoMultiplayer(matchId);
+
+  // Opponent identity: the snapshot DTO carries only ids (D8), so a tracked
+  // friend's username is the one honest name available client-side; code-join
+  // strangers get the neutral localized label instead of a guess.
+  const friends = useFriendsStore((state) => state.friends);
+  const opponentFriend = friends.find((friend) => friend.friendId === opponentUserId);
+  const opponentName =
+    opponentFriend?.displayName || opponentFriend?.username || t('truco.multi.opponent');
+  const rivalAvatar = (
+    <span
+      data-testid="truco-match-rival-avatar"
+      aria-hidden
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-muted)] text-sm font-bold text-[var(--color-foreground)]"
+    >
+      {opponentName.slice(0, 1).toUpperCase()}
+    </span>
+  );
 
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
@@ -89,12 +114,80 @@ export function TrucoMatchPage() {
       className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-4 p-2"
     >
       {(snapshot.status === 'playing' || snapshot.status === 'finished') && (
-        // Slice 6c replaces this stub with the shared CU5 table components.
         <div
           data-testid="truco-match-playing"
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center text-sm text-[var(--color-muted-foreground)]"
+          className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-2 px-2"
         >
-          {t('truco.menu.comingSoon')}
+          {snapshot.status === 'playing' && view && mySlot ? (
+            <>
+              {/* Opponent strip: identity + honest connection indicator */}
+              <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  {rivalAvatar}
+                  <span className="min-w-0 truncate text-sm font-semibold text-[var(--color-foreground)]">
+                    {opponentName}
+                  </span>
+                </div>
+                <span
+                  data-testid="truco-match-presence"
+                  data-presence={opponentPresence}
+                  className="flex shrink-0 items-center gap-1 text-xs text-[var(--color-muted-foreground)]"
+                >
+                  <span
+                    aria-hidden
+                    className={[
+                      'h-2 w-2 rounded-full',
+                      opponentPresence === 'online'
+                        ? 'bg-emerald-500'
+                        : opponentPresence === 'offline'
+                          ? 'bg-red-500'
+                          : 'bg-[var(--color-border)]',
+                    ].join(' ')}
+                  />
+                  {t(`truco.multi.presence.${opponentPresence}`)}
+                </span>
+              </div>
+
+              {/* Zero rules logic here: legality + actions come from the shared
+                  table over the redacted view; every move POSTs to the server,
+                  whose response is merged as truth by the hook. */}
+              <TrucoTable
+                view={view}
+                mySlot={mySlot}
+                myName={t('truco.you')}
+                opponentName={opponentName}
+                onAction={(action) =>
+                  postAction.mutate({ expectedVersion: view.version, action })
+                }
+                rivalAvatar={rivalAvatar}
+              />
+
+              {actionError?.status === 409 && (
+                <p
+                  data-testid="truco-match-syncing"
+                  data-persisted="true"
+                  role="status"
+                  className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                >
+                  {t('truco.multi.syncing')}
+                </p>
+              )}
+              {actionError && actionError.status !== 409 && (
+                <p
+                  data-testid="truco-match-action-error"
+                  role="alert"
+                  className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400"
+                >
+                  {t('truco.error.generic')}
+                </p>
+              )}
+            </>
+          ) : (
+            // Slice 6d swaps the finished branch for the shared EndScreen.
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center text-sm text-[var(--color-muted-foreground)]">
+              {t('truco.menu.comingSoon')}
+            </div>
+          )}
         </div>
       )}
 

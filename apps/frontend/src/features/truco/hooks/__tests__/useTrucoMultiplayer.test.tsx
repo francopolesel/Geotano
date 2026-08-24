@@ -433,7 +433,26 @@ describe('useTrucoMultiplayer', () => {
 
   it('presence: friend opponent seen online reports online', async () => {
     useFriendsStore.setState({
-      friends: [{ id: GUEST_ID }] as never,
+      friends: [{ id: 'fr-row-1', friendId: GUEST_ID }] as never,
+      onlineUsers: new Set([GUEST_ID]),
+    });
+    apiMock.get.mockResolvedValue(makeSnapshot());
+    const { Wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useTrucoMultiplayer(MATCH_ID), { wrapper: Wrapper });
+    await flush();
+
+    expect(result.current.opponentPresence).toBe('online');
+  });
+
+  it('presence: REAL friends-store row shape (id=row id, friendId=user id) still reports online', async () => {
+    // routes/friends.ts maps GET /friends rows as { id: friendshipRowId,
+    // friendId: FRIENDS_USER_ID }. Identity matching MUST use friendId —
+    // matching on the row id silently degrades presence to 'unknown'.
+    useFriendsStore.setState({
+      friends: [
+        { id: 'fr-row-9', friendId: GUEST_ID, username: 'maria', status: 'accepted' },
+      ] as never,
       onlineUsers: new Set([GUEST_ID]),
     });
     apiMock.get.mockResolvedValue(makeSnapshot());
@@ -446,7 +465,10 @@ describe('useTrucoMultiplayer', () => {
   });
 
   it('presence: friend opponent not in the online set reports offline', async () => {
-    useFriendsStore.setState({ friends: [{ id: GUEST_ID }] as never, onlineUsers: new Set() });
+    useFriendsStore.setState({
+      friends: [{ id: 'fr-row-1', friendId: GUEST_ID }] as never,
+      onlineUsers: new Set(),
+    });
     apiMock.get.mockResolvedValue(makeSnapshot());
     const { Wrapper } = createWrapper();
 
