@@ -118,9 +118,11 @@ export function hardThinkDelayMs(handNumber: number): number {
 }
 
 export const hardAi: TrucoAi = {
-  // Interface exposes one number; the controller may refine per hand via
-  // hardThinkDelayMs(). Both sources are fixed constants, never wall-clock.
+  // Fallback constant; the controller prefers thinkDelayFor below. Both
+  // sources are fixed constants, never wall-clock.
   thinkDelayMs: THINK_DELAYS_MS[0],
+  // Varied-but-fixed per-hand pacing (remediation #10: actually wired now).
+  thinkDelayFor: hardThinkDelayMs,
 
   decide(input: CpuDecisionInput, rng: Rng): TrucoAction {
     const options = cpuOptions(input);

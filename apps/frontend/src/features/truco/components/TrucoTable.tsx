@@ -29,6 +29,7 @@ export function TrucoTable({
   myName,
   opponentName,
   onAction,
+  rivalAvatar,
 }: TrucoTableProps) {
   const rivalSlot: PlayerSlot = mySlot === 'A' ? 'B' : 'A';
   // Computed keys defeat Record inference in TS; branch explicitly instead.
@@ -63,6 +64,7 @@ export function TrucoTable({
         targetPoints={view.targetPoints}
         handCount={view.opponentHandCount}
         isTurn={rivalIsTurn}
+        avatar={rivalAvatar}
       />
 
       {/* CENTER: table */}

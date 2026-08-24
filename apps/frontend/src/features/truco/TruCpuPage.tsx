@@ -32,7 +32,6 @@ export function TruCpuPage() {
   const targetPoints = useTrucoPrefsStore((state) => state.targetPoints);
   const personaIndex = useTrucoPrefsStore((state) => state.personaIndex);
   const personaOverride = personaAt(personaIndex);
-
   // Sound sink is store-gated internally; create it once per mount.
   const sinkRef = useRef<TrucoSoundSink | null>(null);
   if (!sinkRef.current) sinkRef.current = createSoundSink();

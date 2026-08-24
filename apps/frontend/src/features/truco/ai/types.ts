@@ -15,8 +15,12 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 export interface TrucoAi {
   /** Pure decision over the firewall input; rng is injected for reproducibility. */
   decide(input: CpuDecisionInput, rng: Rng): TrucoAction;
-  /** Fixed think delay constant (never wall-clock). */
+  /** Fixed think delay constant (never wall-clock); fallback for difficulties
+   *  that do not refine per hand. */
   readonly thinkDelayMs: number;
+  /** Optional per-hand delay refinement (handNumber is 1-based). Difficulties
+   *  with varied pacing implement this; the controller prefers it. */
+  readonly thinkDelayFor?: (handNumber: number) => number;
 }
 
 /** Slot whose turn / answer window this decision input represents. */

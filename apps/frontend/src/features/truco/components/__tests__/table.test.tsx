@@ -85,6 +85,24 @@ describe('TrucoTable — zone composition invariant', () => {
   });
 });
 
+describe('TrucoTable — rival avatar slot (remediation #9)', () => {
+  it('renders a provided avatar node inside the dedicated avatar slot', () => {
+    renderTable(baseState(), {
+      rivalAvatar: <span data-testid="rival-avatar-custom">🌵</span>,
+    });
+
+    const slot = screen.getByTestId('truco-rival-avatar');
+    expect(screen.getByTestId('rival-avatar-custom')).toBeDefined();
+    expect(slot.textContent).toBe('🌵');
+  });
+
+  it('falls back to the monogram initial when no avatar is supplied', () => {
+    renderTable(baseState());
+
+    expect(screen.getByTestId('truco-rival-avatar').textContent).toBe('B');
+  });
+});
+
 describe('TrucoTable — turn gating and valid-actions-only', () => {
   it("opponent's turn: all my cards non-interactive and a waiting indicator shows", () => {
     const state = baseState();

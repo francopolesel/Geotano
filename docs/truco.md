@@ -58,6 +58,7 @@ Location: `apps/frontend/src/features/truco/ai/`. Contract (`types.ts`):
 interface TrucoAi {
   decide(input: CpuDecisionInput, rng: Rng): TrucoAction;
   readonly thinkDelayMs: number; // fixed constant, never wall-clock
+  readonly thinkDelayFor?: (handNumber: number) => number; // optional per-hand pacing
 }
 ```
 
@@ -67,7 +68,7 @@ Difficulties:
 
 - `easy.ts` — uniform-ish card play, rarely sings/folds strategically, 700 ms think delay.
 - `medium.ts` — tier heuristics (bets with strong hands, folds junk, sings envido ≥27), 450 ms delay.
-- `hard.ts` — counts played cards, saves top cards for the third baza, bluffs within a bounded band, marker-aware Falta Envido discipline; variable but constant-valued delays per hand number.
+- `hard.ts` — counts played cards, saves top cards for the third baza, bluffs within a bounded band, marker-aware Falta Envido discipline; rotates a fixed per-hand delay table (520/640/760 ms by hand number) via `thinkDelayFor`.
 
 Statistical contracts (distinctness, bounded bluff rates, never-illegal moves) are pinned by `ai/__tests__/ai.test.ts`.
 

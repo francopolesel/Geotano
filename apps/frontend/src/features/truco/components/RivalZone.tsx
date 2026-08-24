@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import type { ReactNode } from 'react';
 
 /** TOP zone: opponent avatar, nickname, score/target, face-down count, turn indicator. */
 export interface RivalZoneProps {
@@ -7,9 +8,11 @@ export interface RivalZoneProps {
   targetPoints: number;
   handCount: number;
   isTurn: boolean;
+  /** Custom avatar node (CPU persona emoji); monogram initial when absent. */
+  avatar?: ReactNode;
 }
 
-export function RivalZone({ name, score, targetPoints, handCount, isTurn }: RivalZoneProps) {
+export function RivalZone({ name, score, targetPoints, handCount, isTurn, avatar }: RivalZoneProps) {
   const { t } = useTranslation();
 
   return (
@@ -18,9 +21,13 @@ export function RivalZone({ name, score, targetPoints, handCount, isTurn }: Riva
       className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2"
     >
       <div className="flex min-w-0 items-center gap-2">
-        {/* Avatar: deterministic monogram (CPU personas supply initials) */}
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
-          {name.slice(0, 1).toUpperCase()}
+        {/* Avatar: custom node when supplied (CPU personas), else the
+            deterministic monogram initial (multiplayer nicknames). */}
+        <div
+          data-testid="truco-rival-avatar"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white"
+        >
+          {avatar ?? name.slice(0, 1).toUpperCase()}
         </div>
         <div className="min-w-0">
           <p data-testid="rival-name" className="truncate text-sm font-semibold">

@@ -138,8 +138,14 @@ export function useTruCpuGame({
   // effect re-arms the pending CPU think timer (or lets the state rest).
   useEffect(() => {
     if (!snapshot.finished && cpuOwes(stateRef.current as TrucoState)) {
+      const state = stateRef.current as TrucoState;
       clearTimer();
-      timerRef.current = setTimeout(runCpuTurn, aiRef.current.thinkDelayMs);
+      // Per-hand pacing when the difficulty refines it (hard rotates its
+      // delay table); flat constant otherwise.
+      timerRef.current = setTimeout(
+        runCpuTurn,
+        aiRef.current.thinkDelayFor?.(state.handNumber) ?? aiRef.current.thinkDelayMs,
+      );
     }
     return clearTimer;
   }, [snapshot, clearTimer, runCpuTurn]);
