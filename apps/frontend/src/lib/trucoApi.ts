@@ -25,7 +25,7 @@ export interface CreateTrucoMatchResponse {
   status: 'waiting' | 'ready';
 }
 
-/** Convenience pre-check body (no authGuard server-side; UI-only courtesy). */
+/** Convenience pre-check body (authGuard required server-side since remediation #4). */
 export interface TrucoMatchCodeLookup {
   matchId: string;
   status: 'waiting' | 'ready' | 'playing' | 'finished';

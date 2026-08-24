@@ -63,6 +63,10 @@ vi.mock('../features/multiplayer/ChallengeNotification', () => ({
   ChallengeNotification: () => null,
 }));
 
+vi.mock('../features/truco/components/TrucoInviteBanner', () => ({
+  TrucoInviteBanner: () => null,
+}));
+
 // No logo import needed — using /public header_logo.png directly
 
 import { AppShell } from './AppShell';

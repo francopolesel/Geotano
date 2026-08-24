@@ -238,3 +238,32 @@ describe('truco socket listener plumbing', () => {
     expect(handlers.onPlayerJoined).not.toHaveBeenCalled();
   });
 });
+
+describe('truco:invite feeds the global invite banner store', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    sockets.length = 0;
+    const { disconnectSocket } = await import('../socket');
+    disconnectSocket();
+  });
+
+  it('a truco:invite push populates the store even with NO page handlers set (remediation #11)', async () => {
+    const { useTrucoInviteStore } = await import('../../store/trucoInviteStore');
+    useTrucoInviteStore.setState({ invite: null });
+
+    const { connectSocket } = await boot();
+    connectSocket('token-a');
+
+    sockets[0]!.__fire('truco:invite', {
+      matchId: 'm-77',
+      code: 'TRQ5X2',
+      fromUser: 'user-9',
+    });
+
+    expect(useTrucoInviteStore.getState().invite).toEqual({
+      matchId: 'm-77',
+      code: 'TRQ5X2',
+      fromUser: 'user-9',
+    });
+  });
+});

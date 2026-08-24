@@ -2,6 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { useFriendsStore } from '../store/friendsStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useMultiplayerStore } from '../store/multiplayerStore';
+import { useTrucoInviteStore } from '../store/trucoInviteStore';
 import type { ChallengeInvitePayload, ChatMessage, Notification } from '@geotano/shared';
 
 let socket: Socket | null = null;
@@ -162,6 +163,9 @@ export function connectSocket(token: string): Socket {
 
   socket.on('truco:invite', (data: TrucoInvitePayload) => {
     if (carriesHandData(data)) return;
+    // Remediation #11 — invites land in the global store so they are visible
+    // from ANY screen; page-scoped onInvite handlers stay as an extra hook.
+    useTrucoInviteStore.getState().showInvite(data);
     trucoHandlers?.onInvite?.(data);
   });
 

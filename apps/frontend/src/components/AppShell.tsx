@@ -6,6 +6,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle } from './LanguageToggle';
 import { NotificationBell } from './NotificationBell';
 import { ChallengeNotification } from '../features/multiplayer/ChallengeNotification';
+import { TrucoInviteBanner } from '../features/truco/components/TrucoInviteBanner';
 import { VerifiedBadge } from './ui/VerifiedBadge';
 // header_logo from /public — direct URL, no import needed
 
@@ -125,6 +126,8 @@ export function AppShell() {
       </div>
       {/* Global challenge notification overlay */}
       <ChallengeNotification />
+      {/* Global truco invite overlay (remediation #11) */}
+      <TrucoInviteBanner />
     </div>
   );
 }
