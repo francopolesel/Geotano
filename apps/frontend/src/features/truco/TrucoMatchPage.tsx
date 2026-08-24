@@ -7,13 +7,15 @@
 // only the host sees a start control and only from 'ready' — but the server
 // remains the authority (guest start would be 403 FORBIDDEN anyway).
 
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useCallback, useRef, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { startTrucoMatch } from '../../lib/trucoApi';
+import type { PlayerSlot } from '@geotano/shared';
+import { createTrucoMatch, startTrucoMatch } from '../../lib/trucoApi';
 import { useTrucoMultiplayer } from './hooks/useTrucoMultiplayer';
 import { useFriendsStore } from '../../store/friendsStore';
 import { TrucoTable } from './components/TrucoTable';
+import { EndScreen } from './components/EndScreen';
 
 /** Thrown values are ApiError-shaped ({status}); map without instanceof so
  * module-mocked api clients in tests behave identically to production. */
@@ -60,7 +62,42 @@ export function TrucoMatchPage() {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
+  const navigate = useNavigate();
   const isHost = snapshot != null && snapshot.hostPlayerId === currentUserId;
+
+  // Server-declared winner projected onto engine slots for the shared
+  // EndScreen; null stays the (v1-unreachable) draw branch.
+  const viewerSlot = mySlot;
+  const winnerSlot: PlayerSlot | null =
+    !viewerSlot || snapshot?.winnerUserId == null
+      ? null
+      : snapshot.winnerUserId === currentUserId
+        ? viewerSlot
+        : viewerSlot === 'A'
+          ? 'B'
+          : 'A';
+
+  // Multiplayer Play Again = REMATCH: re-call create with the opponent as
+  // friendId (D8 — no dedicated endpoint). Code-joined strangers have no
+  // friendship row, so the server 403s the invite create and the honest
+  // fallback is the menu, where codes work.
+  const rematchingRef = useRef(false);
+  const onRematch = useCallback(async () => {
+    if (rematchingRef.current) return;
+    rematchingRef.current = true;
+    try {
+      if (!opponentUserId) {
+        navigate('/truco');
+        return;
+      }
+      const created = await createTrucoMatch({ friendId: opponentUserId });
+      navigate(`/truco/match/${created.matchId}`);
+    } catch {
+      navigate('/truco');
+    } finally {
+      rematchingRef.current = false;
+    }
+  }, [opponentUserId, navigate]);
 
   const onStart = async () => {
     if (starting) return;
@@ -118,7 +155,22 @@ export function TrucoMatchPage() {
           data-testid="truco-match-playing"
           className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-2 px-2"
         >
-          {snapshot.status === 'playing' && view && mySlot ? (
+          {snapshot.status === 'finished' && view && mySlot ? (
+            // Spec: both clients land on the end screen with identical final
+            // scores and the server-declared winner; Play Again rematches.
+            <EndScreen
+              winner={winnerSlot}
+              mySlot={mySlot}
+              scores={view.scores}
+              targetPoints={snapshot.targetPoints}
+              myName={t('truco.you')}
+              opponentName={opponentName}
+              onPlayAgain={() => void onRematch()}
+              onChangeMode={() => navigate('/truco')}
+              onBack={() => navigate(-1)}
+              onGeotano={() => navigate('/')}
+            />
+          ) : snapshot.status === 'playing' && view && mySlot ? (
             <>
               {/* Opponent strip: identity + honest connection indicator */}
               <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2">
@@ -183,7 +235,8 @@ export function TrucoMatchPage() {
               )}
             </>
           ) : (
-            // Slice 6d swaps the finished branch for the shared EndScreen.
+            // Defensive only: finished/playing snapshots always carry a dealt
+            // view server-side, so this branch is unreachable in practice.
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center text-sm text-[var(--color-muted-foreground)]">
               {t('truco.menu.comingSoon')}
             </div>

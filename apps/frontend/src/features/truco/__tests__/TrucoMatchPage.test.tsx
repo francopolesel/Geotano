@@ -87,16 +87,19 @@ function makeSnapshot(status: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderMatchPage() {
+function renderMatchPage({ withMenuProbe = false }: { withMenuProbe?: boolean } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  const Wrapper = ({ children }: { children: ReactNode }) => (
+  const Wrapper = ({ children }: { children?: ReactNode }) => (
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/truco/match/m-1']}>
           <Routes>
             <Route path="/truco/match/:matchId" element={<TrucoMatchPage />} />
+            {withMenuProbe && (
+              <Route path="/truco" element={<div data-testid="truco-menu-probe" />} />
+            )}
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>
@@ -310,5 +313,101 @@ describe('TrucoMatchPage — game view (CU6 slice 6c)', () => {
     expect(screen.getByTestId('truco-match-syncing').getAttribute('data-persisted')).toBe(
       'true',
     );
+  });
+});
+
+describe('TrucoMatchPage — end screen and rematch (CU6 slice 6d)', () => {
+  beforeEach(() => {
+    seedViewer(HOST_ID);
+    useFriendsStore.setState({ friends: [], onlineUsers: new Set<string>() });
+    vi.clearAllMocks();
+  });
+  afterEach(cleanup);
+
+  function makeFinishedView(version = 12): Record<string, unknown> {
+    const view = makeView(version);
+    view.phase = 'match_end';
+    view.scores = { A: 30, B: 22 };
+    view.myHand = [];
+    return view;
+  }
+
+  function finishedSnapshot(winnerUserId: string | null): Record<string, unknown> {
+    return makeSnapshot('finished', { version: 12, winnerUserId, view: makeFinishedView() });
+  }
+
+  it('won match replaces the table with the end screen showing outcome and final scores', async () => {
+    apiMock.get.mockResolvedValue(finishedSnapshot(HOST_ID));
+    renderMatchPage();
+
+    await screen.findByTestId('truco-end-screen');
+    expect(screen.getByTestId('truco-end-title').textContent).toBe(i18n.t('truco.end.win'));
+    expect(screen.getByTestId('truco-end-scores').textContent).toContain('30');
+    expect(screen.getByTestId('truco-end-scores').textContent).toContain('22');
+    expect(screen.getByTestId('truco-end-target').textContent).toContain('30');
+    // The live table is gone — only the end panel remains.
+    expect(screen.queryByTestId('truco-table')).toBeNull();
+  });
+
+  it('lost match shows the lose title derived from the server-declared winner', async () => {
+    apiMock.get.mockResolvedValue(finishedSnapshot(GUEST_ID));
+    renderMatchPage();
+
+    await screen.findByTestId('truco-end-screen');
+    expect(screen.getByTestId('truco-end-title').textContent).toBe(i18n.t('truco.end.lose'));
+  });
+
+  it('Play Again rematches by re-creating with friendId and opens the new match (D8)', async () => {
+    useFriendsStore.setState({
+      friends: [
+        { id: 'fr-row-1', friendId: GUEST_ID, username: 'maria', status: 'accepted' },
+      ] as never,
+    });
+    apiMock.get.mockResolvedValue(finishedSnapshot(HOST_ID));
+    apiMock.post.mockResolvedValue({
+      matchId: 'm-new',
+      code: 'NEWCD3',
+      status: 'waiting',
+    });
+    renderMatchPage();
+
+    fireEvent.click(await screen.findByTestId('truco-end-play-again'));
+
+    // Rematch = client re-calls create with friendId; NO new endpoint.
+    await waitFor(() => {
+      expect(apiMock.post).toHaveBeenCalledWith('/truco/matches', { friendId: GUEST_ID });
+    });
+    // Navigation happened: the new match route fetched its own snapshot.
+    await waitFor(() => {
+      expect(apiMock.get).toHaveBeenCalledWith('/truco/matches/m-new');
+    });
+  });
+
+  it('rematch refusal for a stranger opponent falls back to the truco menu', async () => {
+    apiMock.get.mockResolvedValue(finishedSnapshot(HOST_ID));
+    apiMock.post.mockRejectedValue(
+      Object.assign(new Error('not friends'), { status: 403, errorCode: 'NOT_FRIENDS' }),
+    );
+    renderMatchPage({ withMenuProbe: true });
+
+    fireEvent.click(await screen.findByTestId('truco-end-play-again'));
+
+    // Code-joined strangers have no friendship row → server 403s the invite
+    // create; the honest fallback is the menu where codes work.
+    await screen.findByTestId('truco-menu-probe');
+  });
+
+  it('reload mid-betting restores the pending bet answerable immediately (no auto-forfeit)', async () => {
+    const bettingView = makeView(6);
+    bettingView.phase = 'truco_betting';
+    bettingView.trucoAwaiting = { responder: 'A', level: 2 };
+    apiMock.get.mockResolvedValue(makeSnapshot('playing', { version: 6, view: bettingView }));
+    renderMatchPage();
+
+    // Pure GET restore: the retruco answer controls are usable with zero
+    // intervening mutations — reload never forfeits or auto-answers.
+    await screen.findByTestId('truco-action-quiero');
+    expect(screen.getByTestId('truco-action-no_quiero')).toBeTruthy();
+    expect(apiMock.post).not.toHaveBeenCalled();
   });
 });
