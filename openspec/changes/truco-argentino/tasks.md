@@ -1,4 +1,4 @@
-# Tasks: Truco Argentino
+﻿# Tasks: Truco Argentino
 
 > Session preflight: auto Â· hybrid store Â· SINGLE PR with work-unit commits Â· unlimited review budget Â· STRICT TDD (Vitest v3). Session preflight overrides `openspec/config.yaml` `tdd: false`.
 > Phasing: batches follow design Â§Work-unit commit plan (TDD-safe order: pure engine â†’ backend â†’ frontend). `P#` tags mark which proposal phase (P1â€“P7) each task serves; P1's "route skeleton + nav entry" lands in CU4 as the first frontend commit because strict TDD pins the engine GWT suite before any UI/backend consumption.
