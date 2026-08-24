@@ -356,7 +356,9 @@ describe('startTrucoMatch', () => {
   });
 
   it('deals hand 1 server-side, persists the wrapped state and bumps version to 1', async () => {
-    pushRow(makeRow({ status: 'ready', guestPlayerId: 'user-2' }));
+    // Explicit NON-zero stored version proves the CAS binds to the row's own
+    // version rather than any constant (remediation #6 parity with actions).
+    pushRow(makeRow({ status: 'ready', guestPlayerId: 'user-2', version: 5 }));
     pendingResults.push({ count: 1 }); // CAS start succeeds
 
     const outcome = await startTrucoMatch('tm-1', 'user-1');
@@ -375,6 +377,14 @@ describe('startTrucoMatch', () => {
     expect(state.hands.A).toHaveLength(3);
     expect(state.hands.B).toHaveLength(3);
     expect(state.deckRemaining).toHaveLength(34);
+
+    // Start CAS asserted STRUCTURALLY (remediation #6): dropping the version
+    // equality would let a concurrent double start deal twice.
+    const whereArg = mockDb.where.mock.calls.at(-1)?.[0];
+    const { and, eq } = await import('drizzle-orm');
+    expect(whereArg).toEqual(
+      and(eq(trucoMatches.id, 'tm-1'), eq(trucoMatches.version, 5)),
+    );
   });
 
   it('refuses a concurrent double start via the CAS guard — 409', async () => {
