@@ -7,15 +7,18 @@
 // only the host sees a start control and only from 'ready' — but the server
 // remains the authority (guest start would be 403 FORBIDDEN anyway).
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { PlayerSlot } from '@geotano/shared';
 import { createTrucoMatch, startTrucoMatch } from '../../lib/trucoApi';
-import { useTrucoMultiplayer } from './hooks/useTrucoMultiplayer';
+import { useTrucoMultiplayer, isBenignRaceRejection } from './hooks/useTrucoMultiplayer';
 import { useFriendsStore } from '../../store/friendsStore';
 import { TrucoTable } from './components/TrucoTable';
 import { EndScreen } from './components/EndScreen';
+
+/** Readable pause showing the failure reason before the menu fallback (#15). */
+export const REMATCH_ERROR_FALLBACK_MS = 2500;
 
 /** Thrown values are ApiError-shaped ({status}); map without instanceof so
  * module-mocked api clients in tests behave identically to production. */
@@ -79,23 +82,37 @@ export function TrucoMatchPage() {
 
   // Multiplayer Play Again = REMATCH: re-call create with the opponent as
   // friendId (D8 — no dedicated endpoint). Code-joined strangers have no
-  // friendship row, so the server 403s the invite create and the honest
-  // fallback is the menu, where codes work.
+  // friendship row, so the server 403s the invite create; the failure is
+  // surfaced briefly (#15) before the honest fallback — the menu, where
+  // codes work.
+  const [rematchError, setRematchError] = useState(false);
   const rematchingRef = useRef(false);
+  const rematchFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (rematchFallbackRef.current !== null) clearTimeout(rematchFallbackRef.current);
+    },
+    [],
+  );
   const onRematch = useCallback(async () => {
     if (rematchingRef.current) return;
     rematchingRef.current = true;
+    const failOverToMenu = () => {
+      rematchingRef.current = false;
+      navigate('/truco');
+    };
     try {
       if (!opponentUserId) {
-        navigate('/truco');
+        failOverToMenu();
         return;
       }
       const created = await createTrucoMatch({ friendId: opponentUserId });
+      rematchingRef.current = false;
       navigate(`/truco/match/${created.matchId}`);
     } catch {
-      navigate('/truco');
-    } finally {
-      rematchingRef.current = false;
+      setRematchError(true);
+      // Guard stays SHUT during the readable pause (double-click protection).
+      rematchFallbackRef.current = setTimeout(failOverToMenu, REMATCH_ERROR_FALLBACK_MS);
     }
   }, [opponentUserId, navigate]);
 
@@ -150,6 +167,17 @@ export function TrucoMatchPage() {
       data-match-id={matchId}
       className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-4 p-2"
     >
+      {isError && (
+        // Cached board still renders, but it must never rot silently (#13):
+        // a failed refresh is surfaced as an honest stale/reconnecting state.
+        <p
+          data-testid="truco-match-stale"
+          role="alert"
+          className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+        >
+          {t('truco.multi.stale')}
+        </p>
+      )}
       {(snapshot.status === 'playing' || snapshot.status === 'finished') && (
         <div
           data-testid="truco-match-playing"
@@ -158,18 +186,29 @@ export function TrucoMatchPage() {
           {snapshot.status === 'finished' && view && mySlot ? (
             // Spec: both clients land on the end screen with identical final
             // scores and the server-declared winner; Play Again rematches.
-            <EndScreen
-              winner={winnerSlot}
-              mySlot={mySlot}
-              scores={view.scores}
-              targetPoints={snapshot.targetPoints}
-              myName={t('truco.you')}
-              opponentName={opponentName}
-              onPlayAgain={() => void onRematch()}
-              onChangeMode={() => navigate('/truco')}
-              onBack={() => navigate(-1)}
-              onGeotano={() => navigate('/')}
-            />
+            <>
+              {rematchError && (
+                <p
+                  data-testid="truco-rematch-error"
+                  role="alert"
+                  className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400"
+                >
+                  {t('truco.error.rematch')}
+                </p>
+              )}
+              <EndScreen
+                winner={winnerSlot}
+                mySlot={mySlot}
+                scores={view.scores}
+                targetPoints={snapshot.targetPoints}
+                myName={t('truco.you')}
+                opponentName={opponentName}
+                onPlayAgain={() => void onRematch()}
+                onChangeMode={() => navigate('/truco')}
+                onBack={() => navigate(-1)}
+                onGeotano={() => navigate('/')}
+              />
+            </>
           ) : snapshot.status === 'playing' && view && mySlot ? (
             <>
               {/* Opponent strip: identity + honest connection indicator */}
@@ -214,7 +253,10 @@ export function TrucoMatchPage() {
                 rivalAvatar={rivalAvatar}
               />
 
-              {actionError?.status === 409 && (
+              {/* Benign lost races (409 CAS, E_OUT_OF_TURN / E_STATE_FORBIDDEN
+                  from a concurrently moved rival) get the calm amber syncing
+                  treatment (#14b); genuinely hostile errors stay red. */}
+              {actionError && isBenignRaceRejection(actionError) && (
                 <p
                   data-testid="truco-match-syncing"
                   data-persisted="true"
@@ -224,7 +266,7 @@ export function TrucoMatchPage() {
                   {t('truco.multi.syncing')}
                 </p>
               )}
-              {actionError && actionError.status !== 409 && (
+              {actionError && !isBenignRaceRejection(actionError) && (
                 <p
                   data-testid="truco-match-action-error"
                   role="alert"

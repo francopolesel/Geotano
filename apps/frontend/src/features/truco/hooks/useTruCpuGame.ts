@@ -50,18 +50,11 @@ export interface TruCpuGameSnapshot {
   winner: PlayerSlot | null;
   /** Engine-derived legal actions for the HUMAN right now (may be empty). */
   actions: TrucoAction[];
-  awaitingOpponent: boolean;
 }
 
 function snapshotOf(state: TrucoState): TruCpuGameSnapshot {
   const view = buildView(state, MY_SLOT);
   const actions = legalActions(view, MY_SLOT);
-  const awaitingOpponent =
-    view.envidoAwaiting != null
-      ? view.envidoAwaiting.responder !== MY_SLOT
-      : view.trucoAwaiting != null
-        ? view.trucoAwaiting.responder !== MY_SLOT
-        : state.phase === 'playing' && state.playerToAct !== MY_SLOT;
   return {
     view,
     scores: { ...state.scores },
@@ -69,7 +62,6 @@ function snapshotOf(state: TrucoState): TruCpuGameSnapshot {
     finished: state.phase === 'match_end',
     winner: state.winner,
     actions,
-    awaitingOpponent,
   };
 }
 

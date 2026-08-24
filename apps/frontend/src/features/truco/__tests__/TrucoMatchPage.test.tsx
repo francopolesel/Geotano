@@ -14,7 +14,7 @@
 // useTrucoMultiplayer hook → trucoApi client chain runs in these tests.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import type { ReactNode } from 'react';
@@ -37,7 +37,7 @@ vi.mock('../../../lib/socket', () => socketMocks);
 
 import { useAuthStore } from '../../../store/authStore';
 import { useFriendsStore } from '../../../store/friendsStore';
-import { TrucoMatchPage } from '../TrucoMatchPage';
+import { TrucoMatchPage, REMATCH_ERROR_FALLBACK_MS } from '../TrucoMatchPage';
 
 const HOST_ID = 'user-host';
 const GUEST_ID = 'user-guest';
@@ -105,7 +105,7 @@ function renderMatchPage({ withMenuProbe = false }: { withMenuProbe?: boolean } 
       </QueryClientProvider>
     </I18nextProvider>
   );
-  return render(<Wrapper />);
+  return { ...render(<Wrapper />), queryClient };
 }
 
 function seedViewer(userId: string) {
@@ -314,6 +314,41 @@ describe('TrucoMatchPage — game view (CU6 slice 6c)', () => {
       'true',
     );
   });
+
+  it('benign lost-race rejections get the amber syncing banner, never a red error (#14b)', async () => {
+    // A legal-at-render play rejected E_OUT_OF_TURN means the rival moved
+    // concurrently: SAME treatment as 409 — refetch + syncing copy.
+    apiMock.get
+      .mockResolvedValueOnce(playingSnapshot())
+      .mockResolvedValueOnce(playingSnapshot({ version: 8, view: makeView(8) }));
+    apiMock.post.mockRejectedValue(
+      Object.assign(new Error('race'), { status: 400, errorCode: 'E_OUT_OF_TURN' }),
+    );
+    renderMatchPage();
+
+    fireEvent.click(await screen.findByTestId('playing-card-3oro'));
+
+    await screen.findByTestId('truco-match-syncing');
+    expect(screen.queryByTestId('truco-match-action-error')).toBeNull();
+    // Converged to authority instead of scolding the player.
+    await screen.findByTestId('playing-card-1espada');
+  });
+
+  it('a failed refresh over a cached board marks it stale instead of silently rotting (#13)', async () => {
+    apiMock.get.mockResolvedValueOnce(playingSnapshot());
+    const { queryClient } = renderMatchPage();
+    await screen.findByTestId('truco-table');
+
+    // Network dies AFTER the snapshot is cached: TanStack keeps rendering the
+    // cached data with isError set — the board must say so honestly.
+    apiMock.get.mockRejectedValue(Object.assign(new Error('offline'), { status: 0 }));
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: ['truco-match', 'm-1'] });
+    });
+
+    expect(screen.getByTestId('truco-table')).toBeTruthy();
+    await screen.findByTestId('truco-match-stale');
+  });
 });
 
 describe('TrucoMatchPage — end screen and rematch (CU6 slice 6d)', () => {
@@ -383,18 +418,37 @@ describe('TrucoMatchPage — end screen and rematch (CU6 slice 6d)', () => {
     });
   });
 
-  it('rematch refusal for a stranger opponent falls back to the truco menu', async () => {
-    apiMock.get.mockResolvedValue(finishedSnapshot(HOST_ID));
-    apiMock.post.mockRejectedValue(
-      Object.assign(new Error('not friends'), { status: 403, errorCode: 'NOT_FRIENDS' }),
-    );
-    renderMatchPage({ withMenuProbe: true });
+  it('rematch refusal surfaces an error banner BEFORE the menu fallback (#15)', async () => {
+    vi.useFakeTimers();
+    try {
+      apiMock.get.mockResolvedValue(finishedSnapshot(HOST_ID));
+      apiMock.post.mockRejectedValue(
+        Object.assign(new Error('not friends'), { status: 403, errorCode: 'NOT_FRIENDS' }),
+      );
+      renderMatchPage({ withMenuProbe: true });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
 
-    fireEvent.click(await screen.findByTestId('truco-end-play-again'));
+      fireEvent.click(screen.getByTestId('truco-end-play-again'));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
 
-    // Code-joined strangers have no friendship row → server 403s the invite
-    // create; the honest fallback is the menu where codes work.
-    await screen.findByTestId('truco-menu-probe');
+      // Code-joined strangers have no friendship row → server 403s the invite
+      // create. The failure is SURFACED first — no silent bounce.
+      expect(screen.getByTestId('truco-rematch-error')).toBeTruthy();
+      expect(screen.queryByTestId('truco-menu-probe')).toBeNull();
+
+      // …then the honest menu fallback (codes work there) lands after a
+      // readable pause, and the double-click guard stays shut meanwhile.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(REMATCH_ERROR_FALLBACK_MS);
+      });
+      expect(screen.getByTestId('truco-menu-probe')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('reload mid-betting restores the pending bet answerable immediately (no auto-forfeit)', async () => {

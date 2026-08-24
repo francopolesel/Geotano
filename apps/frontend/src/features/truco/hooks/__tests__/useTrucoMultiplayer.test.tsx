@@ -320,9 +320,21 @@ describe('useTrucoMultiplayer', () => {
     expect(result.current.view?.version).toBe(7);
   });
 
-  it('non-conflict errors surface without touching the cache', async () => {
-    apiMock.get.mockResolvedValue(makeSnapshot());
-    apiMock.post.mockRejectedValue(new MockApiError('engine said no', 400, 'E_OUT_OF_TURN'));
+  // ─── Benign lost-race rejections recover like a CAS conflict (#14b) ────────
+
+  it.each([
+    ['E_OUT_OF_TURN', 400],
+    ['E_STATE_FORBIDDEN', 400],
+  ])('a legal-at-render %s rejection recovers by refetching authority', async (code, status) => {
+    // The UI only offers engine-legal actions over the latest view, so an
+    // out-of-turn/forbidden rejection means the rival moved concurrently —
+    // exactly the stale-view race class. Recovery is the SAME as 409:
+    // refetch authority, never patch locally.
+    apiMock.get.mockResolvedValueOnce(makeSnapshot());
+    apiMock.get.mockResolvedValueOnce(
+      makeSnapshot({ version: 9, view: makeView(9) }),
+    );
+    apiMock.post.mockRejectedValue(new MockApiError('race lost', status, code as string));
     const { Wrapper } = createWrapper();
 
     const { result } = renderHook(() => useTrucoMultiplayer(MATCH_ID), { wrapper: Wrapper });
@@ -343,7 +355,36 @@ describe('useTrucoMultiplayer', () => {
     await flush();
 
     expect(threw).toBe(true);
-    expect(result.current.actionError?.errorCode).toBe('E_OUT_OF_TURN');
+    expect(result.current.actionError?.errorCode).toBe(code);
+    // Authority was refetched and the merged view converged to v9.
+    expect(apiMock.get.mock.calls.length).toBeGreaterThan(readsAfterMount);
+    expect(result.current.view?.version).toBe(9);
+  });
+
+  it('genuinely hostile rejections surface WITHOUT touching the cache', async () => {
+    apiMock.get.mockResolvedValue(makeSnapshot());
+    apiMock.post.mockRejectedValue(new MockApiError('engine said no', 400, 'E_CARD_NOT_OWNED'));
+    const { Wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useTrucoMultiplayer(MATCH_ID), { wrapper: Wrapper });
+    await flush();
+    const readsAfterMount = apiMock.get.mock.calls.length;
+
+    let threw = false;
+    await act(async () => {
+      try {
+        await result.current.postAction.mutateAsync({
+          expectedVersion: 3,
+          action: PLAY_ACTION,
+        });
+      } catch {
+        threw = true;
+      }
+    });
+    await flush();
+
+    expect(threw).toBe(true);
+    expect(result.current.actionError?.errorCode).toBe('E_CARD_NOT_OWNED');
     expect(result.current.view?.version).toBe(3);
     expect(apiMock.get.mock.calls.length).toBe(readsAfterMount);
   });

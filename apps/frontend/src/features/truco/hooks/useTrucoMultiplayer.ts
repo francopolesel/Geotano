@@ -67,6 +67,24 @@ export interface PostActionArgs {
 
 export type OpponentPresence = 'online' | 'offline' | 'unknown';
 
+/**
+ * Benign lost-race rejections (remediation #14b): the UI only offers actions
+ * that were legal over the latest view, so a 409 CAS conflict or an engine
+ * E_OUT_OF_TURN / E_STATE_FORBIDDEN means the rival moved concurrently and our
+ * view was stale — the same recoverable class, treated identically: refetch
+ * authority + amber "syncing" treatment, never a scary error.
+ */
+export function isBenignRaceRejection(
+  err: { status?: number; errorCode?: string } | null | undefined,
+): boolean {
+  if (!err) return false;
+  if (err.status === 409) return true;
+  return (
+    err.status === 400 &&
+    (err.errorCode === 'E_OUT_OF_TURN' || err.errorCode === 'E_STATE_FORBIDDEN')
+  );
+}
+
 export function useTrucoMultiplayer(matchId: string) {
   const queryClient = useQueryClient();
   const token = useAuthStore((state) => state.token);
@@ -104,10 +122,11 @@ export function useTrucoMultiplayer(matchId: string) {
       );
     },
     onError: (error) => {
-      // Stale CAS (version_conflict / verbatim replay): recover by refetching
-      // the authoritative state — NEVER by patching local state. Other errors
-      // (400 E_*, 403, 404) surface via actionError for the page to render.
-      if (error.status === 409) {
+      // Stale CAS AND benign lost races (E_OUT_OF_TURN / E_STATE_FORBIDDEN —
+      // see isBenignRaceRejection): recover by refetching the authoritative
+      // state — NEVER by patching local state. Genuinely hostile errors
+      // (E_CARD_NOT_OWNED, 403, 404) surface via actionError for the page.
+      if (isBenignRaceRejection(error)) {
         void queryClient.invalidateQueries({ queryKey: ['truco-match', matchId] });
       }
     },

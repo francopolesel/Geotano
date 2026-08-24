@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { RivalZone } from './RivalZone';
 import { TableZone } from './TableZone';
 import { MyZone } from './MyZone';
+import { isAwaitingOpponent } from '../lib/turnQuery';
 
 /**
  * Full match table (both CPU and multiplayer modes).
@@ -38,14 +39,9 @@ export function TrucoTable({
   // Legality comes ONLY from the engine, evaluated over the public context.
   const actions = legalActions(view, mySlot);
 
-  // Presentation-only derivation of "the rival owes the next move" from
-  // PUBLIC fields (no rules logic — legality itself stays engine-owned).
-  const awaitingOpponent =
-    view.envidoAwaiting != null
-      ? view.envidoAwaiting.responder !== mySlot
-      : view.trucoAwaiting != null
-        ? view.trucoAwaiting.responder !== mySlot
-        : view.phase === 'playing' && view.playerToAct !== mySlot;
+  // Turn query comes from the ONE shared helper (remediation #14a) — the
+  // per-component ternary chain it replaces could silently drift.
+  const awaitingOpponent = isAwaitingOpponent(view, mySlot);
 
   const rivalIsTurn =
     view.envidoAwaiting != null || view.trucoAwaiting != null
