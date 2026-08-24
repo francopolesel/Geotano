@@ -12,6 +12,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { PlayerSlot } from '@geotano/shared';
 import { createTrucoMatch, startTrucoMatch } from '../../lib/trucoApi';
+import { statusOf } from './lib/apiStatus';
 import { useTrucoMultiplayer, isBenignRaceRejection } from './hooks/useTrucoMultiplayer';
 import { useFriendsStore } from '../../store/friendsStore';
 import { TrucoTable } from './components/TrucoTable';
@@ -19,12 +20,6 @@ import { EndScreen } from './components/EndScreen';
 
 /** Readable pause showing the failure reason before the menu fallback (#15). */
 export const REMATCH_ERROR_FALLBACK_MS = 2500;
-
-/** Thrown values are ApiError-shaped ({status}); map without instanceof so
- * module-mocked api clients in tests behave identically to production. */
-function statusOf(err: unknown): number | undefined {
-  return (err as { status?: number } | null)?.status;
-}
 
 export function TrucoMatchPage() {
   const { t } = useTranslation();

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TrucoDifficulty } from './trucoPrefsStore';
+import { TRUCO_DIFFICULTIES, type TrucoDifficulty } from './trucoPrefsStore';
 
 export interface TrucoDifficultyStats {
   games: number;
@@ -21,8 +21,6 @@ interface TruCpuStatsState {
 }
 
 export const TRUCO_CPU_STATS_KEY = 'truco-cpu-stats-v1';
-
-const DIFFICULTIES: readonly TrucoDifficulty[] = ['easy', 'medium', 'hard'];
 
 function emptyDifficultyStats(): Record<TrucoDifficulty, TrucoDifficultyStats> {
   return {
@@ -55,7 +53,7 @@ export function selectWinRate(stats: TruCpuStats): number {
 export function selectMostPlayedDifficulty(stats: TruCpuStats): TrucoDifficulty | null {
   let best: TrucoDifficulty | null = null;
   let bestGames = 0;
-  for (const difficulty of DIFFICULTIES) {
+  for (const difficulty of TRUCO_DIFFICULTIES) {
     const games = stats.byDifficulty[difficulty].games;
     if (games > bestGames) {
       best = difficulty;
@@ -80,7 +78,7 @@ export const useTruCpuStatsStore = create<TruCpuStatsState>((set, get) => ({
       // payloads can never produce undefined buckets.
       const parsed = JSON.parse(raw) as Partial<TruCpuStats>;
       const base = emptyDifficultyStats();
-      for (const difficulty of DIFFICULTIES) {
+      for (const difficulty of TRUCO_DIFFICULTIES) {
         const bucket = parsed.byDifficulty?.[difficulty];
         if (bucket) {
           base[difficulty] = {

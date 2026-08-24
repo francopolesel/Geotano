@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import {
   useTrucoPrefsStore,
+  TRUCO_DIFFICULTIES,
   type TrucoDifficulty,
   type TrucoTargetPoints,
 } from '../../store/trucoPrefsStore';
@@ -19,6 +20,7 @@ import {
   lookupTrucoMatchByCode,
 } from '../../lib/trucoApi';
 import { personaAt, normalizePersonaIndex } from './ai';
+import { statusOf } from './lib/apiStatus';
 
 /**
  * Truco menu — mode selection + CPU config + friend lobby (design D11 tree).
@@ -29,13 +31,6 @@ import { personaAt, normalizePersonaIndex } from './ai';
  * the S3 convenience pre-check (friendly 404 without firing the join POST).
  */
 
-/** Thrown values are ApiError-shaped ({status}); map without instanceof so
- * module-mocked clients in tests behave identically to production. */
-function statusOf(err: unknown): number | undefined {
-  return (err as { status?: number } | null)?.status;
-}
-
-const DIFFICULTIES: readonly TrucoDifficulty[] = ['easy', 'medium', 'hard'];
 const TARGETS: readonly TrucoTargetPoints[] = [15, 30];
 
 function OptionButton({
@@ -155,7 +150,7 @@ export function TrucoMenuPage() {
           {t('truco.menu.difficulty')}
         </p>
         <div className="mb-4 flex min-w-0 flex-wrap gap-2">
-          {DIFFICULTIES.map((value) => (
+          {TRUCO_DIFFICULTIES.map((value) => (
             <OptionButton
               key={value}
               testId={`truco-difficulty-${value}`}
@@ -228,7 +223,7 @@ export function TrucoMenuPage() {
         </button>
       </section>
 
-      {/* Mode selection — CPU playable, friend placeholder until CU6 */}
+      {/* Mode selection — both modes playable (CPU + friend lobby, CU6) */}
       <div className="grid gap-4 sm:grid-cols-2">
         <button
           type="button"

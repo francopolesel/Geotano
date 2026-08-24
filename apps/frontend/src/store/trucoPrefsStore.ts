@@ -21,16 +21,18 @@ interface TrucoPrefsState extends TrucoPrefs {
 
 export const TRUCO_PREFS_KEY = 'truco-prefs-v1';
 
+/** Single source of the difficulty list (remediation #16): validation,
+ * stats buckets and menu pickers all read THIS array. */
+export const TRUCO_DIFFICULTIES: readonly TrucoDifficulty[] = ['easy', 'medium', 'hard'];
+
 const DEFAULT_PREFS: TrucoPrefs = {
   difficulty: 'easy',
   targetPoints: 30,
   personaIndex: 0,
 };
 
-const DIFFICULTIES: readonly TrucoDifficulty[] = ['easy', 'medium', 'hard'];
-
 function isDifficulty(value: unknown): value is TrucoDifficulty {
-  return typeof value === 'string' && (DIFFICULTIES as readonly string[]).includes(value);
+  return typeof value === 'string' && (TRUCO_DIFFICULTIES as readonly string[]).includes(value);
 }
 
 function isTargetPoints(value: unknown): value is TrucoTargetPoints {
