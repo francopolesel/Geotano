@@ -103,4 +103,57 @@ describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
     renderCard({ card: '4basto' });
     expect(screen.queryByRole('button')).toBeNull();
   });
+
+  // ─── Redesign batch 1: states, strength hint, back art ───────────────────
+
+  it('renders court cards with a localized figura legend', () => {
+    renderCard({ card: '12espada' });
+    const el = screen.getByTestId('playing-card-12espada');
+    expect(el.textContent).toContain(i18n.t('truco.card.rey'));
+  });
+
+  it('applies disabled styling when the disabled prop is set', () => {
+    renderCard({ card: '3oro', disabled: true });
+    const el = screen.getByTestId('playing-card-3oro');
+    const classes = [...el.classList].join(' ');
+    expect(classes).toContain('opacity-45');
+    expect(classes).toContain('grayscale');
+    expect(classes).toContain('cursor-not-allowed');
+    // Disabled cards must never become buttons, even with an onClick handler.
+    renderCard({ card: '3copa', disabled: true, onClick: vi.fn() });
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('shows the strength hint only when the prop is provided', () => {
+    const first = renderCard({ card: '1espada', strengthHint: 'strong' });
+    const hint = screen.getByTestId('playing-card-strength-hint');
+    expect(hint.getAttribute('title')).toContain('Strong');
+    first.unmount();
+
+    const second = renderCard({ card: '1espada' });
+    expect(screen.queryByTestId('playing-card-strength-hint')).toBeNull();
+    second.unmount();
+
+    // Face-down cards never carry a hint either.
+    const third = renderCard({ faceDown: true, strengthHint: 'weak' });
+    expect(screen.queryByTestId('playing-card-strength-hint')).toBeNull();
+    third.unmount();
+  });
+
+  it('renders the designed back art element for face-down cards', () => {
+    renderCard({ faceDown: true });
+    expect(screen.getByTestId('playing-card-back-art')).toBeDefined();
+    // Back is real SVG art now, not a CSS gradient div.
+    expect(screen.getByTestId('playing-card-back-art').tagName.toLowerCase()).toBe('svg');
+  });
+
+  it('keeps interactive cards keyboard-reachable with focus ring classes', () => {
+    renderCard({ card: '7copa', onClick: vi.fn() });
+    // role="img" intentionally wins over the implicit button role, but the
+    // element stays a native <button> → keyboard focusable/activatable.
+    const el = screen.getByTestId('playing-card-7copa');
+    expect(el.tagName.toLowerCase()).toBe('button');
+    const classes = [...el.classList].join(' ');
+    expect(classes).toContain('focus-visible:outline-2');
+  });
 });
