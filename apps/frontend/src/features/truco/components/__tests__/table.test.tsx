@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import type { TrucoState, TrucoView } from '@geotano/shared';
 import { buildView } from '@geotano/shared';
@@ -341,5 +341,169 @@ describe('TrucoTable — batch 2 presentation (felt, bets, scoreboard)', () => {
     renderTable(state);
     expect(screen.getByTestId('baza-win-pulse-B')).toBeDefined();
     expect(screen.queryByTestId('baza-win-pulse-A')).toBeNull();
+  });
+});
+
+describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
+  it('renders all three labeled lanes during play', () => {
+    renderTable(baseState());
+    expect(screen.getByTestId('truco-baza-lanes')).toBeDefined();
+    for (const n of [1, 2, 3]) {
+      expect(screen.getByTestId(`baza-lane-${n}`)).toBeDefined();
+      expect(screen.getByTestId(`baza-lane-label-${n}`).textContent).toMatch(
+        new RegExp(`Baza\\s*${n}`),
+      );
+    }
+  });
+
+  it('active lane holds the open-baza slots; future lanes stay empty placeholders', () => {
+    const state = baseState();
+    state.openBazaPlays = [{ player: 'A', card: '5basto' }];
+    state.playedCards.A = ['5basto'];
+    state.playerToAct = 'B';
+    renderTable(state);
+
+    // Active lane (baza 1) owns both slots; my card landed in mine.
+    expect(screen.getByTestId('open-baza-A-slot')).toContainElement(
+      screen.getByTestId('playing-card-5basto'),
+    );
+    expect(
+      screen.getByTestId('open-baza-B-slot').querySelector('[data-testid^="playing-card-"]'),
+    ).toBeNull();
+    // Future lanes have no slots and no real cards.
+    expect(screen.getByTestId('baza-lane-2').querySelector('[data-testid^="playing-card-"]')).toBeNull();
+    expect(screen.getByTestId('baza-lane-3').querySelector('[data-testid^="playing-card-"]')).toBeNull();
+  });
+
+  it('resolved lanes show BOTH mini cards plus the correct winner badge', () => {
+    const state = baseState();
+    state.bazas = [
+      { number: 1, plays: [{ player: 'A', card: '3espada' }, { player: 'B', card: '11oro' }], winner: 'A' },
+      { number: 2, plays: [{ player: 'B', card: '2basto' }, { player: 'A', card: '1copa' }], winner: null },
+    ];
+    renderTable(state);
+
+    const lane1 = screen.getByTestId('baza-lane-1');
+    // Scoped: the same card ids also exist in my hand fan / rival strip.
+    expect(within(lane1).getByTestId('playing-card-3espada')).toBeDefined();
+    expect(within(lane1).getByTestId('playing-card-11oro')).toBeDefined();
+    // Badge carries icon + label, and sr-only viewer-perspective copy.
+    const marker1 = screen.getByTestId('baza-marker-1');
+    expect(marker1.textContent).toContain('✓');
+    expect(marker1).toHaveTextContent(/you won/i);
+
+    // Tied baza: '=' glyph and distinct copy.
+    const marker2 = screen.getByTestId('baza-marker-2');
+    expect(marker2.textContent).toContain('=');
+    expect(marker2.textContent?.toLowerCase()).toContain('tied');
+  });
+
+  it('hand_end keeps every lane visible and shows a summary chip with points', () => {
+    const state = baseState();
+    state.phase = 'hand_end';
+    state.handWinner = 'A';
+    state.bazas = [
+      { number: 1, plays: [{ player: 'A', card: '3espada' }, { player: 'B', card: '11oro' }], winner: 'A' },
+    ];
+    state.history = [
+      { type: 'card_played', player: 'A', card: '3espada' },
+      { type: 'card_played', player: 'B', card: '11oro' },
+      { type: 'baza_resolved', baza: 1, winner: 'A' },
+      { type: 'points_awarded', side: 'A', amount: 2, reason: 'hand_prize' },
+      { type: 'hand_ended', winner: 'A' },
+    ];
+    renderTable(state);
+
+    // Board does NOT blank out between hands.
+    expect(screen.getByTestId('truco-baza-lanes')).toBeDefined();
+    expect(screen.getByTestId('baza-marker-1')).toBeDefined();
+
+    const summary = screen.getByTestId('truco-hand-summary');
+    expect(summary).toHaveTextContent(/you won the hand/i);
+    expect(summary).toHaveTextContent('+2');
+
+    cleanup();
+    const lost = { ...baseState(), phase: 'hand_end' as const, handWinner: 'B' as const };
+    lost.history = [{ type: 'hand_ended', winner: 'B' }];
+    renderTable(lost);
+    expect(screen.getByTestId('truco-hand-summary')).toHaveTextContent(/rival took the hand/i);
+    expect(screen.getByTestId('truco-hand-summary').textContent).not.toContain('+');
+  });
+
+  // Regression: envido settles mid-hand, so its points_awarded is followed by
+  // card_played/baza_resolved events BEFORE hand_ended. The summary must sum
+  // every award in the hand (1 envido + 2 hand prize = +3), not just the
+  // contiguous tail before an event-type break.
+  it('hand-end summary sums ALL awards in the hand across interleaved events', () => {
+    const state = baseState();
+    state.phase = 'hand_end';
+    state.handWinner = 'A';
+    state.bazas = [
+      { number: 1, plays: [{ player: 'A', card: '3espada' }, { player: 'B', card: '11oro' }], winner: 'A' },
+      { number: 2, plays: [{ player: 'A', card: '7oro' }, { player: 'B', card: '2basto' }], winner: 'A' },
+    ];
+    state.history = [
+      { type: 'points_awarded', side: 'A', amount: 1, reason: 'envido_accepted' },
+      { type: 'card_played', player: 'A', card: '3espada' },
+      { type: 'card_played', player: 'B', card: '11oro' },
+      { type: 'baza_resolved', baza: 1, winner: 'A' },
+      { type: 'card_played', player: 'B', card: '2basto' },
+      { type: 'card_played', player: 'A', card: '7oro' },
+      { type: 'baza_resolved', baza: 2, winner: 'A' },
+      { type: 'points_awarded', side: 'A', amount: 2, reason: 'hand_prize' },
+      { type: 'hand_ended', winner: 'A' },
+    ];
+    renderTable(state);
+
+    const summary = screen.getByTestId('truco-hand-summary');
+    expect(summary).toHaveTextContent(/you won the hand/i);
+    expect(summary).toHaveTextContent('+3');
+  });
+});
+
+describe('TrucoTable — mazo deck (UI v2, batch B)', () => {
+  function deckState(): TrucoState {
+    const state = baseState();
+    state.hands.A = ['7oro', '3espada'];
+    state.hands.B = ['2basto'];
+    state.playedCards.A = ['5basto'];
+    state.playedCards.B = ['12oro'];
+    return state;
+  }
+
+  it('deck count equals 40 minus my hand minus publicly played cards', () => {
+    renderTable(deckState());
+    // 40 − 2 (my hand) − 2 (played by both) = 36 unseen.
+    expect(screen.getByTestId('truco-deck-count')).toHaveTextContent('36');
+  });
+
+  it('drawer reveals MY hand and played cards but never undealt identities', () => {
+    renderTable(deckState());
+    fireEvent.click(screen.getByTestId('truco-deck-button'));
+
+    const drawer = screen.getByTestId('truco-deck-drawer');
+    const inDrawer = within(drawer);
+    // My current hand, enlarged.
+    expect(inDrawer.getByTestId('playing-card-7oro')).toBeDefined();
+    expect(inDrawer.getByTestId('playing-card-3espada')).toBeDefined();
+    // All publicly played cards, both sides.
+    expect(inDrawer.getByTestId('playing-card-5basto')).toBeDefined();
+    expect(inDrawer.getByTestId('playing-card-12oro')).toBeDefined();
+    // A known undealt card NEVER appears — no info leak about holdings.
+    expect(screen.queryByTestId('playing-card-10espada')).toBeNull();
+    expect(drawer.textContent).not.toContain('10espada');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('truco-deck-drawer')).toBeNull();
+  });
+
+  it('focuses the close button on open and returns focus to the deck button on close', () => {
+    renderTable(deckState());
+    fireEvent.click(screen.getByTestId('truco-deck-button'));
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('truco-deck-close');
+
+    fireEvent.click(screen.getByTestId('truco-deck-close'));
+    expect(screen.queryByTestId('truco-deck-drawer')).toBeNull();
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('truco-deck-button');
   });
 });

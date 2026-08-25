@@ -82,12 +82,14 @@ describe('cross-game navigation (Geotano ↔ Truco)', () => {
     expect(screen.getByText('Test your geography knowledge')).toBeDefined();
   });
 
-  it('menu offers CPU mode selection that navigates to /truco/cpu', () => {
+  it('menu offers CPU mode selection that opens the CPU setup step (v2 step flow)', () => {
     renderCrossGame('/truco');
 
     fireEvent.click(screen.getByTestId('truco-menu-vs-cpu'));
 
-    expect(screen.getByTestId('truco-cpu-route-probe')).toBeDefined();
+    // v2: vs-cpu no longer routes to /truco/cpu directly — it reveals the
+    // setup step (persona/difficulty/target) inside the menu state machine.
+    expect(screen.getByTestId('truco-menu-config')).toBeDefined();
   });
 
   it('friend-mode entry is live and opens the CU6 friend lobby panel', () => {

@@ -93,9 +93,10 @@ describe('TruCpuPage — vs CPU assembly', () => {
         .find((el) => !el.getAttribute('data-testid')!.includes('back'));
       if (myCard) fireEvent.click(myCard);
       flush(700);
-      const markers = screen.queryByTestId('baza-markers');
+      // Baza lanes (UI v2): per-lane winner badges carry the baza-marker-*
+      // ids directly (the old single baza-markers pip row is gone).
       resolvedBazas =
-        markers !== null && markers.querySelectorAll('[data-testid^="baza-marker-"]').length > 0;
+        document.querySelectorAll('[data-testid^="baza-marker-"]').length > 0;
     }
     expect(resolvedBazas).toBe(true);
   });

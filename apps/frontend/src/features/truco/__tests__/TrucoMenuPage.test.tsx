@@ -5,12 +5,17 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from '../../../i18n/i18n';
 import { TRUCO_PREFS_KEY, useTrucoPrefsStore } from '../../../store/trucoPrefsStore';
 import {
-  TRUCO_CPU_STATS_KEY,
   useTruCpuStatsStore,
   type TruCpuStats,
 } from '../../../store/truCpuStatsStore';
 import { PERSONAS } from '../ai';
 import { TrucoMenuPage } from '../TrucoMenuPage';
+
+// v2 step flow (batch C): /truco is a mode → cpu-setup → friends state
+// machine. The old single-screen assertions were rewritten DELIBERATELY:
+// every config interaction now requires entering the cpu-setup screen first
+// (click `truco-menu-vs-cpu`), and persona prev/next cycling was replaced by
+// a selectable persona-card grid (`truco-persona-option-{i}`).
 
 function emptyStats(): TruCpuStats {
   return {
@@ -56,21 +61,54 @@ function pressed(testId: string): string | null {
   return screen.getByTestId(testId).getAttribute('aria-pressed');
 }
 
-describe('TrucoMenuPage — CPU config', () => {
+/** Step-flow helper: enter the CPU setup screen from the mode screen. */
+function enterCpuSetup() {
+  fireEvent.click(screen.getByTestId('truco-menu-vs-cpu'));
+  expect(screen.getByTestId('truco-menu-config')).toBeTruthy();
+}
+
+describe('TrucoMenuPage — mode step (v2)', () => {
   beforeEach(resetStores);
   afterEach(cleanup);
 
-  it('preselects the store defaults (easy, target 30)', () => {
+  it('shows ONLY the two mode cards on entry — no config or lobby leak', () => {
     renderMenu();
+    expect(screen.getByTestId('truco-menu-vs-cpu')).toBeTruthy();
+    expect(screen.getByTestId('truco-menu-vs-friend')).toBeTruthy();
+    expect(screen.queryByTestId('truco-menu-config')).toBeNull();
+    expect(screen.queryByTestId('truco-menu-friend')).toBeNull();
+    // Reciprocal cross-game entry stays on the mode screen.
+    expect(screen.getByTestId('truco-menu-play-geotano')).toBeTruthy();
+  });
+
+  it('vs-cpu opens the cpu-setup step; back returns to modes', () => {
+    renderMenu();
+    enterCpuSetup();
+
+    fireEvent.click(screen.getByTestId('truco-menu-back'));
+    expect(screen.queryByTestId('truco-menu-config')).toBeNull();
+    expect(screen.getByTestId('truco-menu-vs-cpu')).toBeTruthy();
+  });
+});
+
+describe('TrucoMenuPage — CPU setup step', () => {
+  beforeEach(resetStores);
+  afterEach(cleanup);
+
+  it('preselects the store defaults (easy, target 30, persona 0)', () => {
+    renderMenu();
+    enterCpuSetup();
     expect(pressed('truco-difficulty-easy')).toBe('true');
     expect(pressed('truco-difficulty-medium')).toBe('false');
     expect(pressed('truco-difficulty-hard')).toBe('false');
     expect(pressed('truco-target-15')).toBe('false');
     expect(pressed('truco-target-30')).toBe('true');
+    expect(pressed('truco-persona-option-0')).toBe('true');
   });
 
   it('clicking difficulty and target updates and persists the prefs store', () => {
     renderMenu();
+    enterCpuSetup();
     fireEvent.click(screen.getByTestId('truco-difficulty-hard'));
     fireEvent.click(screen.getByTestId('truco-target-15'));
 
@@ -84,43 +122,47 @@ describe('TrucoMenuPage — CPU config', () => {
     expect(pressed('truco-target-15')).toBe('true');
   });
 
-  it('prefs survive reload: Hard+15 preselected from hydrated storage', () => {
+  it('prefs survive reload: Hard+15 + persona card 2 preselected from hydrated storage', () => {
     localStorage.setItem(
       TRUCO_PREFS_KEY,
       JSON.stringify({ difficulty: 'hard', targetPoints: 15, personaIndex: 2 }),
     );
     useTrucoPrefsStore.getState().hydrate();
     renderMenu();
+    enterCpuSetup();
     expect(pressed('truco-difficulty-hard')).toBe('true');
     expect(pressed('truco-difficulty-easy')).toBe('false');
     expect(pressed('truco-target-15')).toBe('true');
-    // Persona index 2 → third roster entry shown.
-    expect(screen.getByTestId('truco-persona-name').textContent).toBe(PERSONAS[2]!.name);
+    // Persona index 2 → third roster card selected.
+    expect(pressed('truco-persona-option-2')).toBe('true');
   });
 
-  it('cycles personas through prev/next with wrap-around', () => {
+  it('selecting a persona card persists its roster index', () => {
     renderMenu();
-    expect(screen.getByTestId('truco-persona-name').textContent).toBe(PERSONAS[0]!.name);
+    enterCpuSetup();
 
-    fireEvent.click(screen.getByTestId('truco-persona-next'));
-    expect(screen.getByTestId('truco-persona-name').textContent).toBe(PERSONAS[1]!.name);
+    const last = PERSONAS.length - 1;
+    fireEvent.click(screen.getByTestId(`truco-persona-option-${last}`));
+    expect(useTrucoPrefsStore.getState().personaIndex).toBe(last);
+    expect(pressed(`truco-persona-option-${last}`)).toBe('true');
 
-    fireEvent.click(screen.getByTestId('truco-persona-prev'));
-    fireEvent.click(screen.getByTestId('truco-persona-prev'));
-    expect(screen.getByTestId('truco-persona-name').textContent).toBe(
-      PERSONAS[PERSONAS.length - 1]!.name,
-    );
-    expect(useTrucoPrefsStore.getState().personaIndex).toBe(PERSONAS.length - 1);
+    const stored = JSON.parse(localStorage.getItem(TRUCO_PREFS_KEY) as string);
+    expect(stored.personaIndex).toBe(last);
+
+    fireEvent.click(screen.getByTestId('truco-persona-option-1'));
+    expect(useTrucoPrefsStore.getState().personaIndex).toBe(1);
+    expect(pressed(`truco-persona-option-${last}`)).toBe('false');
   });
 
-  it('renders the CPU stats card via the store selectors', () => {
+  it('renders the CPU stats inside the collapsed stats card via the store selectors', () => {
     const record = useTruCpuStatsStore.getState().recordMatchResult;
     record('medium', true);
     record('medium', true);
     record('hard', false);
 
     renderMenu();
-    expect(screen.getByTestId('truco-stats-card')).toBeDefined();
+    enterCpuSetup();
+    expect(screen.getByTestId('truco-stats-card')).toBeTruthy();
     expect(screen.getByTestId('truco-stats-games').textContent).toBe('3');
     expect(screen.getByTestId('truco-stats-wins').textContent).toBe('2');
     expect(screen.getByTestId('truco-stats-losses').textContent).toBe('1');
@@ -128,10 +170,11 @@ describe('TrucoMenuPage — CPU config', () => {
     expect(screen.getByTestId('truco-stats-most-played').textContent).toContain('medium');
   });
 
-  it('start navigates to the CPU screen carrying the chosen config', () => {
+  it('JUGAR navigates to the CPU route carrying the chosen config', () => {
     renderMenu(true);
+    enterCpuSetup();
     fireEvent.click(screen.getByTestId('truco-difficulty-hard'));
-    fireEvent.click(screen.getByTestId('truco-menu-vs-cpu'));
+    fireEvent.click(screen.getByTestId('truco-start-cpu'));
     expect(screen.getByTestId('truco-cpu-route-probe')).toBeDefined();
     const stored = JSON.parse(localStorage.getItem(TRUCO_PREFS_KEY) as string);
     expect(stored.difficulty).toBe('hard');

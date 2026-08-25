@@ -1,8 +1,11 @@
 // ---------------------------------------------------------------------------
-// Slice 6c-i RED — friend lobby on TrucoMenuPage (task 6.3)
+// Friend lobby tests — REWRITTEN for the v2 step flow (batch C redesign)
 // ---------------------------------------------------------------------------
-// Pins the create-with-friend and join-by-code flows against EXACT backend
-// reality:
+// The old single-panel lobby (friend <select> + create/join) became a dedicated
+// "friends" STEP that leads with EXISTING friends (presence + inline invite
+// confirm) and demotes the open-code lobby to a secondary collapsed section.
+//
+// Pinned backend reality is UNCHANGED:
 //   POST /api/truco/matches {targetPoints?, friendId?} → {matchId, code, status}
 //     403 NOT_FRIENDS when body.friendId is not an accepted friend
 //   GET  /api/truco/matches/code/:code → {matchId, status} | 404 CODE_NOT_FOUND
@@ -12,8 +15,8 @@
 //
 // Identifier contract (backend-checked): friendsService returns each row with
 // friendId = the FRIEND'S user id; trucoService validates body.friendId
-// against the friends table userId/friendId columns. So the picker MUST send
-// FriendUser.friendId — never .id.
+// against the friends table userId/friendId columns. So the invite MUST send
+// FriendUser.friendId — never .id (asserted via row data-user-id + API call).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
@@ -81,67 +84,102 @@ function renderMenu() {
   );
 }
 
-describe('TrucoMenuPage — friend lobby (CU6 slice 6c-i)', () => {
+/** Step-flow helper: enter the friends step from the mode screen. */
+function enterFriendsScreen() {
+  fireEvent.click(screen.getByTestId('truco-menu-vs-friend'));
+  expect(screen.getByTestId('truco-menu-friend')).toBeTruthy();
+}
+
+/** Secondary code lobby is collapsed by default — expand it. */
+function openCodeSection() {
+  const toggle = screen.getByTestId('truco-code-toggle');
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  fireEvent.click(toggle);
+  expect(screen.getByTestId('truco-code-toggle').getAttribute('aria-expanded')).toBe(
+    'true',
+  );
+}
+
+describe('TrucoMenuPage — friends step (v2 batch C)', () => {
   beforeEach(() => {
     seedStores();
     vi.clearAllMocks();
   });
   afterEach(cleanup);
 
-  it('enables the vs-friend entry point and reveals the lobby section', () => {
+  it('vs-friend opens the friends step listing EXISTING friends first', () => {
     renderMenu();
+    enterFriendsScreen();
 
-    const vsFriend = screen.getByTestId('truco-menu-vs-friend');
-    expect(vsFriend).not.toBeDisabled();
-
-    // Progressive disclosure: the lobby panel appears once the entry is used.
-    expect(screen.queryByTestId('truco-menu-friend')).toBeNull();
-    fireEvent.click(vsFriend);
-    expect(screen.getByTestId('truco-menu-friend')).toBeTruthy();
+    expect(screen.getByTestId('truco-friend-row-user-maria')).toBeTruthy();
+    expect(screen.getByTestId('truco-friend-row-user-jose')).toBeTruthy();
   });
 
-  it('lists friends with their USER id as value and honest online markers', () => {
+  it('rows carry the USER id and honest presence markers; offline friends have NO invite button', () => {
     renderMenu();
-    fireEvent.click(screen.getByTestId('truco-menu-vs-friend'));
+    enterFriendsScreen();
 
-    const select = screen.getByTestId('truco-multi-friend-select') as HTMLSelectElement;
-    const maria = screen.getByRole('option', { name: /maria/ }) as HTMLOptionElement;
-    const jose = screen.getByRole('option', { name: /jose/ }) as HTMLOptionElement;
+    // Backend identity contract exposed on the row: data-user-id = friendId.
+    expect(screen.getByTestId('truco-friend-row-user-maria').getAttribute('data-user-id')).toBe(
+      'user-maria',
+    );
+    const mariaPresence = screen.getByTestId('truco-friend-presence-user-maria');
+    expect(mariaPresence.getAttribute('data-presence')).toBe('online');
+    expect(screen.getByTestId('truco-friend-presence-user-jose').getAttribute('data-presence')).toBe(
+      'offline',
+    );
 
-    // Backend identity contract: option VALUE is the friend's user id.
-    expect(maria.value).toBe('user-maria');
-    expect(jose.value).toBe('user-jose');
-    expect(maria.getAttribute('data-online')).toBe('true');
-    expect(jose.getAttribute('data-online')).toBe('false');
-
-    // Default selection is the explicit "open match" choice (value ''), NOT a
-    // friend — creating without picking anyone must be a valid open challenge.
-    expect(select.value).toBe('');
+    // Invite action only for available friends.
+    expect(screen.getByTestId('truco-invite-user-maria')).toBeTruthy();
+    expect(screen.queryByTestId('truco-invite-user-jose')).toBeNull();
   });
 
-  it('shows a no-friends hint instead of controls when the list is empty', () => {
+  it('empty list shows the no-friends state AND keeps the code section accessible', () => {
     seedStores({ friends: [], online: [] });
     renderMenu();
-    fireEvent.click(screen.getByTestId('truco-menu-vs-friend'));
+    enterFriendsScreen();
 
     expect(screen.getByTestId('truco-multi-no-friends')).toBeTruthy();
-    expect(screen.queryByTestId('truco-multi-create')).toBeNull();
-    expect(screen.queryByTestId('truco-multi-join')).toBeNull();
+
+    // Secondary code lobby stays reachable even with no friends (v2 change:
+    // the old panel hid create/join entirely on an empty list).
+    openCodeSection();
+    expect(screen.getByTestId('truco-multi-create')).toBeTruthy();
+    expect(screen.getByTestId('truco-multi-code-input')).toBeTruthy();
+    expect(screen.getByTestId('truco-multi-join')).toBeTruthy();
+
+    // Add-friends link navigates to Geotano's friends management.
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('truco.multi.addFriends') }));
+    expect(screen.getByTestId('friends-route-probe')).toBeTruthy();
   });
 
-  it('create sends {targetPoints, friendId} and navigates to the match route', async () => {
+  it('INVITAR asks for confirmation before firing any request', () => {
+    renderMenu();
+    enterFriendsScreen();
+
+    fireEvent.click(screen.getByTestId('truco-invite-user-maria'));
+
+    const confirm = screen.getByTestId('truco-invite-confirm');
+    expect(confirm.textContent).toContain(i18n.t('truco.multi.inviteConfirm', { name: 'maria' }));
+    expect(trucoApiMock.createTrucoMatch).not.toHaveBeenCalled();
+
+    // Cancel dismisses without any API traffic.
+    fireEvent.click(screen.getByTestId('truco-invite-cancel'));
+    expect(screen.queryByTestId('truco-invite-confirm')).toBeNull();
+    expect(trucoApiMock.createTrucoMatch).not.toHaveBeenCalled();
+  });
+
+  it('confirming the invite sends {targetPoints, friendId} and navigates to the match route', async () => {
     trucoApiMock.createTrucoMatch.mockResolvedValue({
       matchId: 'm-new',
       code: 'ABCD12',
       status: 'ready',
     });
     renderMenu();
-    fireEvent.click(screen.getByTestId('truco-menu-vs-friend'));
+    enterFriendsScreen();
 
-    fireEvent.change(screen.getByTestId('truco-multi-friend-select'), {
-      target: { value: 'user-maria' },
-    });
-    fireEvent.click(screen.getByTestId('truco-multi-create'));
+    fireEvent.click(screen.getByTestId('truco-invite-user-maria'));
+    fireEvent.click(screen.getByTestId('truco-invite-confirm-accept'));
 
     await screen.findByTestId('truco-match-route-probe');
 
@@ -151,32 +189,15 @@ describe('TrucoMenuPage — friend lobby (CU6 slice 6c-i)', () => {
     });
   });
 
-  it('create without a picked friend opens a code match (no friendId sent)', async () => {
-    trucoApiMock.createTrucoMatch.mockResolvedValue({
-      matchId: 'm-open',
-      code: 'OPEN99',
-      status: 'waiting',
-    });
-    renderMenu();
-    fireEvent.click(screen.getByTestId('truco-menu-vs-friend'));
-
-    // Default selection stays '' — nobody picked.
-    fireEvent.click(screen.getByTestId('truco-multi-create'));
-    await screen.findByTestId('truco-match-route-probe');
-
-    const call = trucoApiMock.createTrucoMatch.mock.calls[0]![0] as Record<string, unknown>;
-    expect(call.targetPoints).toBe(30);
-    expect('friendId' in call ? call.friendId : undefined).toBeUndefined();
-  });
-
   it('NOT_FRIENDS (403) surfaces the friendly message and never navigates', async () => {
     trucoApiMock.createTrucoMatch.mockRejectedValue(
       Object.assign(new Error('You can only invite friends'), { status: 403 }),
     );
     renderMenu();
-    fireEvent.click(screen.getByTestId('truco-menu-vs-friend'));
+    enterFriendsScreen();
 
-    fireEvent.click(screen.getByTestId('truco-multi-create'));
+    fireEvent.click(screen.getByTestId('truco-invite-user-maria'));
+    fireEvent.click(screen.getByTestId('truco-invite-confirm-accept'));
 
     await waitFor(() => {
       expect(screen.getByTestId('truco-multi-error')).toHaveTextContent(
@@ -186,11 +207,30 @@ describe('TrucoMenuPage — friend lobby (CU6 slice 6c-i)', () => {
     expect(screen.queryByTestId('truco-match-route-probe')).toBeNull();
   });
 
+  it('creating an open match from the secondary section sends targetPoints with NO friendId', async () => {
+    trucoApiMock.createTrucoMatch.mockResolvedValue({
+      matchId: 'm-open',
+      code: 'OPEN99',
+      status: 'waiting',
+    });
+    renderMenu();
+    enterFriendsScreen();
+    openCodeSection();
+
+    fireEvent.click(screen.getByTestId('truco-multi-create'));
+    await screen.findByTestId('truco-match-route-probe');
+
+    const call = trucoApiMock.createTrucoMatch.mock.calls[0]![0] as Record<string, unknown>;
+    expect(call.targetPoints).toBe(30);
+    expect('friendId' in call ? call.friendId : undefined).toBeUndefined();
+  });
+
   it('join-by-code pre-checks with the GET, then joins, then navigates (S3 order)', async () => {
     trucoApiMock.lookupTrucoMatchByCode.mockResolvedValue({ matchId: 'm-x', status: 'waiting' });
     trucoApiMock.joinTrucoMatchByCode.mockResolvedValue({ matchId: 'm-x' });
     renderMenu();
-    fireEvent.click(screen.getByTestId('truco-menu-vs-friend'));
+    enterFriendsScreen();
+    openCodeSection();
 
     fireEvent.change(screen.getByTestId('truco-multi-code-input'), {
       target: { value: 'ABCD12' },
@@ -211,7 +251,8 @@ describe('TrucoMenuPage — friend lobby (CU6 slice 6c-i)', () => {
       Object.assign(new Error('code not found'), { status: 404 }),
     );
     renderMenu();
-    fireEvent.click(screen.getByTestId('truco-menu-vs-friend'));
+    enterFriendsScreen();
+    openCodeSection();
 
     fireEvent.change(screen.getByTestId('truco-multi-code-input'), {
       target: { value: 'ZZZZZZ' },
@@ -231,7 +272,8 @@ describe('TrucoMenuPage — friend lobby (CU6 slice 6c-i)', () => {
     // Never-resolving promise pins the pending state without timing games.
     trucoApiMock.lookupTrucoMatchByCode.mockReturnValue(new Promise(() => {}));
     renderMenu();
-    fireEvent.click(screen.getByTestId('truco-menu-vs-friend'));
+    enterFriendsScreen();
+    openCodeSection();
 
     fireEvent.change(screen.getByTestId('truco-multi-code-input'), {
       target: { value: 'SLOW11' },

@@ -29,6 +29,93 @@ import {
 /** Readable pause showing the failure reason before the menu fallback (#15). */
 export const REMATCH_ERROR_FALLBACK_MS = 2500;
 
+/**
+ * VOS-vs-rival header shared by the waiting/ready lobbies (v2 batch C
+ * restyle). Presentation only — presence stays honest (dot hidden while no
+ * opponent is connected yet; unknown state never fakes a connection).
+ */
+function VersusHeader({
+  opponentName,
+  opponentConnected,
+  presence,
+}: {
+  opponentName: string;
+  opponentConnected: boolean;
+  presence: 'online' | 'offline' | 'unknown';
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center justify-center gap-4 sm:gap-8">
+      <div className="flex w-20 flex-col items-center gap-1 sm:w-24">
+        <span
+          aria-hidden
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-lg font-black text-white ring-2 ring-white/30"
+        >
+          {t('truco.you').slice(0, 1).toUpperCase()}
+        </span>
+        <span data-testid="truco-match-you-label" className="max-w-full truncate text-sm font-bold text-white">
+          {t('truco.you')}
+        </span>
+      </div>
+      <span
+        aria-hidden
+        className="text-2xl font-black italic tracking-tight text-[var(--truco-card-back-gold)] drop-shadow sm:text-3xl"
+      >
+        {t('truco.match.vs')}
+      </span>
+      <div className="flex w-20 flex-col items-center gap-1 sm:w-24">
+        <span
+          data-testid="truco-match-versus-opponent-avatar"
+          aria-hidden
+          className={[
+            'flex h-14 w-14 items-center justify-center rounded-full text-lg font-black ring-2',
+            opponentConnected
+              ? 'bg-white/10 text-white ring-white/40'
+              : 'bg-white/5 text-white/50 ring-dashed ring-white/20',
+          ].join(' ')}
+        >
+          {opponentConnected ? opponentName.slice(0, 1).toUpperCase() : '?'}
+        </span>
+        <span
+          data-testid="truco-match-versus-opponent-label"
+          className={[
+            'max-w-full truncate text-sm font-bold',
+            opponentConnected ? 'text-white' : 'text-white/60',
+          ].join(' ')}
+        >
+          {opponentName}
+        </span>
+        {opponentConnected && (
+          <span
+            data-testid="truco-match-presence"
+            data-presence={presence}
+            className="flex shrink-0 items-center gap-1 text-[10px] text-white/70"
+          >
+            <span
+              aria-hidden
+              className={[
+                'h-1.5 w-1.5 rounded-full',
+                presence === 'online'
+                  ? 'bg-emerald-400'
+                  : presence === 'offline'
+                    ? 'bg-amber-300'
+                    : 'bg-white/30',
+              ].join(' ')}
+            />
+            {t(
+              presence === 'online'
+                ? 'truco.multi.presence.online'
+                : presence === 'offline'
+                  ? 'truco.multi.presence.offline'
+                  : 'truco.multi.presence.unknown',
+            )}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Structural shape of a rejected action (mirrors ApiError, read-only). */
 type TrucoActionError = { status?: number; errorCode?: string } | null | undefined;
 
@@ -380,75 +467,89 @@ export function TrucoMatchPage() {
       )}
 
       {snapshot.status === 'waiting' && (
-        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 text-center">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
-            {t('truco.multi.roomCode')}
-          </p>
-          <div className="mb-2 flex min-w-0 items-center justify-center gap-3">
-            <p
-              data-testid="truco-match-code"
-              className="font-mono text-4xl font-bold tracking-[0.25em] text-[var(--color-foreground)]"
-            >
-              {snapshot.code}
+        // v2 versus presentation: felt-toned VOS-vs-rival card; the room code
+        // stays copyable but visually secondary below the matchup.
+        <section
+          data-testid="truco-match-versus"
+          className="rounded-2xl border border-[var(--truco-card-border)] bg-[var(--truco-felt-edge)] p-6 text-center shadow-lg"
+        >
+          <VersusHeader
+            opponentName={opponentName}
+            opponentConnected={Boolean(opponentUserId)}
+            presence={opponentPresence}
+          />
+
+          {/* Room code — still shareable, demoted under the matchup */}
+          <div className="mt-5 border-t border-white/15 pt-4">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/60">
+              {t('truco.multi.roomCode')}
             </p>
-            <button
-              type="button"
-              data-testid="truco-match-copy-code"
-              aria-label={codeCopied ? t('truco.multi.copied') : t('truco.multi.copyCode')}
-              onClick={() => void onCopyCode(snapshot.code)}
-              className={[
-                'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]',
-                codeCopied
-                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                  : 'border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]',
-              ].join(' ')}
-            >
-              {codeCopied ? (
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-5 w-5">
-                  <path
-                    d="m5 12.5 4.5 4.5L19 7.5"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-5 w-5">
-                  <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" />
-                  <path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              )}
-            </button>
+            <div className="mb-2 flex min-w-0 items-center justify-center gap-3">
+              <p
+                data-testid="truco-match-code"
+                className="font-mono text-3xl font-bold tracking-[0.25em] text-white sm:text-4xl"
+              >
+                {snapshot.code}
+              </p>
+              <button
+                type="button"
+                data-testid="truco-match-copy-code"
+                aria-label={codeCopied ? t('truco.multi.copied') : t('truco.multi.copyCode')}
+                onClick={() => void onCopyCode(snapshot.code)}
+                className={[
+                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+                  codeCopied
+                    ? 'border-emerald-300 bg-emerald-400/20 text-emerald-200'
+                    : 'border-white/25 text-white/80 hover:border-white hover:text-white',
+                ].join(' ')}
+              >
+                {codeCopied ? (
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-5 w-5">
+                    <path
+                      d="m5 12.5 4.5 4.5L19 7.5"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-5 w-5">
+                    <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                    <path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            {codeCopied && (
+              <p
+                data-testid="truco-match-code-copied"
+                role="status"
+                className="mb-2 text-xs font-semibold text-emerald-300"
+              >
+                {t('truco.multi.copied')}
+              </p>
+            )}
+            <p className="text-sm text-white/70">
+              {t('truco.multi.shareCodeHint')}
+            </p>
           </div>
-          {codeCopied && (
-            <p
-              data-testid="truco-match-code-copied"
-              role="status"
-              className="mb-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400"
-            >
-              {t('truco.multi.copied')}
-            </p>
-          )}
-          <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">
-            {t('truco.multi.shareCodeHint')}
-          </p>
 
           {/* Animated waiting indicator: three bouncing dots */}
-          <div aria-hidden className="mb-2 flex items-center justify-center gap-1.5">
+          <div aria-hidden className="mb-2 mt-5 flex items-center justify-center gap-1.5">
             {[0, 1, 2].map((dot) => (
               <span
                 key={dot}
                 data-testid="truco-waiting-dot"
-                className="animate-truco-bounce-dot block h-2 w-2 rounded-full bg-emerald-500"
+                className="animate-truco-bounce-dot block h-2 w-2 rounded-full bg-emerald-400"
                 style={{ animationDelay: `${dot * 160}ms` }}
               />
             ))}
           </div>
           <p
             data-testid="truco-match-waiting"
-            className="text-sm text-[var(--color-muted-foreground)]"
+            className="text-sm font-medium text-white/85"
           >
             {t('truco.multi.waitingForPlayer')}
           </p>
@@ -456,7 +557,17 @@ export function TrucoMatchPage() {
       )}
 
       {snapshot.status === 'ready' && (
-        <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-6 text-center">
+        // Both players connected: the versus header shows the real rival with
+        // honest presence; host-only start control (W1) stays unchanged.
+        <section
+          data-testid="truco-match-versus-ready"
+          className="rounded-2xl border border-[var(--truco-card-border)] bg-[var(--truco-felt-edge)] p-6 text-center shadow-lg"
+        >
+          <VersusHeader
+            opponentName={opponentName}
+            opponentConnected={Boolean(opponentUserId)}
+            presence={opponentPresence}
+          />
           {isHost ? (
             <>
               <button
@@ -464,7 +575,7 @@ export function TrucoMatchPage() {
                 data-testid="truco-multi-start"
                 disabled={starting}
                 onClick={() => void onStart()}
-                className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-6 min-h-[52px] w-full rounded-xl bg-emerald-500 px-4 text-base font-black uppercase tracking-wider text-white transition-all hover:-translate-y-0.5 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 {starting ? t('truco.multi.starting') : t('truco.multi.startMatch')}
               </button>
@@ -472,19 +583,30 @@ export function TrucoMatchPage() {
                 <p
                   data-testid="truco-multi-error"
                   role="alert"
-                  className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400"
+                  className="mt-3 rounded-md border border-red-400/60 bg-red-950/50 px-3 py-2 text-sm text-red-200"
                 >
                   {startError}
                 </p>
               )}
             </>
           ) : (
-            <p
-              data-testid="truco-match-guest-waiting"
-              className="text-sm text-[var(--color-muted-foreground)]"
-            >
-              {t('truco.multi.waitingForHost')}
-            </p>
+            <>
+              <div aria-hidden className="mb-2 mt-6 flex items-center justify-center gap-1.5">
+                {[0, 1, 2].map((dot) => (
+                  <span
+                    key={dot}
+                    className="animate-truco-bounce-dot block h-2 w-2 rounded-full bg-emerald-400"
+                    style={{ animationDelay: `${dot * 160}ms` }}
+                  />
+                ))}
+              </div>
+              <p
+                data-testid="truco-match-guest-waiting"
+                className="text-sm font-medium text-white/85"
+              >
+                {t('truco.multi.waitingForHost')}
+              </p>
+            </>
           )}
         </section>
       )}
