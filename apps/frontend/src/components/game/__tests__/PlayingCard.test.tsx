@@ -18,6 +18,11 @@ function markup(container: HTMLElement): string {
   return container.innerHTML;
 }
 
+/** Strips per-mount useId() suffixes from paper-pattern ids for comparison. */
+function normalizePatternIds(html: string): string {
+  return html.replace(/truco-paper-[a-z0-9]+-[^"\\s]+/g, 'truco-paper-NORMALIZED');
+}
+
 describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
   afterEach(() => cleanup());
 
@@ -56,22 +61,43 @@ describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
     b.unmount();
   });
 
-  it('requests zero network assets (no img tags, no url())', () => {
+  it('requests zero network assets (no img tags, no external url())', () => {
     for (const card of ['1espada', '7oro', '12copa'] as const) {
       const { container, unmount } = renderCard({ card });
       expect(container.querySelector('img')).toBeNull();
-      expect(/url\(/.test(container.innerHTML)).toBe(false);
+      // Internal SVG refs (`url(#id)`) are fine; anything else is a fetch.
+      expect(/url\(\s*['"]?\s*(?!#)/.test(container.innerHTML)).toBe(false);
       unmount();
     }
   });
 
-  it('is deterministic — the same card renders byte-identical markup twice', () => {
+  it('renders art-identical markup on remount (per-mount pattern id normalized)', () => {
     const first = renderCard({ card: '3basto' });
     const firstHtml = markup(first.container);
     first.unmount();
     const second = renderCard({ card: '3basto' });
-    expect(markup(second.container)).toBe(firstHtml);
+    // The paper-pattern id is derived from useId(), so it legitimately varies
+    // between mounts (that's what keeps simultaneous duplicates collision-free).
+    // Everything else must be byte-identical.
+    expect(normalizePatternIds(markup(second.container))).toBe(
+      normalizePatternIds(firstHtml),
+    );
+    // The texture itself still renders: a pattern def plus its fill reference.
+    expect(second.container.querySelector('pattern[id^="truco-paper-"]')).not.toBeNull();
+    expect(second.container.innerHTML).toMatch(/fill="url\(#truco-paper-/);
     second.unmount();
+  });
+
+  it('gives simultaneously mounted copies of the same card DISTINCT pattern ids', () => {
+    const a = renderCard({ card: '3basto' });
+    const b = renderCard({ card: '3basto' }); // e.g. hand + deck drawer
+    const idA = a.container.querySelector('pattern')!.id;
+    const idB = b.container.querySelector('pattern')!.id;
+    expect(idA).toMatch(/^truco-paper-3basto-/);
+    expect(idB).toMatch(/^truco-paper-3basto-/);
+    expect(idA).not.toBe(idB);
+    a.unmount();
+    b.unmount();
   });
 
   it('exposes localized accessible alt text with rank and suit', () => {
@@ -155,5 +181,46 @@ describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
     expect(el.tagName.toLowerCase()).toBe('button');
     const classes = [...el.classList].join(' ');
     expect(classes).toContain('focus-visible:outline-2');
+  });
+
+  // ─── Physical deck v2: authentic pip layouts, ace heroes ────────────────
+
+  it.each([
+    ['2oro', 2],
+    ['3copa', 3],
+    ['4basto', 4],
+    ['5oro', 5],
+    ['6espada', 6],
+    ['7copa', 7],
+  ] as const)('number card %s renders exactly %i traditional pips', (card, count) => {
+    renderCard({ card });
+    for (let n = 1; n <= count; n++) {
+      expect(screen.getByTestId(`playing-card-${card}-pip-${n}`)).toBeDefined();
+    }
+    // No extra pips beyond the rank's count.
+    expect(screen.queryByTestId(`playing-card-${card}-pip-${count + 1}`)).toBeNull();
+  });
+
+  it('renders no pips on figuras (emblem scenes instead)', () => {
+    renderCard({ card: '11oro' });
+    expect(screen.queryByTestId(/^playing-card-11oro-pip-/)).toBeNull();
+  });
+
+  it.each(['1espada', '1basto', '1oro', '1copa'] as const)(
+    'gives ace %s the hero-art treatment',
+    (card) => {
+      renderCard({ card });
+      expect(screen.getByTestId(`playing-card-${card}-hero`)).toBeDefined();
+      // Aces never degrade into plain pips.
+      expect(screen.queryByTestId(/^playing-card-${card}-pip-/)).toBeNull();
+    },
+  );
+
+  it('keeps number and court cards free of hero art', () => {
+    renderCard({ card: '5basto' });
+    expect(screen.queryByTestId('playing-card-5basto-hero')).toBeNull();
+    cleanup();
+    renderCard({ card: '10espada' });
+    expect(screen.queryByTestId('playing-card-10espada-hero')).toBeNull();
   });
 });

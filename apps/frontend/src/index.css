@@ -94,6 +94,24 @@
   animation: truco-win-pulse 600ms ease-out both;
 }
 
+/* Card entry into the active baza lane (~250ms), owner-direction aware:
+   the rival's card slides DOWN from their strip, mine slides UP. Keyed
+   remounts per card id restart the animation naturally. */
+@keyframes truco-play-rival {
+  from { opacity: 0; transform: translateY(-22px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes truco-play-mine {
+  from { opacity: 0; transform: translateY(22px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-truco-play-rival {
+  animation: truco-play-rival 250ms ease-out both;
+}
+.animate-truco-play-mine {
+  animation: truco-play-mine 250ms ease-out both;
+}
+
 /* Player panel glow ring while holding the turn. */
 @keyframes truco-turn-glow {
   0%, 100% { box-shadow: 0 0 10px 2px rgb(16 185 129 / 0.28); }
@@ -144,6 +162,8 @@
 :root {
   --truco-card-face: oklch(0.985 0.008 95);
   --truco-card-border: oklch(0.8 0.03 70);
+  --truco-card-frame: oklch(0.87 0.06 85);
+  --truco-card-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 4px 10px rgb(0 0 0 / 0.22);
   --truco-oro: oklch(0.62 0.13 70);
   --truco-copa: oklch(0.5 0.17 25);
   --truco-espada: oklch(0.38 0.07 250);
@@ -158,8 +178,12 @@
 }
 
 .dark {
-  --truco-card-face: oklch(0.22 0.012 80);
-  --truco-card-border: oklch(0.35 0.03 70);
+  /* Physical card: the FACE stays light paper in dark mode — only the
+     shadows deepen and the frame/border warm down slightly. */
+  --truco-card-face: oklch(0.965 0.009 95);
+  --truco-card-border: oklch(0.55 0.03 70);
+  --truco-card-frame: oklch(0.82 0.06 85);
+  --truco-card-shadow: 0 2px 4px rgb(0 0 0 / 0.6), 0 10px 20px rgb(0 0 0 / 0.45);
   --truco-oro: oklch(0.76 0.13 80);
   --truco-copa: oklch(0.66 0.16 25);
   --truco-espada: oklch(0.68 0.08 240);
@@ -171,6 +195,27 @@
   --truco-hint-medium: oklch(0.68 0.04 260);
   --truco-hint-weak: oklch(0.55 0.01 260);
   --truco-card-ring: oklch(0.7 0.19 45);
+}
+
+/* ─── Orejeo: fanned hand inspection ────────────────────────────────
+   Layout/overlap for the held-hand look; the lift itself is driven by
+   Hand.tsx state (hover/focus) so it stays testable. Overlapping slots
+   keep 3 cards comfortable at 360px widths.                          */
+.truco-fan-slot + .truco-fan-slot {
+  margin-left: -0.75rem;
+}
+.truco-fan .truco-fan-slot:focus-within {
+  z-index: 30;
+}
+@media (prefers-reduced-motion: reduce) {
+  .truco-fan-slot,
+  [class*='playing-card'] {
+    transition-duration: 1ms !important;
+  }
+  .animate-truco-play-rival,
+  .animate-truco-play-mine {
+    animation-duration: 1ms !important;
+  }
 }
 
 /* --- Base styles --- */

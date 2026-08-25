@@ -1,7 +1,6 @@
 import type { CardId, TrucoAction } from '@geotano/shared';
-import { PlayingCard } from '../../../components/game/PlayingCard';
-import { cardStrengthHint } from '../cardStrength';
 import { ActionBar } from './ActionBar';
+import { Hand } from './Hand';
 import { Scoreboard } from './Scoreboard';
 
 /**
@@ -70,21 +69,9 @@ export function MyZone({
         </div>
       </div>
 
-      {/* Hand: clickable only when playing that card is legal (turn included) */}
-      <div className="flex min-w-0 flex-wrap items-end justify-center gap-2" style={{ minHeight: '5rem' }}>
-        {myHand.map((card) => {
-          const action = playable.get(card);
-          return (
-            <PlayingCard
-              key={card}
-              card={card}
-              size="md"
-              onClick={action ? () => onAction(action) : undefined}
-              disabled={!action}
-              strengthHint={cardStrengthHint(card)}
-            />
-          );
-        })}
+      {/* Orejeo hand: fanned, inspectable, clickable only when legal */}
+      <div className="min-w-0 py-1" style={{ minHeight: '5rem' }}>
+        <Hand myHand={myHand} playable={playable} onAction={onAction} />
       </div>
 
       {showActionBar ? (
