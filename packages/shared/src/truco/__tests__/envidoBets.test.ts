@@ -271,27 +271,33 @@ describe('Envido timing windows', () => {
     expect(opened.state.envido?.lastCaller).toBe('B');
   });
 
-  it('after the first card hits the table, envido initiation is rejected and state unchanged', () => {
+  it('after the first card hits the table, ALL envido opening variants are rejected and state unchanged', () => {
+    // Official rule: once ANY card is played the opening window is closed for
+    // BOTH players, for every envido call type alike.
     const state = makeState();
     const led = applyAction(state, { type: 'play_card', actor: 'A', card: state.hands.A[0]! }, DEPS());
     if (!led.ok) throw new Error(led.errorCode);
     for (const actor of ['B', 'A'] as const) {
-      const attempt = applyAction(led.state, { type: 'sing_envido', actor }, DEPS());
-      if (attempt.ok) throw new Error('must reject');
-      expect(attempt.errorCode).toBe('E_ENVIDO_WINDOW_CLOSED');
-      expect(attempt.state).toBe(led.state);
+      for (const type of ['sing_envido', 'sing_real_envido', 'sing_falta_envido'] as const) {
+        const attempt = applyAction(led.state, { type, actor }, DEPS());
+        if (attempt.ok) throw new Error(`must reject ${type} by ${actor}`);
+        expect(attempt.errorCode).toBe('E_ENVIDO_WINDOW_CLOSED');
+        expect(attempt.state).toBe(led.state);
+      }
     }
   });
 
-  it('after a truco bet was accepted this hand, envido initiation is rejected', () => {
+  it('after a truco bet was accepted this hand, every envido initiation variant is rejected', () => {
     const state = makeState();
     const truco = applyAction(state, { type: 'sing_truco', actor: 'A' }, DEPS());
     if (!truco.ok) throw new Error(truco.errorCode);
     const quiero = applyAction(truco.state, { type: 'quiero', actor: 'B' }, DEPS());
     if (!quiero.ok) throw new Error(quiero.errorCode);
-    const attempt = applyAction(quiero.state, { type: 'sing_envido', actor: 'B' }, DEPS());
-    if (attempt.ok) throw new Error('must reject');
-    expect(attempt.errorCode).toBe('E_ENVIDO_WINDOW_CLOSED');
+    for (const type of ['sing_envido', 'sing_real_envido', 'sing_falta_envido'] as const) {
+      const attempt = applyAction(quiero.state, { type, actor: 'B' }, DEPS());
+      if (attempt.ok) throw new Error(`must reject ${type}`);
+      expect(attempt.errorCode).toBe('E_ENVIDO_WINDOW_CLOSED');
+    }
   });
 });
 

@@ -16,6 +16,7 @@ import type {
   TrucoState,
 } from '@geotano/shared';
 import { PERSONAS, createAi, pickPersona, personaAt, normalizePersonaIndex } from '../index';
+import { cpuOptions } from '../types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -161,6 +162,45 @@ describe('Easy never emits an illegal action', () => {
     // Real coverage guard: the sweep exercised plenty of decision points.
     expect(decisions).toBeGreaterThan(500);
   });
+});
+
+// ─── Envido window discipline (official rule documentation) ─────────────────
+
+describe('CPU never attempts envido after the first card', () => {
+  const ENVIDO_SINGS = ['sing_envido', 'sing_real_envido', 'sing_falta_envido'];
+
+  /** Playing-phase window with one card already on the table, bets open. */
+  function afterFirstCard(hand: CardId[]): CpuDecisionInput {
+    return baseInput({
+      myHand: [...hand],
+      cardsPlayedThisHand: 1,
+      playedCards: { A: ['4oro'], B: [] },
+    });
+  }
+
+  it('legalActions-derived CPU options contain NO envido sings once cardsPlayedThisHand > 0', () => {
+    // This is the guarantee every difficulty relies on: options are derived
+    // exclusively through shared legalActions, so if envido sings are absent
+    // from the option set the CPU structurally cannot attempt them.
+    for (const hand of [JUNK_HAND, ENVIDO_31_HAND, STRONG_ANSWER_HAND]) {
+      const options = cpuOptions(afterFirstCard(hand));
+      for (const type of ENVIDO_SINGS) {
+        expect(options.some((a) => a.type === type)).toBe(false);
+      }
+    }
+  });
+
+  it.each(['easy', 'medium', 'hard'] as const)(
+    '%s decide() over 500 seeds with cardsPlayed=1 NEVER returns an envido sing',
+    (difficulty) => {
+      // Even a 31-envido hand cannot tempt the CPU into an illegal opening.
+      const input = afterFirstCard(ENVIDO_31_HAND);
+      for (let seed = 0; seed < 500; seed++) {
+        const action = createAi(difficulty).decide(input, mulberry32(seed));
+        expect(ENVIDO_SINGS).not.toContain(action.type);
+      }
+    },
+  );
 });
 
 // ─── Statistical bounds (task 5.2 contracts) ────────────────────────────────

@@ -653,6 +653,37 @@ describe('applyTrucoAction', () => {
     expect(txChain.set).not.toHaveBeenCalled();
   });
 
+  it('closes the envido window server-side: sing_envido AFTER the first card → 400 E_ENVIDO_WINDOW_CLOSED', async () => {
+    // Official rule: once any card is played, opening envido is closed for BOTH
+    // players. Step 1 commits a legal lead; step 2 proves the on-turn responder
+    // (slot B) is rejected when attempting the now-illegal opening.
+    const row = await makePlayingRow();
+    pushRow(row);
+    pendingResults.push({ count: 1 }); // CAS update succeeds
+    const state = (row.engineState as any).state as TrucoState;
+    const ledCard = state.hands.A[0]!;
+
+    const lead = await applyTrucoAction('tm-1', 'user-1', 4, { type: 'play_card', card: ledCard });
+    if (!lead.ok) throw new Error(`lead failed: ${JSON.stringify(lead)}`);
+    const persisted = (txChain.set.mock.calls.at(-1)![0] as any).engineState.state as TrucoState;
+    expect(persisted.playedCards.A).toContain(ledCard); // one card down
+    expect(persisted.playerToAct).toBe('B'); // it IS B's turn to act
+
+    pushRow(
+      makeRow({
+        status: 'playing',
+        guestPlayerId: 'user-2',
+        version: 5,
+        engineState: { schemaVersion: 1, state: persisted },
+      }),
+    );
+
+    const outcome = await applyTrucoAction('tm-1', 'user-2', 5, { type: 'sing_envido' });
+
+    expect(outcome).toMatchObject({ ok: false, httpStatus: 400, errorCode: 'E_ENVIDO_WINDOW_CLOSED' });
+    expect(txChain.set).toHaveBeenCalledTimes(1); // no mutation beyond the legal lead
+  });
+
   it('applies a legal play atomically: bumped version, wrapped new state, redacted view', async () => {
     const row = await makePlayingRow();
     pushRow(row);
