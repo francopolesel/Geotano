@@ -8,3 +8,9 @@ dist/
 *.log
 coverage/
 \[Guru3D\]*
+
+# Official Spanish-deck source SVGs (~69 MB, embedded rasters) stay local only.
+# The app ships optimized WebP derivatives; regenerate from these if ever needed.
+apps/frontend/src/assets/spanish-playing-cards-svg-main/*
+!apps/frontend/src/assets/spanish-playing-cards-svg-main/webp/
+!apps/frontend/src/assets/spanish-playing-cards-svg-main/webp/**

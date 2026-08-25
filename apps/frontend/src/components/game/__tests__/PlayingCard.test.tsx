@@ -4,6 +4,7 @@ import { I18nextProvider } from 'react-i18next';
 import { DECK_40 } from '@geotano/shared';
 import i18n from '../../../i18n/i18n';
 import { PlayingCard } from '../PlayingCard';
+import { CARD_BACK_URL, cardAssetUrl } from '../../../features/truco/cardAssets';
 
 function renderCard(props: Parameters<typeof PlayingCard>[0]) {
   return render(
@@ -13,91 +14,88 @@ function renderCard(props: Parameters<typeof PlayingCard>[0]) {
   );
 }
 
-/** Serializes the rendered markup so uniqueness/determinism can be asserted. */
-function markup(container: HTMLElement): string {
-  return container.innerHTML;
+/** The artwork <img> inside a rendered face card. */
+function faceImg(testId: string): HTMLImageElement {
+  const img = screen.getByTestId(testId).querySelector('img');
+  expect(img).not.toBeNull();
+  return img as HTMLImageElement;
 }
 
-/** Strips per-mount useId() suffixes from paper-pattern ids for comparison. */
-function normalizePatternIds(html: string): string {
-  return html.replace(/truco-paper-[a-z0-9]+-[^"\\s]+/g, 'truco-paper-NORMALIZED');
-}
-
-describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
+describe('PlayingCard (official SVG asset shell)', () => {
   afterEach(() => cleanup());
 
-  it('renders all 40 distinct faces and none equals the face-down back', () => {
-    const backs = new Set<string>();
+  // ─── Asset wiring: representative matrix (each suit × key ranks) ────────
 
-    const backRender = renderCard({ faceDown: true });
-    const backMarkup = markup(backRender.container);
-    backs.add(backMarkup);
-    backRender.unmount();
-
-    const faces = new Set<string>();
-    for (const card of DECK_40) {
-      const { container, unmount } = renderCard({ card });
-      expect(screen.getByTestId(`playing-card-${card}`)).toBeDefined();
-      const html = markup(container);
-      // A face must never collapse into the uniform back…
-      expect(html).not.toBe(backMarkup);
-      faces.add(html);
-      unmount();
-    }
-    // …and every one of the 40 ids must produce a visually unique face.
-    expect(faces.size).toBe(40);
-    expect(backs.size).toBe(1);
+  it.each([
+    ['1oro', 'webp/card_coins_01.webp'],
+    ['7oro', 'webp/card_coins_07.webp'],
+    ['10oro', 'webp/card_coins_10.webp'],
+    ['11oro', 'webp/card_coins_11.webp'],
+    ['12oro', 'webp/card_coins_12.webp'],
+    ['1copa', 'webp/card_cups_01.webp'],
+    ['7copa', 'webp/card_cups_07.webp'],
+    ['10copa', 'webp/card_cups_10.webp'],
+    ['11copa', 'webp/card_cups_11.webp'],
+    ['12copa', 'webp/card_cups_12.webp'],
+    ['1espada', 'webp/card_swords_01.webp'],
+    ['7espada', 'webp/card_swords_07.webp'],
+    ['10espada', 'webp/card_swords_10.webp'],
+    ['11espada', 'webp/card_swords_11.webp'],
+    ['12espada', 'webp/card_swords_12.webp'],
+    ['1basto', 'webp/card_clubs_01.webp'],
+    ['7basto', 'webp/card_clubs_07.webp'],
+    ['10basto', 'webp/card_clubs_10.webp'],
+    ['11basto', 'webp/card_clubs_11.webp'],
+    ['12basto', 'webp/card_clubs_12.webp'],
+  ] as const)('%s renders the official %s artwork', (card, file) => {
+    renderCard({ card });
+    expect(faceImg(`playing-card-${card}`).getAttribute('src')).toBe(cardAssetUrl(card));
+    expect(cardAssetUrl(card).endsWith(file)).toBe(true);
   });
 
-  it('makes every face-down card identical regardless of context', () => {
-    const a = renderCard({ faceDown: true, size: 'sm' });
-    const aHtml = markup(a.container);
-    a.unmount();
-    const b = renderCard({ faceDown: true, size: 'lg' });
-    // Same back art element; size lives on the wrapper class list only.
-    expect(markup(b.container)).toContain(
-      aHtml.match(/data-testid="playing-card-back-art"[^>]*>/)![0],
-    );
-    b.unmount();
-  });
-
-  it('requests zero network assets (no img tags, no external url())', () => {
-    for (const card of ['1espada', '7oro', '12copa'] as const) {
-      const { container, unmount } = renderCard({ card });
-      expect(container.querySelector('img')).toBeNull();
-      // Internal SVG refs (`url(#id)`) are fine; anything else is a fetch.
-      expect(/url\(\s*['"]?\s*(?!#)/.test(container.innerHTML)).toBe(false);
-      unmount();
+  it('resolves every dealt card id to a distinct official asset URL', () => {
+    const urls = DECK_40.map((card) => cardAssetUrl(card));
+    expect(new Set(urls).size).toBe(40);
+    for (const url of urls) {
+      expect(url.endsWith('.webp')).toBe(true);
     }
   });
 
-  it('renders art-identical markup on remount (per-mount pattern id normalized)', () => {
-    const first = renderCard({ card: '3basto' });
-    const firstHtml = markup(first.container);
-    first.unmount();
-    const second = renderCard({ card: '3basto' });
-    // The paper-pattern id is derived from useId(), so it legitimately varies
-    // between mounts (that's what keeps simultaneous duplicates collision-free).
-    // Everything else must be byte-identical.
-    expect(normalizePatternIds(markup(second.container))).toBe(
-      normalizePatternIds(firstHtml),
-    );
-    // The texture itself still renders: a pattern def plus its fill reference.
-    expect(second.container.querySelector('pattern[id^="truco-paper-"]')).not.toBeNull();
-    expect(second.container.innerHTML).toMatch(/fill="url\(#truco-paper-/);
-    second.unmount();
+  it('renders the official card back for face-down cards', () => {
+    renderCard({ faceDown: true });
+    const art = screen.getByTestId('playing-card-back-art');
+    expect(art.tagName.toLowerCase()).toBe('img');
+    expect((art as HTMLImageElement).getAttribute('src')).toBe(CARD_BACK_URL);
+    expect(CARD_BACK_URL.endsWith('webp/card_back.webp')).toBe(true);
   });
 
-  it('gives simultaneously mounted copies of the same card DISTINCT pattern ids', () => {
-    const a = renderCard({ card: '3basto' });
-    const b = renderCard({ card: '3basto' }); // e.g. hand + deck drawer
-    const idA = a.container.querySelector('pattern')!.id;
-    const idB = b.container.querySelector('pattern')!.id;
-    expect(idA).toMatch(/^truco-paper-3basto-/);
-    expect(idB).toMatch(/^truco-paper-3basto-/);
-    expect(idA).not.toBe(idB);
-    a.unmount();
-    b.unmount();
+  it('never renders ranks 08/09 artwork (never dealt)', () => {
+    expect(() => cardAssetUrl('8oro' as never)).toThrow();
+    expect(() => cardAssetUrl('9basto' as never)).toThrow();
+  });
+
+  // ─── States layered OVER the image ──────────────────────────────────────
+
+  it('applies disabled styling over the artwork when disabled is set', () => {
+    renderCard({ card: '3oro', disabled: true });
+    const el = screen.getByTestId('playing-card-3oro');
+    const classes = [...el.classList].join(' ');
+    expect(classes).toContain('opacity-45');
+    expect(classes).toContain('grayscale');
+    expect(classes).toContain('cursor-not-allowed');
+    // The artwork is still there under the dim/grayscale treatment.
+    expect(faceImg('playing-card-3oro').getAttribute('src')).toBe(cardAssetUrl('3oro'));
+    // Disabled cards must never become buttons, even with an onClick handler.
+    cleanup();
+    renderCard({ card: '3copa', disabled: true, onClick: vi.fn() });
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('keeps the selected raise/ring treatment on the frame', () => {
+    renderCard({ card: '5basto', selected: true });
+    const classes = [...screen.getByTestId('playing-card-5basto').classList].join(' ');
+    expect(classes).toContain('ring-2');
+    expect(classes).toContain('-translate-y-3.5');
   });
 
   it('exposes localized accessible alt text with rank and suit', () => {
@@ -106,6 +104,8 @@ describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
     // en locale resolves truco.suit.espada → "swords"
     expect(el.getAttribute('aria-label')).toContain('swords');
     expect(el.getAttribute('aria-label')).toContain('1');
+    // The inner artwork <img> stays decorative so labels are not duplicated.
+    expect(faceImg('playing-card-1espada').getAttribute('alt')).toBe('');
   });
 
   it.each(['sm', 'md', 'lg'] as const)('uses a fixed/clamp width for size %s (never viewport-%)', (size) => {
@@ -115,6 +115,8 @@ describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
     expect(widthClass).toBeDefined();
     expect(widthClass).toMatch(/clamp\(/);
     expect(widthClass).not.toMatch(/%|w-full|w-screen/);
+    // Frame reserves the assets' intrinsic ratio up front → no layout shift.
+    expect(root.style.aspectRatio).toBeTruthy();
   });
 
   it('invokes onClick with the card id when interactive', () => {
@@ -127,26 +129,6 @@ describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
 
   it('renders a plain non-interactive figure when no onClick is given', () => {
     renderCard({ card: '4basto' });
-    expect(screen.queryByRole('button')).toBeNull();
-  });
-
-  // ─── Redesign batch 1: states, strength hint, back art ───────────────────
-
-  it('renders court cards with a localized figura legend', () => {
-    renderCard({ card: '12espada' });
-    const el = screen.getByTestId('playing-card-12espada');
-    expect(el.textContent).toContain(i18n.t('truco.card.rey'));
-  });
-
-  it('applies disabled styling when the disabled prop is set', () => {
-    renderCard({ card: '3oro', disabled: true });
-    const el = screen.getByTestId('playing-card-3oro');
-    const classes = [...el.classList].join(' ');
-    expect(classes).toContain('opacity-45');
-    expect(classes).toContain('grayscale');
-    expect(classes).toContain('cursor-not-allowed');
-    // Disabled cards must never become buttons, even with an onClick handler.
-    renderCard({ card: '3copa', disabled: true, onClick: vi.fn() });
     expect(screen.queryByRole('button')).toBeNull();
   });
 
@@ -166,13 +148,6 @@ describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
     third.unmount();
   });
 
-  it('renders the designed back art element for face-down cards', () => {
-    renderCard({ faceDown: true });
-    expect(screen.getByTestId('playing-card-back-art')).toBeDefined();
-    // Back is real SVG art now, not a CSS gradient div.
-    expect(screen.getByTestId('playing-card-back-art').tagName.toLowerCase()).toBe('svg');
-  });
-
   it('keeps interactive cards keyboard-reachable with focus ring classes', () => {
     renderCard({ card: '7copa', onClick: vi.fn() });
     // role="img" intentionally wins over the implicit button role, but the
@@ -181,46 +156,5 @@ describe('PlayingCard (CSS/SVG Spanish deck primitive)', () => {
     expect(el.tagName.toLowerCase()).toBe('button');
     const classes = [...el.classList].join(' ');
     expect(classes).toContain('focus-visible:outline-2');
-  });
-
-  // ─── Physical deck v2: authentic pip layouts, ace heroes ────────────────
-
-  it.each([
-    ['2oro', 2],
-    ['3copa', 3],
-    ['4basto', 4],
-    ['5oro', 5],
-    ['6espada', 6],
-    ['7copa', 7],
-  ] as const)('number card %s renders exactly %i traditional pips', (card, count) => {
-    renderCard({ card });
-    for (let n = 1; n <= count; n++) {
-      expect(screen.getByTestId(`playing-card-${card}-pip-${n}`)).toBeDefined();
-    }
-    // No extra pips beyond the rank's count.
-    expect(screen.queryByTestId(`playing-card-${card}-pip-${count + 1}`)).toBeNull();
-  });
-
-  it('renders no pips on figuras (emblem scenes instead)', () => {
-    renderCard({ card: '11oro' });
-    expect(screen.queryByTestId(/^playing-card-11oro-pip-/)).toBeNull();
-  });
-
-  it.each(['1espada', '1basto', '1oro', '1copa'] as const)(
-    'gives ace %s the hero-art treatment',
-    (card) => {
-      renderCard({ card });
-      expect(screen.getByTestId(`playing-card-${card}-hero`)).toBeDefined();
-      // Aces never degrade into plain pips.
-      expect(screen.queryByTestId(/^playing-card-${card}-pip-/)).toBeNull();
-    },
-  );
-
-  it('keeps number and court cards free of hero art', () => {
-    renderCard({ card: '5basto' });
-    expect(screen.queryByTestId('playing-card-5basto-hero')).toBeNull();
-    cleanup();
-    renderCard({ card: '10espada' });
-    expect(screen.queryByTestId('playing-card-10espada-hero')).toBeNull();
   });
 });
