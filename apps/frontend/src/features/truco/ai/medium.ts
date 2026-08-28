@@ -18,6 +18,7 @@ import {
   maxTier,
   actingSlot,
 } from './types';
+import { GAME_TIMING } from '../lib/GAME_TIMING';
 import type { TrucoAi } from './types';
 
 const STRONG_INITIATE_PROBABILITY = 0.9; // ≥80% required
@@ -26,8 +27,6 @@ const JUNK_FOLD_PROBABILITY = 0.95; // ≥90% required
 const ENVIDO_SING_AT_27_PROBABILITY = 0.95; // ≥90% required
 const MACHO_RAISE_PROBABILITY = 0.3;
 const MID_HAND_ACCEPT_PROBABILITY = 0.35;
-
-export const MEDIUM_THINK_DELAY_MS = 450;
 
 function answerWithTruco(input: CpuDecisionInput, rng: Rng): TrucoAction {
   const options = cpuOptions(input);
@@ -68,7 +67,8 @@ function answerWithEnvido(input: CpuDecisionInput, rng: Rng): TrucoAction {
 }
 
 export const mediumAi: TrucoAi = {
-  thinkDelayMs: MEDIUM_THINK_DELAY_MS,
+  // Sourced from GAME_TIMING (C3); fixed short delay.
+  thinkDelayMs: GAME_TIMING.opponentThinking.medium,
 
   decide(input: CpuDecisionInput, rng: Rng): TrucoAction {
     const options = cpuOptions(input);

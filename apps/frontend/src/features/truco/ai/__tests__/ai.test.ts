@@ -17,6 +17,7 @@ import type {
 } from '@geotano/shared';
 import { PERSONAS, createAi, pickPersona, personaAt, normalizePersonaIndex } from '../index';
 import { cpuOptions } from '../types';
+import { hardThinkDelayMs } from '../hard';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -333,8 +334,8 @@ describe('Easy statistical bounds (spec-pinned)', () => {
     expect(foldRate).toBeGreaterThanOrEqual(0.05);
   });
 
-  it('thinks exactly 700 ms regardless of hand strength', () => {
-    expect(createAi('easy').thinkDelayMs).toBe(700);
+  it('thinks exactly 1200 ms regardless of hand strength', () => {
+    expect(createAi('easy').thinkDelayMs).toBe(1200);
   });
 });
 
@@ -383,9 +384,9 @@ describe('Medium behavioral contracts', () => {
     }
   });
 
-  it('uses a short fixed think delay', () => {
+  it('uses a short fixed think delay (C3: medium < easy)', () => {
     expect(Number.isInteger(createAi('medium').thinkDelayMs)).toBe(true);
-    expect(createAi('medium').thinkDelayMs).toBeLessThan(700);
+    expect(createAi('medium').thinkDelayMs).toBeLessThan(1200);
   });
 });
 
@@ -471,9 +472,20 @@ describe('Hard behavioral contracts', () => {
     expect(foldRate).toBeLessThanOrEqual(0.03);
   });
 
-  it('uses varied-but-fixed think delay constants (never wall-clock)', () => {
+  it('uses varied-but-fixed think delay constants (never wall-clock) (C3)', () => {
     expect(Number.isInteger(createAi('hard').thinkDelayMs)).toBe(true);
     expect(createAi('hard').thinkDelayMs).toBeGreaterThan(0);
+    // C3-H: easy is strictly longer than medium AND than every hard slot.
+    expect(createAi('easy').thinkDelayMs).toBeGreaterThan(
+      createAi('medium').thinkDelayMs,
+    );
+    expect(createAi('easy').thinkDelayMs).toBeGreaterThan(
+      createAi('hard').thinkDelayMs,
+    );
+    // C3-V: hard pacing still varies across hands (deterministic, never wall-clock).
+    const first = hardThinkDelayMs(1);
+    const second = hardThinkDelayMs(2);
+    expect(first).not.toBe(second);
   });
 });
 

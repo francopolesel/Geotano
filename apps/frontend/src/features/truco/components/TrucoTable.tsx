@@ -5,12 +5,13 @@ import type { ReactNode } from 'react';
 import { RivalZone } from './RivalZone';
 import { TableZone } from './TableZone';
 import { MyZone } from './MyZone';
-import { ActionBar } from './ActionBar';
-import { BetPanel } from './BetPanel';
+import { BetModal } from './BetModal';
 import { TurnBanner } from './TurnBanner';
 import { GameHistory } from './GameHistory';
+import { HandEndPanel } from './HandEndPanel';
 import { CardsIcon, CoinsIcon, FlameIcon } from './icons';
 import { isAwaitingOpponent } from '../lib/turnQuery';
+import { usePacing } from '../hooks/usePacing';
 
 /**
  * Full match table (both CPU and multiplayer modes).
@@ -32,6 +33,20 @@ export interface TrucoTableProps {
   onAction: (action: TrucoAction) => void;
   /** Optional avatar node for the rival zone (CPU persona monogram). */
   rivalAvatar?: ReactNode;
+  /** In-flight POST lock: disables all controls while an action settles (G1). */
+  isActing?: boolean;
+  /**
+   * Hand-end freeze (CRITICAL 1). A page that owns its own usePacing instance
+   * (CPU suppression) passes this; otherwise TrucoTable derives it internally.
+   * When a page owns pacing it MUST pass the single source of truth for the
+   * hand-end overlay (handEndOpen + onHandEndContinue) too — otherwise two
+   * independent usePacing instances drift and the overlay freezes forever.
+   */
+  paused?: boolean;
+  /** Hand-end overlay open flag from the page-owned usePacing (CRITICAL 1). */
+  handEndOpen?: boolean;
+  /** Pure-UI release of the hand-end overlay from the page-owned usePacing. */
+  onHandEndContinue?: () => void;
 }
 
 /** Discreet chip naming the current stake in human terms. */
@@ -77,6 +92,10 @@ export function TrucoTable({
   opponentName,
   onAction,
   rivalAvatar,
+  isActing = false,
+  paused,
+  handEndOpen,
+  onHandEndContinue,
 }: TrucoTableProps) {
   const { t } = useTranslation();
   const rivalSlot: PlayerSlot = mySlot === 'A' ? 'B' : 'A';
@@ -85,6 +104,14 @@ export function TrucoTable({
     mySlot === 'A' ? { A: myName, B: opponentName } : { A: opponentName, B: myName };
   // Legality comes ONLY from the engine, evaluated over the public context.
   const actions = legalActions(view, mySlot);
+
+  // Pacing sequencer drives the event-derived hand-end overlay (CRITICAL 1)
+  // and the pause freeze that suppresses input while it is open. A page that
+  // owns pacing for CPU suppression passes handEndOpen + onHandEndContinue +
+  // paused to keep ONE source of truth; otherwise we derive an instance here.
+  const internalPacing = usePacing({ view });
+  const overlayOpen = handEndOpen ?? internalPacing.handEndOpen;
+  const overlayContinue = onHandEndContinue ?? internalPacing.advanceHandEnd;
 
   // Turn query comes from the ONE shared helper (remediation #14a) — the
   // per-component ternary chain it replaces could silently drift.
@@ -128,18 +155,13 @@ export function TrucoTable({
     betExplanation = t('truco.bet.explainEnvido');
   }
 
-  const actionBar = (
-    <ActionBar
-      actions={actions}
-      onAction={onAction}
-      awaitingOpponent={awaitingOpponent}
-      waitingForAnswer={waitingForAnswer}
-      // Thumb-friendly full-width answers while the bet overlay owns the bar.
-      stacked={betPendingMine}
-    />
-  );
+  // The pause freeze is event-derived internally (pacing) but may be overridden
+  // by a page that owns its own pacing instance (CPU suppression) — same source.
+  const effectivePaused = paused ?? internalPacing.paused;
+  const disabled = isActing || effectivePaused;
 
   return (
+    <>
     <div
       data-testid="truco-table"
       className="mx-auto flex min-h-0 w-full max-w-3xl flex-col gap-2 overflow-x-hidden p-2"
@@ -189,14 +211,15 @@ export function TrucoTable({
             />
 
             {betPendingMine ? (
-              <BetPanel
+              <BetModal
                 family={betFamily}
                 title={betTitle}
                 explanation={betExplanation}
                 answerHint={t('truco.bet.answerHint')}
-              >
-                {actionBar}
-              </BetPanel>
+                actions={actions}
+                onAction={onAction}
+                disabled={disabled}
+              />
             ) : null}
           </div>
 
@@ -218,9 +241,20 @@ export function TrucoTable({
             isTurn={myIsTurn}
             isMano={view.mano === mySlot}
             onAction={onAction}
+            disabled={disabled}
           />
         </div>
       </div>
     </div>
+
+    {/* Event-derived hand-end overlay (CRITICAL 1): portal, pure-UI release. */}
+    <HandEndPanel
+      open={overlayOpen}
+      history={view.history}
+      mySlot={mySlot}
+      scores={view.scores}
+      onContinue={overlayContinue}
+    />
+    </>
   );
 }

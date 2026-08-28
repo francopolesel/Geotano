@@ -9,24 +9,23 @@
 
 import type { CpuDecisionInput, Rng, TrucoAction } from '@geotano/shared';
 import { cardTier, cpuOptions, pick } from './types';
+import { GAME_TIMING } from '../lib/GAME_TIMING';
 import type { TrucoAi } from './types';
 
-/** Combined initiation probability across all eligible bet windows (≤10%). */
+/** Combined initiation probability across all eligible bet windows (�%�10%). */
 const INITIATE_PROBABILITY = 0.08;
-/** Fold probability holding 1espada/1basto pre-retruco (≥5% required). */
+/** Fold probability holding 1espada/1basto pre-retruco (�%�5% required). */
 const FOLD_STRONG_PROBABILITY = 0.1;
 /** Fold probability with any other hand. */
 const FOLD_OTHER_PROBABILITY = 0.4;
-
-/** Spec-pinned constant: Easy always thinks exactly 700 ms. */
-export const EASY_THINK_DELAY_MS = 700;
 
 function isStrongHand(hand: readonly string[]): boolean {
   return hand.some((card) => cardTier(card as Parameters<typeof cardTier>[0]) >= 13);
 }
 
 export const easyAi: TrucoAi = {
-  thinkDelayMs: EASY_THINK_DELAY_MS,
+  // Spec-pinned: Easy always thinks one fixed delay, sourced from GAME_TIMING.
+  thinkDelayMs: GAME_TIMING.opponentThinking.easy,
 
   decide(input: CpuDecisionInput, rng: Rng): TrucoAction {
     const options = cpuOptions(input);

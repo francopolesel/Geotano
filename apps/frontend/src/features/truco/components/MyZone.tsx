@@ -26,6 +26,8 @@ export interface MyZoneProps {
   isTurn: boolean;
   isMano: boolean;
   onAction: (action: TrucoAction) => void;
+  /** In-flight POST / pacing freeze: disables the action bar and card taps. */
+  disabled?: boolean;
 }
 
 export function MyZone({
@@ -40,6 +42,7 @@ export function MyZone({
   isTurn,
   isMano,
   onAction,
+  disabled = false,
 }: MyZoneProps) {
   const playable = new Map(
     actions
@@ -71,7 +74,12 @@ export function MyZone({
 
       {/* Orejeo hand: fanned, inspectable, clickable only when legal */}
       <div className="min-w-0 py-1" style={{ minHeight: '7.5rem' }}>
-        <Hand myHand={myHand} playable={playable} onAction={onAction} />
+        <Hand
+          myHand={myHand}
+          playable={playable}
+          onAction={onAction}
+          isActing={disabled}
+        />
       </div>
 
       {showActionBar ? (
@@ -80,6 +88,7 @@ export function MyZone({
           onAction={onAction}
           awaitingOpponent={awaitingOpponent}
           waitingForAnswer={waitingForAnswer}
+          disabled={disabled}
         />
       ) : null}
     </div>

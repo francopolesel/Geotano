@@ -419,7 +419,7 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
     expect(marker2.textContent?.toLowerCase()).toContain('tied');
   });
 
-  it('hand_end keeps every lane visible and shows a summary chip with points', () => {
+  it('hand_end keeps every lane visible and opens the event-derived HandEndPanel (CRITICAL 1)', () => {
     const state = baseState();
     state.phase = 'hand_end';
     state.handWinner = 'A';
@@ -439,23 +439,28 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
     expect(screen.getByTestId('truco-baza-lanes')).toBeDefined();
     expect(screen.getByTestId('baza-marker-1')).toBeDefined();
 
-    const summary = screen.getByTestId('truco-hand-summary');
-    expect(summary).toHaveTextContent(/you won the hand/i);
-    expect(summary).toHaveTextContent('+2');
+    // The panel is derived from the hand_ended EVENT, not phase only.
+    const panel = screen.getByTestId('truco-hand-end-panel');
+    expect(panel.textContent).toMatch(/you won the hand/i);
+    expect(panel.textContent).toContain('+2');
+
+    // Clicking Continue releases without an engine action.
+    fireEvent.click(screen.getByTestId('truco-hand-end-continue'));
 
     cleanup();
     const lost = { ...baseState(), phase: 'hand_end' as const, handWinner: 'B' as const };
     lost.history = [{ type: 'hand_ended', winner: 'B' }];
     renderTable(lost);
-    expect(screen.getByTestId('truco-hand-summary')).toHaveTextContent(/rival took the hand/i);
-    expect(screen.getByTestId('truco-hand-summary').textContent).not.toContain('+');
+    const lostPanel = screen.getByTestId('truco-hand-end-panel');
+    expect(lostPanel.textContent).toMatch(/rival took/i);
+    expect(lostPanel.textContent).not.toContain('+');
   });
 
   // Regression: envido settles mid-hand, so its points_awarded is followed by
-  // card_played/baza_resolved events BEFORE hand_ended. The summary must sum
+  // card_played/baza_resolved events BEFORE hand_ended. The panel must sum
   // every award in the hand (1 envido + 2 hand prize = +3), not just the
   // contiguous tail before an event-type break.
-  it('hand-end summary sums ALL awards in the hand across interleaved events', () => {
+  it('HandEndPanel sums ALL awards in the hand across interleaved events', () => {
     const state = baseState();
     state.phase = 'hand_end';
     state.handWinner = 'A';
@@ -476,9 +481,9 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
     ];
     renderTable(state);
 
-    const summary = screen.getByTestId('truco-hand-summary');
-    expect(summary).toHaveTextContent(/you won the hand/i);
-    expect(summary).toHaveTextContent('+3');
+    const panel = screen.getByTestId('truco-hand-end-panel');
+    expect(panel.textContent).toMatch(/you won the hand/i);
+    expect(panel.textContent).toContain('+3');
   });
 });
 

@@ -40,6 +40,12 @@ export interface UseTruCpuGameOptions {
   personaOverride?: Persona;
   /** Raw engine event batches, emitted after every successful applyAction. */
   onEvents?: (events: readonly TrucoEvent[]) => void;
+  /**
+   * Park/never arm the CPU think timer while the hand-end overlay is open.
+   * The human's last card can end a hand with the CPU already owing the next
+   * lead; without this the CPU could fire mid-pause (CRITICAL 1).
+   */
+  suppressDuringPause?: boolean;
 }
 
 export interface TruCpuGameSnapshot {
@@ -79,6 +85,7 @@ export function useTruCpuGame({
   seed,
   personaOverride,
   onEvents,
+  suppressDuringPause = false,
 }: UseTruCpuGameOptions) {
   const aiRef = useRef(createAi(difficulty));
   const rngRef = useRef<Rng>(() => 0);
@@ -128,8 +135,10 @@ export function useTruCpuGame({
 
   // Single scheduling path: after mount and after every applied action the
   // effect re-arms the pending CPU think timer (or lets the state rest).
+  // While `suppressDuringPause` the timer is parked (never armed) so the CPU
+  // cannot fire during the event-derived hand-end overlay (CRITICAL 1).
   useEffect(() => {
-    if (!snapshot.finished && cpuOwes(stateRef.current as TrucoState)) {
+    if (!suppressDuringPause && !snapshot.finished && cpuOwes(stateRef.current as TrucoState)) {
       const state = stateRef.current as TrucoState;
       clearTimer();
       // Per-hand pacing when the difficulty refines it (hard rotates its
@@ -140,7 +149,7 @@ export function useTruCpuGame({
       );
     }
     return clearTimer;
-  }, [snapshot, clearTimer, runCpuTurn]);
+  }, [suppressDuringPause, snapshot, clearTimer, runCpuTurn]);
 
   const play = useCallback(
     (action: TrucoAction) => {

@@ -16,6 +16,7 @@
 import type { CpuDecisionInput, CardId, PlayerSlot, Rng, TrucoAction } from '@geotano/shared';
 import { compareCards, computeEnvido } from '@geotano/shared';
 import { actingSlot, byStrength, cardTier, cpuOptions, maxTier } from './types';
+import { GAME_TIMING } from '../lib/GAME_TIMING';
 import type { TrucoAi } from './types';
 
 const BLUFF_PROBABILITY = 0.17; // center of the spec's 10–25% band
@@ -26,9 +27,6 @@ const FALTA_ACCEPT_WITH_BRAVA_PROBABILITY = 0.92;
 const STRONG_ACCEPT_PROBABILITY = 0.995; // fold-strong ≤1%
 const JUNK_ANSWER_FOLD_PROBABILITY = 0.75;
 const MID_ANSWER_ACCEPT_PROBABILITY = 0.45;
-
-/** Fixed per-handNumber delays — deterministic variety, never wall-clock. */
-const THINK_DELAYS_MS = [520, 640, 760] as const;
 
 const THREES: readonly CardId[] = ['3oro', '3copa', '3espada', '3basto'];
 
@@ -114,13 +112,14 @@ function chooseCard(input: CpuDecisionInput, me: PlayerSlot): TrucoAction {
 }
 
 export function hardThinkDelayMs(handNumber: number): number {
-  return THINK_DELAYS_MS[Math.abs(handNumber) % THINK_DELAYS_MS.length] as number;
+  const delays = GAME_TIMING.opponentThinking.hard;
+  return delays[Math.abs(handNumber) % delays.length] as number;
 }
 
 export const hardAi: TrucoAi = {
-  // Fallback constant; the controller prefers thinkDelayFor below. Both
-  // sources are fixed constants, never wall-clock.
-  thinkDelayMs: THINK_DELAYS_MS[0],
+  // Fallback constant (first slot); the controller prefers thinkDelayFor.
+  // Sourced from GAME_TIMING (C3) — fixed constants, never wall-clock.
+  thinkDelayMs: GAME_TIMING.opponentThinking.hard[0],
   // Varied-but-fixed per-hand pacing (remediation #10: actually wired now).
   thinkDelayFor: hardThinkDelayMs,
 

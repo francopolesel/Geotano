@@ -38,7 +38,7 @@ const LANES_PHASES: readonly TrucoPhase[] = [
 ];
 
 /** Winner of the most recent hand from the public event log (null if none). */
-function lastHandWinner(history: readonly TrucoEvent[]): PlayerSlot | null {
+export function lastHandWinner(history: readonly TrucoEvent[]): PlayerSlot | null {
   for (let i = history.length - 1; i >= 0; i--) {
     const event = history[i]!;
     if (event.type === 'hand_ended') return event.winner;
@@ -52,8 +52,7 @@ function lastHandWinner(history: readonly TrucoEvent[]): PlayerSlot | null {
  * immediately mid-hand, so awards interleave with card_played/baza_resolved
  * events — only a hand boundary terminates the scan, never an event type.
  */
-function handEndPoints(history: readonly TrucoEvent[]): number {
-  let sum = 0;
+export function handEndPoints(history: readonly TrucoEvent[]): number {  let sum = 0;
   let seenBoundary = false;
   for (let i = history.length - 1; i >= 0; i--) {
     const event = history[i]!;
@@ -109,9 +108,6 @@ export function TableZone({
   const rivalPlay = openBazaPlays.find((p) => p.player === rivalSlot);
   const myPlay = openBazaPlays.find((p) => p.player === mySlot);
   const lastBazaNumber = bazas.length > 0 ? bazas[bazas.length - 1]!.number : null;
-
-  const summaryPoints = phase === 'hand_end' ? handEndPoints(history) : 0;
-  const handWinner = phase === 'hand_end' ? lastHandWinner(history) : null;
 
   return (
     <div
@@ -214,23 +210,6 @@ export function TableZone({
           );
         })}
       </div>
-
-      {/* Hand-end summary: lanes stay fully visible underneath */}
-      {phase === 'hand_end' && handWinner !== null ? (
-        <div
-          data-testid="truco-hand-summary"
-          className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-white/30 bg-black/55 px-4 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-sm"
-        >
-          <span>
-            {handWinner === mySlot ? t('truco.handEnd.won') : t('truco.handEnd.lost')}
-          </span>
-          {summaryPoints > 0 ? (
-            <span className="tabular-nums text-emerald-300">
-              +{summaryPoints} {t('truco.banner.pointsUnit')}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }

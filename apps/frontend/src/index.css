@@ -212,9 +212,19 @@
   [class*='playing-card'] {
     transition-duration: 1ms !important;
   }
+  /* Collapse every truco/logo animation to a single frame so reduced-motion
+     users never get flash/motion from entries, pulses or confetti (a11y I6). */
   .animate-truco-play-rival,
-  .animate-truco-play-mine {
+  .animate-truco-play-mine,
+  .animate-truco-bet-in,
+  .animate-truco-win-pulse,
+  .animate-truco-panel-in,
+  .animate-truco-confetti,
+  .animate-truco-bounce-dot,
+  .truco-turn-glow,
+  .animate-logo-spin {
     animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 

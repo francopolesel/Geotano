@@ -81,4 +81,18 @@ describe('ActionBar — valid-actions-only rendering', () => {
     const bar = screen.getByTestId('truco-action-bar');
     expect([...bar.classList]).toContain('flex-wrap');
   });
+
+  it('disables every answer button while isActing — no double-fire (G1)', () => {
+    const { onAction } = renderBar({
+      actions: [{ type: 'quiero', actor: 'A' }, { type: 'sing_truco', actor: 'A' }],
+      disabled: true,
+    });
+    const quiero = screen.getByTestId('truco-action-quiero');
+    const truco = screen.getByTestId('truco-action-sing_truco');
+    expect(quiero).toHaveProperty('disabled', true);
+    expect(truco).toHaveProperty('disabled', true);
+    fireEvent.click(quiero);
+    fireEvent.click(truco);
+    expect(onAction).not.toHaveBeenCalled();
+  });
 });

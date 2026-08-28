@@ -160,6 +160,7 @@ export function TrucoMatchPage() {
     error,
     refetch,
     currentUserId,
+    isActing,
   } = useTrucoMultiplayer(matchId);
 
   // Opponent identity: the snapshot DTO carries only ids (D8), so a tracked
@@ -430,6 +431,7 @@ export function TrucoMatchPage() {
                 onAction={(action) =>
                   postAction.mutate({ expectedVersion: view.version, action })
                 }
+                isActing={isActing}
                 rivalAvatar={rivalAvatar}
               />
 

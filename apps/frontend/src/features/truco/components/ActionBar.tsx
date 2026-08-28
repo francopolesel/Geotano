@@ -38,6 +38,8 @@ export interface ActionBarProps {
    * full-width (min 44px tall) so answers sit near the thumb zone.
    */
   stacked?: boolean;
+  /** Disable all answer buttons while an action is in flight (G1). */
+  disabled?: boolean;
 }
 
 /** Stable display order regardless of enumeration order. */
@@ -110,6 +112,7 @@ export function ActionBar({
   awaitingOpponent = false,
   waitingForAnswer = false,
   stacked = false,
+  disabled = false,
 }: ActionBarProps) {
   const { t } = useTranslation();
 
@@ -165,11 +168,13 @@ export function ActionBar({
                   key={action.type}
                   type="button"
                   data-testid={`truco-action-${action.type}`}
+                  disabled={disabled}
                   onClick={() => onAction(action)}
                   title={t(`truco.hint.${action.type}`)}
                   className={[
                     'flex min-h-[44px] min-w-0 items-center justify-center rounded-lg px-3 py-1.5',
-                    'text-sm font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--truco-card-ring)] hover:-translate-y-0.5',
+                    'text-sm font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--truco-card-ring)]',
+                    disabled ? 'cursor-not-allowed opacity-50' : 'hover:-translate-y-0.5',
                     stacked
                       ? 'w-full flex-row gap-1.5'
                       : 'shrink flex-col items-center gap-0.5',

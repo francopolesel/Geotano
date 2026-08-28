@@ -79,7 +79,7 @@ describe('useTruCpuGame', () => {
     );
     expect(before).toHaveLength(0);
 
-    flush(700);
+    flush(1200);
     const after = events.filter(
       (event) =>
         (event.type === 'card_played' && event.player === 'B') ||
@@ -106,7 +106,7 @@ describe('useTruCpuGame', () => {
       result.current.play(singEnvido!);
     });
     expect(result.current.view!.envidoAwaiting).not.toBeNull();
-    flush(700);
+    flush(1200);
     expect(result.current.view!.envidoAwaiting).toBeNull();
     expect(events.some((event) => event.type === 'answered')).toBe(true);
   });
@@ -123,7 +123,7 @@ describe('useTruCpuGame', () => {
           result.current.play(pending);
         });
       } else {
-        flush(700);
+        flush(1200);
       }
     }
     expect(result.current.finished).toBe(true);
@@ -177,9 +177,8 @@ describe('useTruCpuGame', () => {
     expect(PERSONAS.map((persona) => persona.name)).toContain(first.name);
   });
 
-  it('hard difficulty spaces CPU turns with the per-hand delay table (remediation #10)', () => {
-    // THINK_DELAYS_MS[1 % 3] === 640 for hand 1 — the old flat 520ms constant
-    // would fire inside the first flush window.
+  it('hard difficulty spaces CPU turns with the per-hand delay table (C3-V)', () => {
+    // hardThinkDelayMs(1) → delays[1 % 3] === 1000 (GAME_TIMING.hard[1]).
     const events: TrucoEvent[] = [];
     const { result } = renderHook(
       () =>
@@ -203,11 +202,47 @@ describe('useTruCpuGame', () => {
       ).length;
 
     expect(cpuEvents()).toBe(0);
-    flush(520);
-    // 520ms elapsed (the legacy flat delay): hard must STILL be thinking.
+    flush(900);
+    // 900ms elapsed (below the hand-1 slot): hard must STILL be thinking.
     expect(cpuEvents()).toBe(0);
 
-    flush(120); // 640ms total — the hand-1 slot elapses
+    flush(100); // 1000ms total — the hand-1 slot elapses
+    expect(cpuEvents()).toBeGreaterThanOrEqual(1);
+  });
+
+  it('parks the CPU think timer while the hand-end pause is active (CRITICAL 1)', () => {
+    const events: TrucoEvent[] = [];
+    const session = renderHook(
+      ({ suppress }: { suppress: boolean }) =>
+        useTruCpuGame({
+          difficulty: 'easy',
+          targetPoints: 30,
+          seed: SEED,
+          onEvents: (batch) => events.push(...batch),
+          suppressDuringPause: suppress,
+        }),
+      { wrapper: Wrapper, initialProps: { suppress: true } },
+    );
+    const cpuEvents = () =>
+      events.filter(
+        (event) =>
+          (event.type === 'card_played' && event.player === 'B') ||
+          (event.type === 'call_sung' && event.actor === 'B'),
+      ).length;
+
+    // Human opens; playing a card makes the CPU owe the reply.
+    const card = session.result.current.view!.myHand[0]!;
+    act(() => {
+      session.result.current.play({ type: 'play_card', actor: 'A', card });
+    });
+
+    // While paused, the timer is parked: a huge flush MUST NOT fire the CPU.
+    flush(10000);
+    expect(cpuEvents()).toBe(0);
+
+    // Releasing the pause re-arms the timer from GAME_TIMING and it fires.
+    session.rerender({ suppress: false });
+    flush(1200);
     expect(cpuEvents()).toBeGreaterThanOrEqual(1);
   });
 

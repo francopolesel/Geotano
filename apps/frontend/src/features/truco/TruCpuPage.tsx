@@ -6,13 +6,14 @@
 // file wires prefs → controller → table/end-screen and maps engine events to
 // the gated sound cues plus one-shot local stats recording.
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { PlayerSlot, TrucoEvent } from '@geotano/shared';
 import { TrucoTable } from './components/TrucoTable';
 import { EndScreen } from './components/EndScreen';
 import { useTruCpuGame } from './hooks/useTruCpuGame';
+import { usePacing } from './hooks/usePacing';
 import { personaAt } from './ai';
 import {
   createSoundSink,
@@ -39,12 +40,30 @@ export function TruCpuPage() {
     mapEventsToSounds(events, MY_SLOT, sinkRef.current as TrucoSoundSink);
   }, []);
 
+  // Hand-end pause. Derived from the game view's events (CRITICAL 1) but the
+  // suppression flag below cannot reference the same render's pacing (that
+  // would be a circular dependency bucket: pacing reads game.view, game reads
+  // pacing.paused). So `paused` is held in local state, fed forward one render
+  // via an effect — exactly when the CPU must be parked after a hand ends into
+  // the rival's lead.
+  const [paused, setPaused] = useState(false);
+
   const game = useTruCpuGame({
     difficulty,
     targetPoints,
     personaOverride,
     onEvents,
+    // Park the CPU think timer while the hand-end pause is open (CRITICAL 1):
+    // the rival must not silently advance through a frozen overlay.
+    suppressDuringPause: paused,
   });
+
+  // Own the pause at the page too: it both freezes the table input (via the
+  // `paused` prop below) and drives the CPU suppression one render later.
+  const pacing = usePacing({ view: game.view });
+  useEffect(() => {
+    setPaused(pacing.paused);
+  }, [pacing.paused]);
 
   // One-shot stats recording per finished match (reset on restart).
   const recordedRef = useRef(false);
@@ -85,6 +104,10 @@ export function TruCpuPage() {
         myName={t('truco.you')}
         opponentName={personaOverride.name}
         onAction={game.play}
+        isActing={false}
+        paused={paused}
+        handEndOpen={pacing.handEndOpen}
+        onHandEndContinue={pacing.advanceHandEnd}
         rivalAvatar={
           <span aria-hidden className="text-xl leading-none">
             {personaOverride.avatar}
