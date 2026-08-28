@@ -40,9 +40,9 @@ function splitCardId(card: CardId): { rank: string; suit: Suit } {
 
 /** Fixed/clamp width tokens per variant (W2 proxy contract). */
 const SIZE_CLASSES = {
-  sm: 'w-[clamp(2.75rem,9vw,3.25rem)]',
-  md: 'w-[clamp(3rem,11vw,4.25rem)]',
-  lg: 'w-[clamp(3.5rem,13vw,5rem)]',
+  sm: 'w-[clamp(2.75rem,10vw,4rem)]',
+  md: 'w-[clamp(3.5rem,13vw,5.5rem)]',
+  lg: 'w-[clamp(4.25rem,16vw,6.5rem)]',
 } as const;
 
 /**

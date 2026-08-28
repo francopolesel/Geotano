@@ -75,7 +75,7 @@ function CardSilhouette({ small = false }: { small?: boolean }) {
       aria-hidden
       className={[
         'aspect-[2/3] rounded-md border border-white/25 bg-black/15 shadow-[inset_0_1px_4px_rgb(0_0_0/0.35)]',
-        small ? 'w-8' : 'w-[clamp(2.5rem,9vw,3.5rem)]',
+        small ? 'w-10' : 'w-[clamp(3rem,11vw,4.5rem)]',
       ].join(' ')}
     />
   );

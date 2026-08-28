@@ -21,6 +21,50 @@ function faceImg(testId: string): HTMLImageElement {
   return img as HTMLImageElement;
 }
 
+describe('PlayingCard — raised scale contract (A1-R)', () => {
+  afterEach(() => cleanup());
+
+  it.each([
+    ['sm', 'w-[clamp(2.75rem,10vw,4rem)]'],
+    ['md', 'w-[clamp(3.5rem,13vw,5.5rem)]'],
+    ['lg', 'w-[clamp(4.25rem,16vw,6.5rem)]'],
+  ] as const)('renders the raised %s clamp token', (size, token) => {
+    renderCard({ card: '5oro', size });
+    const root = screen.getByTestId('playing-card-5oro');
+    const widthClass = [...root.classList].find((c) => c.startsWith('w-['));
+    expect(widthClass).toBe(token);
+    // Frame still reserves the official assets' intrinsic ratio → no layout shift.
+    expect(root.style.aspectRatio).toBeTruthy();
+  });
+
+  it('keeps clamp(min,vw,max) shape with maxes strictly ordered sm < md < lg', () => {
+    renderCard({ card: '5oro', size: 'sm' });
+    const smClass = [...screen.getByTestId('playing-card-5oro').classList].find((c) => c.startsWith('w-['))!;
+    cleanup();
+    renderCard({ card: '5oro', size: 'md' });
+    const mdClass = [...screen.getByTestId('playing-card-5oro').classList].find((c) => c.startsWith('w-['))!;
+    cleanup();
+    renderCard({ card: '5oro', size: 'lg' });
+    const lgClass = [...screen.getByTestId('playing-card-5oro').classList].find((c) => c.startsWith('w-['))!;
+
+    const clampShape = (cls: string) =>
+      /^w-\[clamp\([^)]*rem,[^)]*vw,[^)]*rem\)\]$/.test(cls);
+    const maxOf = (cls: string) => {
+      const match = /clamp\(([^,]+),([^,]+),([^)]+)\)/.exec(cls);
+      expect(match).not.toBeNull();
+      return parseFloat(match![3]!);
+    };
+
+    for (const cls of [smClass, mdClass, lgClass]) {
+      expect(clampShape(cls)).toBe(true);
+      expect(cls).not.toMatch(/%|w-full|w-screen/);
+    }
+    const [sm, md, lg] = [smClass, mdClass, lgClass].map(maxOf);
+    expect(sm).toBeLessThan(md);
+    expect(md).toBeLessThan(lg);
+  });
+});
+
 describe('PlayingCard (official SVG asset shell)', () => {
   afterEach(() => cleanup());
 

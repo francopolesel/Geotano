@@ -18,6 +18,11 @@ export interface HandProps {
   onAction: (action: TrucoAction) => void;
   /** Optional externally-controlled selection highlight. */
   selected?: CardId | null;
+  /**
+   * In-flight action lock (multiplayer POST pending): cards stop lifting and
+   * become non-interactive while remaining visible. Defaults to false.
+   */
+  isActing?: boolean;
 }
 
 /** Degrees of rotation per card away from the fan's center. */
@@ -25,7 +30,7 @@ const FAN_STEP_DEG = 6;
 /** Vertical drop in px per card away from the center (outer cards sit lower). */
 const FAN_DROP_PX = 4;
 
-export function Hand({ myHand, playable, onAction, selected = null }: HandProps) {
+export function Hand({ myHand, playable, onAction, selected = null, isActing = false }: HandProps) {
   const { t } = useTranslation();
   const [inspected, setInspected] = useState<CardId | null>(null);
   const middle = (myHand.length - 1) / 2;
@@ -41,8 +46,9 @@ export function Hand({ myHand, playable, onAction, selected = null }: HandProps)
         const action = playable.get(card);
         const offset = index - middle;
         const restTransform = `rotate(${(offset * FAN_STEP_DEG).toFixed(2)}deg) translateY(${Math.abs(offset) * FAN_DROP_PX}px)`;
-        // Only playable cards answer the orejeo lift.
-        const lifted = inspected === card && !!action;
+        // Only playable cards answer the orejeo lift; the action lock
+        // (in-flight POST) freezes every card in the fan.
+        const lifted = inspected === card && !!action && !isActing;
 
         return (
           <div
@@ -65,7 +71,7 @@ export function Hand({ myHand, playable, onAction, selected = null }: HandProps)
               card={card}
               size="md"
               onClick={action ? () => onAction(action) : undefined}
-              disabled={!action}
+              disabled={!action || isActing}
               selected={selected === card}
               strengthHint={cardStrengthHint(card)}
             />

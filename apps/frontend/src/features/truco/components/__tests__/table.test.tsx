@@ -375,6 +375,27 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
     expect(screen.getByTestId('baza-lane-3').querySelector('[data-testid^="playing-card-"]')).toBeNull();
   });
 
+  it('scales active-lane silhouettes and future-lane placeholders up (A1-S)', () => {
+    renderTable(baseState());
+
+    // Active lane (no open plays yet): two full-size embossed silhouettes.
+    const activeLane = screen.getByTestId('baza-lane-1');
+    const big = [...activeLane.querySelectorAll('[aria-hidden="true"]')];
+    expect(big.length).toBe(2);
+    for (const s of big) {
+      expect(s.className).toContain('w-[clamp(3rem,11vw,4.5rem)]');
+    }
+
+    // Future lanes: paired small placeholders, scaled up to w-10.
+    const futureLane = screen.getByTestId('baza-lane-2');
+    const small = [...futureLane.querySelectorAll('[aria-hidden="true"]')];
+    expect(small.length).toBe(2);
+    for (const s of small) {
+      expect(s.className).toContain('w-10');
+      expect(s.className).not.toContain('clamp');
+    }
+  });
+
   it('resolved lanes show BOTH mini cards plus the correct winner badge', () => {
     const state = baseState();
     state.bazas = [
@@ -461,49 +482,14 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
   });
 });
 
-describe('TrucoTable — mazo deck (UI v2, batch B)', () => {
-  function deckState(): TrucoState {
-    const state = baseState();
-    state.hands.A = ['7oro', '3espada'];
-    state.hands.B = ['2basto'];
-    state.playedCards.A = ['5basto'];
-    state.playedCards.B = ['12oro'];
-    return state;
-  }
-
-  it('deck count equals 40 minus my hand minus publicly played cards', () => {
-    renderTable(deckState());
-    // 40 − 2 (my hand) − 2 (played by both) = 36 unseen.
-    expect(screen.getByTestId('truco-deck-count')).toHaveTextContent('36');
-  });
-
-  it('drawer reveals MY hand and played cards but never undealt identities', () => {
-    renderTable(deckState());
-    fireEvent.click(screen.getByTestId('truco-deck-button'));
-
-    const drawer = screen.getByTestId('truco-deck-drawer');
-    const inDrawer = within(drawer);
-    // My current hand, enlarged.
-    expect(inDrawer.getByTestId('playing-card-7oro')).toBeDefined();
-    expect(inDrawer.getByTestId('playing-card-3espada')).toBeDefined();
-    // All publicly played cards, both sides.
-    expect(inDrawer.getByTestId('playing-card-5basto')).toBeDefined();
-    expect(inDrawer.getByTestId('playing-card-12oro')).toBeDefined();
-    // A known undealt card NEVER appears — no info leak about holdings.
-    expect(screen.queryByTestId('playing-card-10espada')).toBeNull();
-    expect(drawer.textContent).not.toContain('10espada');
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByTestId('truco-deck-drawer')).toBeNull();
-  });
-
-  it('focuses the close button on open and returns focus to the deck button on close', () => {
-    renderTable(deckState());
-    fireEvent.click(screen.getByTestId('truco-deck-button'));
-    expect(document.activeElement?.getAttribute('data-testid')).toBe('truco-deck-close');
-
-    fireEvent.click(screen.getByTestId('truco-deck-close'));
-    expect(screen.queryByTestId('truco-deck-drawer')).toBeNull();
-    expect(document.activeElement?.getAttribute('data-testid')).toBe('truco-deck-button');
+describe('TrucoTable — hand strip reflow for larger cards (A1-Z)', () => {
+  it('reserves 7.5rem of strip height so the scaled-up hand is not clipped', () => {
+    renderTable(baseState());
+    const fan = screen.getByTestId('truco-hand');
+    const strip = fan.parentElement as HTMLElement;
+    expect(strip.style.minHeight).toBe('7.5rem');
+    // The fan itself is still present and the cards remain visible inside it.
+    expect(fan.className).toContain('truco-fan');
+    expect(screen.getByTestId('playing-card-7oro')).toBeDefined();
   });
 });

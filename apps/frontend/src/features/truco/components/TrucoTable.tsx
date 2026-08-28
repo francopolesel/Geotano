@@ -5,7 +5,6 @@ import type { ReactNode } from 'react';
 import { RivalZone } from './RivalZone';
 import { TableZone } from './TableZone';
 import { MyZone } from './MyZone';
-import { Deck } from './Deck';
 import { ActionBar } from './ActionBar';
 import { BetPanel } from './BetPanel';
 import { TurnBanner } from './TurnBanner';
@@ -204,18 +203,6 @@ export function TrucoTable({
           {/* Prominent turn banner — superseded by the bet panel */}
           {!betPendingMine ? (
             <TurnBanner myTurn={myIsTurn} rivalTurn={rivalIsTurn} />
-          ) : null}
-
-          {/* Mazo: felt-edge deck stack, right-aligned above my zone (in
-              flow so it can never cover the action bar) */}
-          {view.phase !== 'waiting_for_players' && view.phase !== 'match_end' ? (
-            <div className="flex min-w-0 justify-end px-1">
-              <Deck
-                myHand={view.myHand}
-                playedCards={view.playedCards}
-                names={names}
-              />
-            </div>
           ) : null}
 
           {/* BOTTOM: me (action bar hidden here while the bet overlay owns it) */}

@@ -12,12 +12,13 @@ function play(card: CardId): Extract<TrucoAction, { type: 'play_card' }> {
 function renderHand(
   myHand: readonly CardId[],
   playableCards: readonly CardId[] = myHand,
+  isActing = false,
 ) {
   const onAction = vi.fn();
   const playable = new Map(playableCards.map((c) => [c, play(c)]));
   render(
     <I18nextProvider i18n={i18n}>
-      <Hand myHand={myHand} playable={playable} onAction={onAction} />
+      <Hand myHand={myHand} playable={playable} onAction={onAction} isActing={isActing} />
     </I18nextProvider>,
   );
   return { onAction };
@@ -80,5 +81,29 @@ describe('Hand — orejeo fan layout', () => {
 
     fireEvent.click(screen.getByTestId('playing-card-3espada'));
     expect(onAction).toHaveBeenCalledWith({ type: 'play_card', actor: 'A', card: '3espada' });
+  });
+
+  it('isActing: even playable cards neither lift nor fire, but stay visible (G1/A2-D)', () => {
+    const { onAction } = renderHand(['7oro', '3espada', '1copa'], ['3espada'], true);
+
+    const target = slot('3espada');
+    const card = screen.getByTestId('playing-card-3espada');
+
+    // Hover must NOT lift while an action is in flight.
+    fireEvent.pointerEnter(target);
+    expect(target.className).not.toContain('truco-fan-slot--lift');
+    // Keyboard focus must NOT lift either.
+    fireEvent.focus(card);
+    expect(target.className).not.toContain('truco-fan-slot--lift');
+
+    // Non-interactive: clicking does nothing, and the card is not a button.
+    fireEvent.click(card);
+    expect(onAction).not.toHaveBeenCalled();
+    expect(card.tagName).toBe('DIV');
+
+    // Still rendered and visible (not hidden) — only dimmed.
+    expect(screen.getByTestId('playing-card-3espada')).toBeDefined();
+
+    fireEvent.pointerLeave(target);
   });
 });
