@@ -429,6 +429,10 @@ function singEnvido(state: TrucoState, action: Extract<TrucoAction, { actor: Pla
   if (env.answered) return rejected('E_ALREADY_ANSWERED', state);
   if (env.falta) return rejected('E_ILLEGAL_RAISE_ORDER', state); // falta is terminal
   if (type === 'sing_envido' && env.realRaised) return rejected('E_ILLEGAL_RAISE_ORDER', state);
+  // A real envido cannot be called again once a real raise is already pending
+  // (F1). Mirrors the sing_envido guard above; rejects with untouched state so
+  // neither the stake nor the responder flips.
+  if (type === 'sing_real_envido' && env.realRaised) return rejected('E_ILLEGAL_RAISE_ORDER', state);
 
   const next = structuredClone(state);
   const sub = next.envido!;

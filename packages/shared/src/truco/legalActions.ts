@@ -46,8 +46,10 @@ export function legalActions(ctx: TrucoPublicContext, playerId: PlayerSlot): Tru
         { type: 'no_quiero', actor: playerId },
       ];
       if (!awaiting.falta) {
-        if (!awaiting.realRaised) out.push({ type: 'sing_envido', actor: playerId });
-        out.push({ type: 'sing_real_envido', actor: playerId });
+        if (!awaiting.realRaised) {
+          out.push({ type: 'sing_envido', actor: playerId });
+          out.push({ type: 'sing_real_envido', actor: playerId });
+        }
         out.push({ type: 'sing_falta_envido', actor: playerId });
       }
       return out;
@@ -63,6 +65,11 @@ export function legalActions(ctx: TrucoPublicContext, playerId: PlayerSlot): Tru
       if (awaiting.level === 2) out.push({ type: 'sing_retruco', actor: playerId });
       if (awaiting.level === 3) out.push({ type: 'sing_vale_cuatro', actor: playerId });
       // Envido-before-Truco precedence while the envido window is open.
+      // NOTE (defensive/unreachable): in truco_betting there is no pending
+      // envido — settleEnvido nulls envidoAwaiting once a raise resolves, so
+      // `realRaised` is never set here. The real envido gating lives in the
+      // envido_betting case and in engine.ts singEnvido; this block is kept
+      // as a defensive fallback should the two sub-machines ever interact.
       if (!ctx.envidoClosed && ctx.cardsPlayedThisHand === 0) {
         out.push(
           { type: 'sing_envido', actor: playerId },

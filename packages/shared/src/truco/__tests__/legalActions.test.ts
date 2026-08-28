@@ -107,11 +107,13 @@ describe('legalActions — betting phases answer/raise rights', () => {
     expect(acts(state, 'A')).toEqual([]);
   });
 
-  it('real envido pending: plain envido raise is excluded from responder options', () => {
+  it('real envido pending: neither plain envido nor real envido raise is offered (bounded)', () => {
     const state = envidoOpen(makeState(), 'sing_real_envido');
     expect(TYPES(acts(state, 'B'))).toEqual(
-      ['no_quiero', 'quiero', 'sing_falta_envido', 'sing_real_envido'].sort(),
+      ['no_quiero', 'quiero', 'sing_falta_envido'].sort(),
     );
+    // F1: a real envido cannot be called again once a real raise is pending.
+    expect(acts(state, 'B').map((a) => a.type)).not.toContain('sing_real_envido');
   });
 
   it('falta envido pending: terminal — answers only', () => {

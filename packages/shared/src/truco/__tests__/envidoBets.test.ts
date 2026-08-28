@@ -45,7 +45,6 @@ const MATRIX: MatrixRow[] = [
   { name: 'Falta Envido (direct)', calls: ['sing_falta_envido'], acceptedPays: 30, refusedPays: 1 },
   { name: 'Envido → Re-envido', calls: ['sing_envido', 'sing_envido'], acceptedPays: 4, refusedPays: 2 },
   { name: 'Envido → Real Envido', calls: ['sing_envido', 'sing_real_envido'], acceptedPays: 5, refusedPays: 2 },
-  { name: 'Real Envido → Real Envido', calls: ['sing_real_envido', 'sing_real_envido'], acceptedPays: 6, refusedPays: 3 },
   {
     name: 'Envido → Re-envido → Real Envido',
     calls: ['sing_envido', 'sing_envido', 'sing_real_envido'],
@@ -101,7 +100,7 @@ describe('Betting sub-phase round trip (Explicit state machine)', () => {
   });
 });
 
-describe('Envido stake matrix (all 9 refusal rows + acceptance totals)', () => {
+describe('Envido stake matrix (all 8 refusal rows + acceptance totals)', () => {
   for (const row of MATRIX) {
     const falta = row.name.includes('Falta');
 
@@ -125,10 +124,23 @@ describe('Envido stake matrix (all 9 refusal rows + acceptance totals)', () => {
     });
   }
 
-  it('Accept accumulates: Envido → Real → Real answered quiero = 8 points', () => {
+  it('Envido → Real bound: real after real is rejected and the state is untouched', () => {
+    // The raise chain is bounded at Envido → Real; a repeated real envido is
+    // illegal (F1). Envido → Real remains legal and accumulates stake.
     const state = strongAvsWeakB(makeState());
-    const final = runChain(state, ['sing_envido', 'sing_real_envido', 'sing_real_envido'], 'quiero');
-    expect(final.state.scores.A).toBe(8);
+    const e = applyAction(state, { type: 'sing_envido', actor: 'A' }, DEPS());
+    if (!e.ok) throw new Error(e.errorCode);
+    const r = applyAction(e.state, { type: 'sing_real_envido', actor: 'B' }, DEPS());
+    if (!r.ok) throw new Error(r.errorCode);
+    expect(r.state.envido?.stake).toBe(5);
+    expect(r.state.envido?.realRaised).toBe(true);
+    // The responder (now A) tries the same raise again → illegal, state identical.
+    const repeat = applyAction(r.state, { type: 'sing_real_envido', actor: 'A' }, DEPS());
+    if (repeat.ok) throw new Error('real envido after real envido must be rejected');
+    expect(repeat.errorCode).toBe('E_ILLEGAL_RAISE_ORDER');
+    expect(repeat.state).toBe(r.state);
+    expect(repeat.state.envido?.stake).toBe(5); // no stake bump
+    expect(repeat.state.envido?.awaitingResponder).toBe('A'); // responder not flipped
   });
 
   it('only the responder may raise; the singer acting early is rejected', () => {
