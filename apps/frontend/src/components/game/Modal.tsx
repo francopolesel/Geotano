@@ -136,7 +136,7 @@ export function Modal({
         data-testid="modal-backdrop"
         aria-hidden
         onClick={onClose ? () => onClose() : undefined}
-        className="absolute inset-0 h-full w-full bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 h-full w-full bg-black/60"
       />
       <div
         ref={dialogRef}

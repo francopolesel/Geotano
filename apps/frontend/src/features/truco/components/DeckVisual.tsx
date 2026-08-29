@@ -3,15 +3,13 @@ import { CARD_BACK_URL } from '../cardAssets';
 
 /**
  * Visual deck stack: face-down cards with a subtle 3D stack effect.
- * Shows remaining count badge. Click handler stubbed for future "inspect deck".
+ * Shows remaining count badge. Hover shows tooltip with remaining count.
  */
 export interface DeckVisualProps {
   /** Number of cards left in the deck. */
   deckRemaining: number;
   /** Size variant matching PlayingCard clamp tokens. */
   size?: 'sm' | 'md' | 'lg';
-  /** Optional click handler for future "inspect deck" interaction. */
-  onInspect?: () => void;
 }
 
 const SIZE_CLASSES = {
@@ -23,12 +21,10 @@ const SIZE_CLASSES = {
 /** Intrinsic aspect ratio of the official assets (viewBox `66.24 × 102.08`). */
 const ASSET_ASPECT_RATIO = `${66.24} / ${102.08}`;
 
-export function DeckVisual({ deckRemaining, size = 'md', onInspect }: DeckVisualProps) {
+export function DeckVisual({ deckRemaining, size = 'md' }: DeckVisualProps) {
   const { t } = useTranslation();
 
   if (deckRemaining <= 0) return null;
-
-  const interactive = !!onInspect;
 
   // Stack offsets for 3-4 visible cards
   const stackLayers = Math.min(deckRemaining, 4);
@@ -43,13 +39,12 @@ export function DeckVisual({ deckRemaining, size = 'md', onInspect }: DeckVisual
       data-testid="truco-deck"
       role="img"
       aria-label={t('truco.deck.alt')}
+      title={t('truco.deck.remaining', { count: deckRemaining })}
       className={[
         'relative flex items-center justify-center',
         SIZE_CLASSES[size],
-        interactive ? 'cursor-pointer hover:scale-[1.02] transition-transform duration-150' : '',
       ].join(' ')}
       style={{ aspectRatio: ASSET_ASPECT_RATIO }}
-      onClick={onInspect}
     >
       {/* Stack of face-down cards */}
       <div className="relative" style={{ aspectRatio: ASSET_ASPECT_RATIO }}>
