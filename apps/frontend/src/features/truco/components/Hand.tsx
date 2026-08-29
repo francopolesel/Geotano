@@ -39,7 +39,7 @@ export function Hand({ myHand, playable, onAction, selected = null, isActing = f
     <div
       data-testid="truco-hand"
       aria-label={t('truco.hand.label')}
-      className="truco-fan flex min-w-0 items-end justify-center min-h-[clamp(6rem,18vh,9.5rem)]"
+      className="truco-fan flex min-w-0 items-end justify-center min-h-[clamp(4.5rem,15vh,8rem)]"
       onPointerLeave={() => setInspected(null)}
     >
       {myHand.map((card, index) => {

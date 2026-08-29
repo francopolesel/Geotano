@@ -54,7 +54,7 @@ export function MyZone({
     <div
       data-testid="truco-my-zone"
       className={[
-        'flex min-w-0 flex-col gap-2 rounded-xl border px-3 py-1 transition-shadow',
+        'flex min-w-0 min-h-0 flex-col gap-2 rounded-xl border px-3 py-1 transition-shadow',
         isTurn
           ? 'border-emerald-400/60 bg-[var(--color-card)] truco-turn-glow'
           : 'border-[var(--color-border)] bg-[var(--color-card)]',

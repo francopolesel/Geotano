@@ -97,7 +97,7 @@ export function TruCpuPage() {
   }
 
   return (
-    <div data-testid="truco-cpu-page" className="flex flex-col min-h-[calc(100dvh-40px)] max-w-4xl mx-auto px-2">
+    <div data-testid="truco-cpu-page" className="flex flex-1 min-h-0 max-w-4xl mx-auto px-2">
       <TrucoTable
         view={game.view}
         mySlot={MY_SLOT}

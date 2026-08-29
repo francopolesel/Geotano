@@ -189,7 +189,7 @@ export function TrucoTable({
     <>
     <div
       data-testid="truco-table"
-      className="mx-auto flex h-[calc(100dvh-80px)] w-full max-w-4xl flex-col gap-2 overflow-x-hidden p-1 overflow-hidden"
+      className="mx-auto flex w-full max-w-4xl flex-1 min-h-0 flex-col gap-2 overflow-x-hidden p-1"
     >
       {/* Table header: two rows with clear visual separation.
           Row 1: round status + permanent match score (compact, single line)
@@ -223,9 +223,9 @@ export function TrucoTable({
       {/* Wood frame around the felt */}
       <div className="truco-wood-frame rounded-2xl p-1.5 shadow-xl sm:p-2">
         {/* Felt playing surface */}
-        <div className="truco-felt-surface relative flex min-w-0 flex-col gap-3 rounded-xl p-2 sm:p-3">
+        <div className="truco-felt-surface relative flex min-w-0 min-h-0 flex-col gap-3 rounded-xl p-2 sm:p-3">
           {/* TOP: rival (ambient glow while the turn is theirs) */}
-          <div>
+          <div className="min-h-0">
             <RivalZone
               name={opponentName}
               score={view.scores[rivalSlot]}

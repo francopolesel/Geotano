@@ -6,6 +6,7 @@ import type {
   TrucoPhase,
 } from '@geotano/shared';
 import { DECK_40 } from '@geotano/shared';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PlayingCard } from '../../../components/game/PlayingCard';
 import { CallFeedbackBanner } from './CallFeedbackBanner';
@@ -95,6 +96,14 @@ export function TableZone({
 }: TableZoneProps) {
   const { t } = useTranslation();
   const rivalSlot: PlayerSlot = mySlot === 'A' ? 'B' : 'A';
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Compute deck remaining if not provided: DECK_40 - (myHand + opponentHand + played)
   // Since we don't have direct access to hand counts here, we compute from available data:
@@ -131,7 +140,7 @@ export function TableZone({
       {/* Deck visual at top-center of felt */}
       {showDeck && (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
-          <DeckVisual deckRemaining={computedDeckRemaining} size="md" />
+          <DeckVisual deckRemaining={computedDeckRemaining} size={isMobile ? 'sm' : 'md'} />
         </div>
       )}
 
@@ -188,7 +197,7 @@ export function TableZone({
                           key={rivalPlay.card}
                           className="animate-truco-play-rival"
                         >
-                          <PlayingCard card={rivalPlay.card} size="md" />
+                          <PlayingCard card={rivalPlay.card} size={isMobile ? 'sm' : 'md'} />
                         </div>
                       ) : (
                         <CardSilhouette />
@@ -203,7 +212,7 @@ export function TableZone({
                           key={myPlay.card}
                           className="animate-truco-play-mine"
                         >
-                          <PlayingCard card={myPlay.card} size="md" />
+                          <PlayingCard card={myPlay.card} size={isMobile ? 'sm' : 'md'} />
                         </div>
                       ) : (
                         <CardSilhouette />

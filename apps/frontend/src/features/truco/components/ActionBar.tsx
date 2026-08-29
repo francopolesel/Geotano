@@ -126,7 +126,7 @@ export function ActionBar({
       <div data-testid="truco-action-bar" className="flex min-w-0 flex-wrap items-center justify-center gap-2">
         <span
           data-testid="truco-actionbar-waiting"
-          className="flex items-center gap-2 rounded-full bg-[var(--color-muted)] px-4 py-2 text-xs font-medium text-[var(--color-muted-foreground)] transition-opacity"
+          className="flex items-center gap-2 rounded-full bg-[var(--color-muted)] px-3 py-1.5 text-xs font-medium text-[var(--color-muted-foreground)] transition-opacity"
         >
           <SpinnerIcon />
           {t(waitingForAnswer ? 'truco.bet.waitingRival' : 'truco.turn.waiting')}
@@ -139,7 +139,7 @@ export function ActionBar({
     <div
       data-testid="truco-action-bar"
       className={[
-        'flex min-w-0 items-start justify-center gap-x-4 gap-y-2',
+        'flex min-w-0 items-start justify-center gap-x-4 gap-y-1.5',
         stacked ? 'flex-col' : 'flex-wrap',
       ].join(' ')}
     >
@@ -151,10 +151,10 @@ export function ActionBar({
             key={group.key}
             className={[
               'flex min-w-0 flex-col items-center gap-1',
-              stacked ? 'w-full' : '',
+              stacked ? 'w-full px-3 py-1.5' : 'px-4 py-2',
             ].join(' ')}
           >
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)]">
+            <span className="text-[9px] font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)]">
               {t(group.key)}
             </span>
             <div
@@ -171,7 +171,7 @@ export function ActionBar({
                   disabled={disabled}
                   onClick={() => onAction(action)}
                   className={[
-                    'flex min-h-[44px] min-w-0 items-center justify-center rounded-lg px-3 py-1.5',
+                    'flex min-h-[40px] min-w-0 items-center justify-center rounded-lg px-3 py-1.5',
                     'text-sm font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--truco-card-ring)]',
                     disabled ? 'cursor-not-allowed opacity-50' : 'hover:-translate-y-0.5',
                     stacked
