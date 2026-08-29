@@ -51,7 +51,8 @@ export type TrucoActionType =
   | 'sing_retruco'
   | 'sing_vale_cuatro'
   | 'quiero'
-  | 'no_quiero';
+  | 'no_quiero'
+  | 'fold';
 
 /** Envido call variants. */
 export type EnvidoCall = 'sing_envido' | 'sing_real_envido' | 'sing_falta_envido';
@@ -96,7 +97,8 @@ export type TrucoAction =
   | { type: 'sing_retruco'; actor: PlayerSlot }
   | { type: 'sing_vale_cuatro'; actor: PlayerSlot }
   | { type: 'quiero'; actor: PlayerSlot }
-  | { type: 'no_quiero'; actor: PlayerSlot };
+  | { type: 'no_quiero'; actor: PlayerSlot }
+  | { type: 'fold'; actor: PlayerSlot };
 
 /** Options for creating a match. Target defaults to 30 (spec-pinned). */
 export interface CreateMatchOptions {

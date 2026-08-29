@@ -33,22 +33,22 @@ export function RivalZone({
     <div
       data-testid="truco-rival-zone"
       className={[
-        'flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-1 transition-shadow',
+        'flex min-w-0 flex-wrap items-center justify-between gap-1.5 rounded-lg border px-2 py-0.5 transition-shadow',
         isTurn
           ? 'border-emerald-400/60 bg-[var(--color-card)] truco-turn-glow'
           : 'border-[var(--color-border)] bg-[var(--color-card)]',
       ].join(' ')}
     >
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-1.5">
         {/* Avatar: custom node when supplied (CPU personas), else the
             deterministic monogram initial (multiplayer nicknames). */}
         <div
           data-testid="truco-rival-avatar"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-bold text-white"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-bold text-white"
         >
           {avatar ?? name.slice(0, 1).toUpperCase()}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex items-center gap-1.5">
           <p data-testid="rival-name" className="truncate text-sm font-semibold">
             {name}
           </p>
@@ -57,15 +57,16 @@ export function RivalZone({
             targetPoints={targetPoints}
             tone="rival"
             isMano={isMano}
+            compact
           />
         </div>
       </div>
 
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-1.5">
         <span
           data-testid="rival-hand-count"
           title={t('truco.card.back')}
-          className="rounded-md border border-[var(--color-border)] bg-[var(--color-muted)] px-2 py-1 text-xs font-semibold tabular-nums"
+          className="rounded-md border border-[var(--color-border)] bg-[var(--color-muted)] px-1.5 py-0.5 text-xs font-semibold tabular-nums"
         >
           🂠 ×{handCount}
         </span>

@@ -156,6 +156,24 @@
   animation: truco-bounce-dot 1.2s ease-in-out infinite;
 }
 
+/* Call feedback banner entry: fade in, stay for 3.5s, then fade out. */
+@keyframes truco-fade-in {
+  0% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  10% { opacity: 1; transform: translateY(0) scale(1); }
+  90% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+.animate-fade-in {
+  animation: truco-fade-in 3500ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 /* ─── Truco card palette (additive, truco-namespaced only) ───────────
    Scoped custom properties for the Spanish-deck PlayingCard primitive.
    Never referenced outside card art; light/dark variants below.        */

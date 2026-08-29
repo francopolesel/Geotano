@@ -103,7 +103,7 @@ describe('legalActions — betting phases answer/raise rights', () => {
   it('plain envido pending: responder may answer + raise envido/real/falta; singer sees nothing', () => {
     const state = envidoOpen(makeState(), 'sing_envido');
     expect(TYPES(acts(state, 'B'))).toEqual(
-      ['no_quiero', 'quiero', 'sing_envido', 'sing_falta_envido', 'sing_real_envido'].sort(),
+      ['fold', 'no_quiero', 'quiero', 'sing_envido', 'sing_falta_envido', 'sing_real_envido'].sort(),
     );
     expect(acts(state, 'A')).toEqual([]);
   });
@@ -111,7 +111,7 @@ describe('legalActions — betting phases answer/raise rights', () => {
   it('real envido pending: neither plain envido nor real envido raise is offered (bounded)', () => {
     const state = envidoOpen(makeState(), 'sing_real_envido');
     expect(TYPES(acts(state, 'B'))).toEqual(
-      ['no_quiero', 'quiero', 'sing_falta_envido'].sort(),
+      ['fold', 'no_quiero', 'quiero', 'sing_falta_envido'].sort(),
     );
     // F1: a real envido cannot be called again once a real raise is pending.
     expect(acts(state, 'B').map((a) => a.type)).not.toContain('sing_real_envido');
@@ -119,7 +119,7 @@ describe('legalActions — betting phases answer/raise rights', () => {
 
   it('falta envido pending: terminal — answers only', () => {
     const state = envidoOpen(makeState(), 'sing_falta_envido');
-    expect(TYPES(acts(state, 'B'))).toEqual(['no_quiero', 'quiero'].sort());
+    expect(TYPES(acts(state, 'B'))).toEqual(['fold', 'no_quiero', 'quiero'].sort());
   });
 
   it('truco pending (level 2): answers + retruco (+ envido family while window open)', () => {
@@ -128,6 +128,7 @@ describe('legalActions — betting phases answer/raise rights', () => {
     if (!r.ok) throw new Error(r.errorCode);
     expect(TYPES(acts(r.state, 'B'))).toEqual(
       [
+        'fold',
         'no_quiero',
         'quiero',
         'sing_retruco',
@@ -151,6 +152,7 @@ describe('legalActions — betting phases answer/raise rights', () => {
     // envido instead of answering (engine-tested in envidoBets).
     expect(TYPES(acts(r.state, 'B'))).toEqual(
       [
+        'fold',
         'no_quiero',
         'quiero',
         'sing_envido',

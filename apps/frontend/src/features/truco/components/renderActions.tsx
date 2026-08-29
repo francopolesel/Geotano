@@ -33,6 +33,7 @@ export interface RenderActionsOptions {
 export const ACTION_DISPLAY_ORDER: readonly TrucoAction['type'][] = [
   'quiero',
   'no_quiero',
+  'fold',
   'sing_envido',
   'sing_real_envido',
   'sing_falta_envido',
@@ -50,6 +51,7 @@ const LABEL_KEYS: Partial<Record<TrucoAction['type'], string>> = {
   sing_vale_cuatro: 'truco.call.valeCuatro',
   quiero: 'truco.answer.quiero',
   no_quiero: 'truco.answer.noQuiero',
+  fold: 'truco.action.fold',
 };
 
 export function actionIcon(type: TrucoAction['type'], className: string): ReactNode {
@@ -57,6 +59,8 @@ export function actionIcon(type: TrucoAction['type'], className: string): ReactN
     case 'quiero':
       return <CheckIcon className={className} />;
     case 'no_quiero':
+      return <CrossIcon className={className} />;
+    case 'fold':
       return <CrossIcon className={className} />;
     case 'sing_envido':
     case 'sing_real_envido':
@@ -72,12 +76,14 @@ export function actionButtonClass(type: TrucoAction['type']): string {
     case 'quiero':
       return 'border-transparent bg-emerald-600 text-white shadow-sm hover:brightness-110';
     case 'no_quiero':
+    case 'fold':
       return 'border-2 border-red-500/80 bg-transparent text-red-600 dark:text-red-400 hover:bg-red-500/10';
     case 'sing_truco':
     case 'sing_retruco':
     case 'sing_vale_cuatro':
       return 'border border-amber-400/70 bg-amber-100 text-amber-900 hover:border-amber-500 dark:bg-amber-900/40 dark:text-amber-200 dark:hover:border-amber-400';
     default:
+      // Envido family: gold/yellow tones.
       return 'border border-yellow-500/60 bg-yellow-100 text-yellow-900 hover:border-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-200 dark:hover:border-yellow-500';
   }
 }

@@ -12,6 +12,8 @@
 // - Marker-aware falta discipline: when the opponent is within 3 points of
 //   target, refuses falta envido unless holding a tier-11+ card (≥95%).
 // - Varied-but-fixed think delay constants; never wall-clock.
+// - Initiates retruco/vale4: when strong (≥2 tier-10+): 90% truco, 20% retruco if level 2.
+//   Bluff retruco 15% with weak hand. Add vale4 initiation when level 3 and very strong hand.
 
 import type { CpuDecisionInput, CardId, PlayerSlot, Rng, TrucoAction } from '@geotano/shared';
 import { compareCards, computeEnvido } from '@geotano/shared';
@@ -27,6 +29,10 @@ const FALTA_ACCEPT_WITH_BRAVA_PROBABILITY = 0.92;
 const STRONG_ACCEPT_PROBABILITY = 0.995; // fold-strong ≤1%
 const JUNK_ANSWER_FOLD_PROBABILITY = 0.75;
 const MID_ANSWER_ACCEPT_PROBABILITY = 0.45;
+// New constants for retruco/vale4 initiation
+const STRONG_RETRUCO_PROBABILITY = 0.2;    // 20% retruco when strong hand
+const BLUFF_RETRUCO_PROBABILITY = 0.15;    // 15% bluff retruco with weak hand
+const VALE4_INITIATE_PROBABILITY = 0.15;   // 15% vale4 when very strong hand
 
 const THREES: readonly CardId[] = ['3oro', '3copa', '3espada', '3basto'];
 
@@ -142,11 +148,28 @@ export const hardAi: TrucoAi = {
     }
 
     const singTruco = options.find((action) => action.type === 'sing_truco');
+    const singRetruco = options.find((action) => action.type === 'sing_retruco');
+    const singValeCuatro = options.find((action) => action.type === 'sing_vale_cuatro');
+    const acceptedTrucoLevel = input.acceptedTrucoLevel ?? 1;
+    
     if (singTruco) {
       const strongCards = input.myHand.filter((card) => cardTier(card) >= 10);
+      const veryStrongCards = input.myHand.filter((card) => cardTier(card) >= 12);
       const junk = maxTier(input.myHand) <= 4 && computeEnvido(input.myHand) < 25;
       if (strongCards.length >= 2 && rng() < STRONG_INITIATE_PROBABILITY) {
+        // When strong (≥2 tier-10+): 90% truco, 20% retruco if level 2
+        if (singRetruco && acceptedTrucoLevel >= 2 && rng() < STRONG_RETRUCO_PROBABILITY) {
+          return singRetruco;
+        }
         return singTruco;
+      }
+      // Bluff retruco 15% with weak hand
+      if (singRetruco && acceptedTrucoLevel >= 2 && rng() < BLUFF_RETRUCO_PROBABILITY) {
+        return singRetruco;
+      }
+      // Vale4 initiation when level 3 and very strong hand
+      if (singValeCuatro && acceptedTrucoLevel >= 3 && veryStrongCards.length >= 2 && rng() < VALE4_INITIATE_PROBABILITY) {
+        return singValeCuatro;
       }
       if (junk && rng() < BLUFF_PROBABILITY) {
         return singTruco; // documented bluff band: 10–25% of junk windows

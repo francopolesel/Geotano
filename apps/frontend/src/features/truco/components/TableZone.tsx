@@ -118,7 +118,7 @@ export function TableZone({
         data-testid="truco-table-zone"
         className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 px-3 py-3"
       >
-        <div className="min-h-[1.5rem] w-full max-w-md">
+        <div className="min-h-[1rem] w-full max-w-md">
           <CallFeedbackBanner history={history} names={names} />
         </div>
       </div>
@@ -135,7 +135,7 @@ export function TableZone({
   return (
     <div
       data-testid="truco-table-zone"
-      className="relative flex min-w-0 flex min-h-0 flex-1 flex-col items-center justify-between gap-2 px-2 py-1.5 sm:px-3 sm:py-2"
+      className="relative flex min-w-0 flex min-h-0 flex-1 flex-col items-center justify-between gap-1 px-1 py-1"
     >
       {/* Deck visual at top-center of felt */}
       {showDeck && (
@@ -145,14 +145,14 @@ export function TableZone({
       )}
 
       {/* Call feedback persists here until superseded */}
-      <div className="min-h-[1.5rem] w-full max-w-md">
+      <div className="min-h-[1rem] w-full max-w-md">
         <CallFeedbackBanner history={history} names={names} />
       </div>
 
       {/* Three-baza lane strip: past / active / future side by side */}
       <div
         data-testid="truco-baza-lanes"
-        className="grid min-h-0 w-full max-w-md grid-cols-3 items-end gap-1.5 sm:gap-2"
+        className="grid min-h-0 w-full max-w-md grid-cols-3 items-end gap-1"
       >
         {[1, 2, 3].map((n) => {
           const resolved = bazas.find((b) => b.number === n);

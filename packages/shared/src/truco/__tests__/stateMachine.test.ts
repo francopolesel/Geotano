@@ -59,6 +59,7 @@ describe('TRANSITIONS table (Explicit state machine)', () => {
     expect(TRANSITIONS.envido_betting).toEqual([
       'quiero',
       'no_quiero',
+      'fold',
       'sing_envido',
       'sing_real_envido',
       'sing_falta_envido',
@@ -66,6 +67,7 @@ describe('TRANSITIONS table (Explicit state machine)', () => {
     expect(TRANSITIONS.truco_betting).toEqual([
       'quiero',
       'no_quiero',
+      'fold',
       'sing_retruco',
       'sing_vale_cuatro',
       // Envido-before-Truco precedence: the responder may answer a pending

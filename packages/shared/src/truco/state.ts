@@ -27,10 +27,11 @@ export const TRANSITIONS: Record<TrucoPhase, readonly TrucoActionType[]> = {
     'sing_retruco',
     'sing_vale_cuatro',
   ],
-  envido_betting: ['quiero', 'no_quiero', 'sing_envido', 'sing_real_envido', 'sing_falta_envido'],
+  envido_betting: ['quiero', 'no_quiero', 'fold', 'sing_envido', 'sing_real_envido', 'sing_falta_envido'],
   truco_betting: [
     'quiero',
     'no_quiero',
+    'fold',
     'sing_retruco',
     'sing_vale_cuatro',
     'sing_envido',

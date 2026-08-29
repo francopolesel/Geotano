@@ -68,6 +68,7 @@ export function MyZone({
             targetPoints={targetPoints}
             tone="mine"
             isMano={isMano}
+            compact
           />
         </div>
       </div>

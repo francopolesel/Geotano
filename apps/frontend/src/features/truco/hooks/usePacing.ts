@@ -94,28 +94,57 @@ export function usePacing({ view }: UsePacingOptions): UsePacingResult {
     return () => clearTimeout(timer);
   }, [bazaCount]);
 
-  // ---- handEndOpen: event-derived, manually releasable ----
-  const [handEndOpen, setHandEndOpen] = useState<boolean>(() =>
-    hasHandEndedWithoutMatchEnd(view.history),
-  );
+  // ---- handEndOpen: event-derived, delayed by handEndDisplay, manually releasable ----
+  const [handEndOpen, setHandEndOpen] = useState(false);
   const dismissedRef = useRef(-1);
+  const handEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const lastHandEnd = lastIndexOfType(view.history, 'hand_ended');
   const matchEndAfter = lastIndexOfType(view.history, 'match_ended') > lastHandEnd;
 
   useEffect(() => {
+    // Clear any pending timer when dependencies change
+    if (handEndTimerRef.current) {
+      clearTimeout(handEndTimerRef.current);
+      handEndTimerRef.current = null;
+    }
+
     if (matchEndAfter) {
       setHandEndOpen(false);
       return;
     }
+
     if (lastHandEnd > dismissedRef.current) {
-      setHandEndOpen(true);
+      // New hand ended - start the display delay before showing the panel
+      const delay = reduceMotion() ? 0 : GAME_TIMING.handEndDisplay;
+      if (delay <= 0) {
+        setHandEndOpen(true);
+      } else {
+        handEndTimerRef.current = setTimeout(() => {
+          // Only open if this hand_end is still the latest (not superseded by a new hand)
+          const currentLastHandEnd = lastIndexOfType(view.history, 'hand_ended');
+          if (currentLastHandEnd === lastHandEnd && currentLastHandEnd > dismissedRef.current) {
+            setHandEndOpen(true);
+          }
+        }, delay);
+      }
     }
+
+    return () => {
+      if (handEndTimerRef.current) {
+        clearTimeout(handEndTimerRef.current);
+        handEndTimerRef.current = null;
+      }
+    };
   }, [lastHandEnd, matchEndAfter]);
 
   const advanceHandEnd = () => {
     if (lastHandEnd >= 0) dismissedRef.current = lastHandEnd;
     setHandEndOpen(false);
+    if (handEndTimerRef.current) {
+      clearTimeout(handEndTimerRef.current);
+      handEndTimerRef.current = null;
+    }
   };
 
   return {

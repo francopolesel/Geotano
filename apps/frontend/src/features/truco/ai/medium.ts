@@ -8,6 +8,8 @@
 // - Sings envido when its own value is ≥27 in ≥90% of windows (incl. the 31).
 // - NEVER folds pre-retruco while holding both 1espada and 1basto.
 // - Short fixed think delay.
+// - Initiates retruco/vale4: when hand strong (≥2 tier-10+): 85% truco, 15% retruco if level 2 available.
+//   Bluff retruco 10% with weak hand when level 2.
 
 import type { CpuDecisionInput, Rng, TrucoAction } from '@geotano/shared';
 import { computeEnvido, compareCards } from '@geotano/shared';
@@ -27,6 +29,9 @@ const JUNK_FOLD_PROBABILITY = 0.95; // ≥90% required
 const ENVIDO_SING_AT_27_PROBABILITY = 0.95; // ≥90% required
 const MACHO_RAISE_PROBABILITY = 0.3;
 const MID_HAND_ACCEPT_PROBABILITY = 0.35;
+// New constants for retruco/vale4 initiation
+const STRONG_RETRUCO_PROBABILITY = 0.15; // 15% retruco when strong hand
+const BLUFF_RETRUCO_PROBABILITY = 0.1;   // 10% bluff retruco with weak hand
 
 function answerWithTruco(input: CpuDecisionInput, rng: Rng): TrucoAction {
   const options = cpuOptions(input);
@@ -90,12 +95,22 @@ export const mediumAi: TrucoAi = {
     }
     const strongCards = input.myHand.filter((card) => cardTier(card) >= 10);
     const singTruco = options.find((action) => action.type === 'sing_truco');
-    if (
-      singTruco &&
-      strongCards.length >= 2 &&
-      rng() < STRONG_INITIATE_PROBABILITY
-    ) {
-      return singTruco;
+    const singRetruco = options.find((action) => action.type === 'sing_retruco');
+    const singValeCuatro = options.find((action) => action.type === 'sing_vale_cuatro');
+    const acceptedTrucoLevel = input.acceptedTrucoLevel ?? 1;
+    
+    if (singTruco) {
+      if (strongCards.length >= 2 && rng() < STRONG_INITIATE_PROBABILITY) {
+        // When strong (≥2 tier-10+): 85% truco, 15% retruco if level 2 available
+        if (singRetruco && acceptedTrucoLevel >= 2 && rng() < STRONG_RETRUCO_PROBABILITY) {
+          return singRetruco;
+        }
+        return singTruco;
+      }
+      // Bluff retruco 10% with weak hand when level 2
+      if (singRetruco && acceptedTrucoLevel >= 2 && strongCards.length < 2 && rng() < BLUFF_RETRUCO_PROBABILITY) {
+        return singRetruco;
+      }
     }
 
     const plays = options.filter((action) => action.type === 'play_card');

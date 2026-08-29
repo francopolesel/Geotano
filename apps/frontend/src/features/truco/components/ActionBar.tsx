@@ -46,6 +46,7 @@ export interface ActionBarProps {
 const DISPLAY_ORDER: readonly TrucoAction['type'][] = [
   'quiero',
   'no_quiero',
+  'fold',
   'sing_envido',
   'sing_real_envido',
   'sing_falta_envido',
@@ -63,6 +64,7 @@ const LABEL_KEYS: Partial<Record<TrucoAction['type'], string>> = {
   sing_vale_cuatro: 'truco.call.valeCuatro',
   quiero: 'truco.answer.quiero',
   no_quiero: 'truco.answer.noQuiero',
+  fold: 'truco.action.fold',
 };
 
 /** Grouped presentation: caption key + member action types in display order. */
@@ -78,6 +80,7 @@ function ActionIcon({ type }: { type: TrucoAction['type'] }) {
     case 'quiero':
       return <CheckIcon className={cls} />;
     case 'no_quiero':
+    case 'fold':
       return <CrossIcon className={cls} />;
     case 'sing_envido':
     case 'sing_real_envido':
@@ -95,6 +98,7 @@ function buttonClass(type: TrucoAction['type']): string {
     case 'quiero':
       return 'border-transparent bg-emerald-600 text-white shadow-sm hover:brightness-110';
     case 'no_quiero':
+    case 'fold':
       return 'border-2 border-red-500/80 bg-transparent text-red-600 dark:text-red-400 hover:bg-red-500/10';
     case 'sing_truco':
     case 'sing_retruco':

@@ -65,7 +65,7 @@ const TRUCO_CALLS: readonly TrucoActionType[] = [
 // payout is computed at settlement from the target.
 const ENVIDO_STAKE = 2;
 const REAL_ENVIDO_STAKE = 3;
-const ANSWERS: readonly TrucoActionType[] = ['quiero', 'no_quiero'];
+const ANSWERS: readonly TrucoActionType[] = ['quiero', 'no_quiero', 'fold'];
 
 function actorOf(action: TrucoAction): PlayerSlot | undefined {
   return 'actor' in action ? action.actor : undefined;
@@ -342,6 +342,9 @@ export function applyAction(state: TrucoState, action: TrucoAction, deps: ApplyD
     case 'sing_vale_cuatro':
       return raiseTruco(state, action, events);
 
+    case 'fold':
+      return foldHand(state, action, deps, events);
+
     case 'quiero':
     case 'no_quiero':
       return answer(state, action, deps, events);
@@ -547,6 +550,100 @@ function raiseTruco(
   };
   pushCallSung(next, action.actor, action.type, events);
   return { ok: true, state: next, events };
+}
+
+/**
+ * Handles the "irse al mazo" (fold) action.
+ * Rules:
+ * - If phase === 'playing' and envidoWindowOpen (no cards played yet) → opponent gets 2 pts
+ * - If phase === 'playing' and !envidoWindowOpen → opponent gets 1 pt
+ * - If phase === 'truco_betting' → opponent gets level pts (level 2=2, 3=3, 4=4)
+ * - If phase === 'envido_betting' → opponent gets appropriate envido points (priorStake or 1)
+ * - Hand ends immediately, no cards shown
+ */
+function foldHand(
+  state: TrucoState,
+  action: Extract<TrucoAction, { type: 'fold' }>,
+  deps: ApplyDeps,
+  events: TrucoEvent[],
+): EngineResult {
+  const actor = action.actor;
+  const opponent = otherSlot(actor);
+  const next = structuredClone(state);
+
+  // Record the fold event
+  const answeredEvent: TrucoEvent = {
+    type: 'answered',
+    player: actor,
+    answer: 'no_quiero', // fold is semantically a refusal
+    bet: state.phase === 'envido_betting' ? 'envido' : 'truco',
+  };
+  next.history.push(answeredEvent);
+  events.push(answeredEvent);
+
+  let reason: AwardReason;
+  let points = 0;
+
+  if (state.phase === 'playing') {
+    // Check if envido window is open (no cards played yet = first baza not complete)
+    const envidoWindowOpen = cardsPlayedThisHand(state) < 2 && !state.envidoClosed && !state.trucoAccepted;
+    if (envidoWindowOpen) {
+      // Opponent gets 2 points (as if envido was refused at first bet)
+      points = 2;
+      reason = 'envido_refused';
+    } else {
+      // Opponent gets 1 point (as if truco was refused at base level)
+      points = 1;
+      reason = 'truco_refused';
+    }
+    award(next, opponent, points, reason, events);
+    next.truco = null;
+    next.envido = null;
+    next.parkedTruco = null;
+    concludeHand(next, opponent, deps, events);
+    return { ok: true, state: next, events };
+  }
+
+  if (state.phase === 'truco_betting') {
+    const bet = state.truco!;
+    if (action.actor !== bet.responder) return rejected('E_NOT_RESPONDER', state);
+    if (bet.answered) return rejected('E_ALREADY_ANSWERED', state);
+
+    // Opponent gets level points (level 2=2, 3=3, 4=4)
+    points = bet.level;
+    reason =
+      bet.level === 2 ? 'truco_refused' : bet.level === 3 ? 'retruco_refused' : 'vale_cuatro_refused';
+    award(next, bet.singer, points, reason, events);
+    next.truco = null;
+    concludeHand(next, bet.singer, deps, events);
+    return { ok: true, state: next, events };
+  }
+
+  if (state.phase === 'envido_betting') {
+    const env = state.envido!;
+    if (action.actor !== env.awaitingResponder) return rejected('E_NOT_RESPONDER', state);
+    if (env.answered) return rejected('E_ALREADY_ANSWERED', state);
+
+    // Opponent gets appropriate envido points (priorStake or 1 for first bet)
+    points = env.priorStake === 0 ? 1 : env.priorStake;
+    award(next, env.lastCaller, points, 'envido_refused', events);
+    next.envido = null;
+    next.envidoClosed = true;
+
+    if (next.scores[env.lastCaller] >= next.targetPoints) {
+      next.parkedTruco = null;
+      concludeHand(next, env.lastCaller, deps, events);
+    } else if (next.parkedTruco) {
+      next.truco = next.parkedTruco;
+      next.parkedTruco = null;
+      next.phase = 'truco_betting';
+    } else {
+      next.phase = 'playing';
+    }
+    return { ok: true, state: next, events };
+  }
+
+  return rejectForPhase(state.phase, action.type, state);
 }
 
 /** Dispatches quiero/no_quiero to the active betting sub-phase. */

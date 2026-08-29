@@ -44,6 +44,7 @@ export function legalActions(ctx: TrucoPublicContext, playerId: PlayerSlot): Tru
       const out: TrucoAction[] = [
         { type: 'quiero', actor: playerId },
         { type: 'no_quiero', actor: playerId },
+        { type: 'fold', actor: playerId },
       ];
       if (!awaiting.falta) {
         if (!awaiting.realRaised) {
@@ -61,6 +62,7 @@ export function legalActions(ctx: TrucoPublicContext, playerId: PlayerSlot): Tru
       const out: TrucoAction[] = [
         { type: 'quiero', actor: playerId },
         { type: 'no_quiero', actor: playerId },
+        { type: 'fold', actor: playerId },
       ];
       if (awaiting.level === 2) out.push({ type: 'sing_retruco', actor: playerId });
       if (awaiting.level === 3) out.push({ type: 'sing_vale_cuatro', actor: playerId });

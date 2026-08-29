@@ -31,7 +31,11 @@ function baseView(overrides: Partial<TrucoView> = {}): TrucoView {
 }
 
 describe('usePacing — event-derived hand-end (CRITICAL: never phase-gated)', () => {
-  beforeEach(() => resetTiming());
+  beforeEach(() => {
+    resetTiming();
+    // Collapse handEndDisplay delay for instant hand-end panel in tests
+    overrideTiming({ handEndDisplay: 0 });
+  });
   afterEach(() => resetTiming());
 
   it('handEndOpen is true when hand_ended exists and no later match_ended, even though the next hand is already dealt (playing)', () => {

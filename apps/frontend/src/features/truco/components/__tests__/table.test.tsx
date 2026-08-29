@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import type { TrucoState, TrucoView } from '@geotano/shared';
 import { buildView } from '@geotano/shared';
 import i18n from '../../../../i18n/i18n';
 import { TrucoTable } from '../TrucoTable';
+import { overrideTiming, resetTiming } from '../../lib/GAME_TIMING';
 
 // ─── Synthetic mid-hand states (UI consumes redacted views only) ────────────
 
@@ -260,8 +261,7 @@ describe('TrucoTable — batch 2 presentation (felt, bets, scoreboard)', () => {
     expect(screen.queryByTestId('mano-badge-rival')).toBeNull();
     expect(screen.getByTestId('my-score')).toHaveTextContent('12');
     expect(screen.getByTestId('rival-score')).toHaveTextContent('8');
-    // Goal label present in BOTH scoreboards.
-    expect(screen.getAllByText(/meta 30|goal 30/i).length).toBe(2);
+    // Compact Scoreboard no longer shows goal label; MANO badge is inline.
 
     cleanup();
     const other = baseState();
@@ -428,40 +428,46 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
   });
 
   it('hand_end keeps every lane visible and opens the event-derived HandEndPanel (CRITICAL 1)', () => {
-    const state = baseState();
-    state.phase = 'hand_end';
-    state.handWinner = 'A';
-    state.bazas = [
-      { number: 1, plays: [{ player: 'A', card: '3espada' }, { player: 'B', card: '11oro' }], winner: 'A' },
-    ];
-    state.history = [
-      { type: 'card_played', player: 'A', card: '3espada' },
-      { type: 'card_played', player: 'B', card: '11oro' },
-      { type: 'baza_resolved', baza: 1, winner: 'A' },
-      { type: 'points_awarded', side: 'A', amount: 2, reason: 'hand_prize' },
-      { type: 'hand_ended', winner: 'A' },
-    ];
-    renderTable(state);
+    // Override handEndDisplay to 0 for instant panel in tests
+    overrideTiming({ handEndDisplay: 0 });
+    try {
+      const state = baseState();
+      state.phase = 'hand_end';
+      state.handWinner = 'A';
+      state.bazas = [
+        { number: 1, plays: [{ player: 'A', card: '3espada' }, { player: 'B', card: '11oro' }], winner: 'A' },
+      ];
+      state.history = [
+        { type: 'card_played', player: 'A', card: '3espada' },
+        { type: 'card_played', player: 'B', card: '11oro' },
+        { type: 'baza_resolved', baza: 1, winner: 'A' },
+        { type: 'points_awarded', side: 'A', amount: 2, reason: 'hand_prize' },
+        { type: 'hand_ended', winner: 'A' },
+      ];
+      renderTable(state);
 
-    // Board does NOT blank out between hands.
-    expect(screen.getByTestId('truco-baza-lanes')).toBeDefined();
-    expect(screen.getByTestId('baza-marker-1')).toBeDefined();
+      // Board does NOT blank out between hands.
+      expect(screen.getByTestId('truco-baza-lanes')).toBeDefined();
+      expect(screen.getByTestId('baza-marker-1')).toBeDefined();
 
-    // The panel is derived from the hand_ended EVENT, not phase only.
-    const panel = screen.getByTestId('truco-hand-end-panel');
-    expect(panel.textContent).toMatch(/you won the hand/i);
-    expect(panel.textContent).toContain('+2');
+      // The panel is derived from the hand_ended EVENT, not phase only.
+      const panel = screen.getByTestId('truco-hand-end-panel');
+      expect(panel.textContent).toMatch(/you won the hand/i);
+      expect(panel.textContent).toContain('+2');
 
-    // Clicking Continue releases without an engine action.
-    fireEvent.click(screen.getByTestId('truco-hand-end-continue'));
+      // Clicking Continue releases without an engine action.
+      fireEvent.click(screen.getByTestId('truco-hand-end-continue'));
 
-    cleanup();
-    const lost = { ...baseState(), phase: 'hand_end' as const, handWinner: 'B' as const };
-    lost.history = [{ type: 'hand_ended', winner: 'B' }];
-    renderTable(lost);
-    const lostPanel = screen.getByTestId('truco-hand-end-panel');
-    expect(lostPanel.textContent).toMatch(/rival took/i);
-    expect(lostPanel.textContent).not.toContain('+');
+      cleanup();
+      const lost = { ...baseState(), phase: 'hand_end' as const, handWinner: 'B' as const };
+      lost.history = [{ type: 'hand_ended', winner: 'B' }];
+      renderTable(lost);
+      const lostPanel = screen.getByTestId('truco-hand-end-panel');
+      expect(lostPanel.textContent).toMatch(/rival took/i);
+      expect(lostPanel.textContent).not.toContain('+');
+    } finally {
+      resetTiming();
+    }
   });
 
   // Regression: envido settles mid-hand, so its points_awarded is followed by
@@ -469,8 +475,11 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
   // every award in the hand (1 envido + 2 hand prize = +3), not just the
   // contiguous tail before an event-type break.
   it('HandEndPanel sums ALL awards in the hand across interleaved events', () => {
-    const state = baseState();
-    state.phase = 'hand_end';
+    // Override handEndDisplay to 0 for instant panel in tests
+    overrideTiming({ handEndDisplay: 0 });
+    try {
+      const state = baseState();
+      state.phase = 'hand_end';
     state.handWinner = 'A';
     state.bazas = [
       { number: 1, plays: [{ player: 'A', card: '3espada' }, { player: 'B', card: '11oro' }], winner: 'A' },
@@ -492,6 +501,9 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
     const panel = screen.getByTestId('truco-hand-end-panel');
     expect(panel.textContent).toMatch(/you won the hand/i);
     expect(panel.textContent).toContain('+3');
+    } finally {
+      resetTiming();
+    }
   });
 });
 

@@ -20,6 +20,8 @@ export interface GameTimingShape {
   trickReveal: number;
   /** Hand-end pause before the result is understood. */
   handEnd: number;
+  /** Time to show final baza before hand-end modal opens. */
+  handEndDisplay: number;
   /** Per-difficulty human-like CPU thinking delays. */
   opponentThinking: OpponentThinkingTiming;
   /** Modal entry, kept short enough to feel responsive. */
@@ -31,6 +33,7 @@ const DEFAULT_TIMING: GameTimingShape = {
   cardPlay: 500,
   trickReveal: 1200,
   handEnd: 1500,
+  handEndDisplay: 2500,
   opponentThinking: { easy: 1500, medium: 1200, hard: [1400, 1300, 1200] },
   betModal: 300,
 };

@@ -87,17 +87,17 @@ function StakeChip({ view }: { view: TrucoView }) {
       data-testid="truco-stake-chip"
       className="flex min-w-0 flex-col items-end leading-tight"
     >
-      <span className="flex items-center gap-1 rounded-full border border-white/25 bg-black/25 px-2 py-0.5 text-[10px] font-semibold text-white/90">
+      <span className="flex items-center gap-1 rounded-full border border-white/25 bg-black/25 px-1.5 py-0.5 text-[9px] font-semibold text-white/90">
         {level === 1 ? (
-          <CardsIcon className="h-3 w-3" />
+          <CardsIcon className="h-2.5 w-2.5" />
         ) : (
-          <FlameIcon className="h-3 w-3" />
+          <FlameIcon className="h-2.5 w-2.5" />
         )}
         {trucoLabel}
       </span>
       {envidoLabel ? (
-        <span className="mt-0.5 flex items-center gap-1 rounded-full border border-white/20 bg-black/20 px-2 py-0.5 text-[9px] font-medium text-white/75">
-          <CoinsIcon className="h-2.5 w-2.5" />
+        <span className="mt-0.5 flex items-center gap-1 rounded-full border border-white/20 bg-black/20 px-1.5 py-0.5 text-[8px] font-medium text-white/75">
+          <CoinsIcon className="h-2 w-2" />
           {envidoLabel}
         </span>
       ) : null}
@@ -206,7 +206,7 @@ export function TrucoTable({
           {/* Permanent match score — always visible, never hidden by modals */}
           <span
             data-testid="truco-match-score"
-            className="text-sm font-semibold tabular-nums text-[var(--color-foreground)] whitespace-nowrap"
+            className="text-xs font-semibold tabular-nums text-[var(--color-foreground)] whitespace-nowrap"
           >
             {mySlot === 'A'
               ? `${t('truco.you')} ${view.scores.A} \u2014 ${opponentName} ${view.scores.B}`
