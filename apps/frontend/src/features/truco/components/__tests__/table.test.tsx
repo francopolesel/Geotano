@@ -248,10 +248,10 @@ describe('TrucoTable — batch 2 presentation (felt, bets, scoreboard)', () => {
       realRaised: false,
     };
     renderTable(pending);
-    // New simplified format: shows both truco level (Simple hand · 1 point) AND envido call name
+    // New simplified format: shows ONLY accepted/settled stakes — no pending calls.
+    // Truco shows "Simple hand · 1 point" (accepted level 1), envido is NOT shown until closed.
     expect(screen.getByTestId('truco-stake-chip')).toHaveTextContent(/simple hand/i);
-    expect(screen.getByTestId('truco-stake-chip')).toHaveTextContent(/envido/i);
-    expect(screen.getByTestId('truco-stake-chip')).not.toHaveTextContent(/envido: pending/i);
+    expect(screen.getByTestId('truco-stake-chip')).not.toHaveTextContent(/envido/i);
   });
 
   it('renders MANO badge on the mano side only plus progress toward the goal', () => {
@@ -496,13 +496,13 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
 });
 
 describe('TrucoTable — hand strip reflow for larger cards (A1-Z)', () => {
-  it('reserves 9.5rem of strip height so the scaled-up hand is not clipped', () => {
+  it('reserves responsive min-height on the Hand component so the scaled-up hand is not clipped', () => {
     renderTable(baseState());
-    const fan = screen.getByTestId('truco-hand');
-    const strip = fan.parentElement as HTMLElement;
-    expect(strip.style.minHeight).toBe('9.5rem');
-    // The fan itself is still present and the cards remain visible inside it.
+    const fan = screen.getByTestId('truco-hand') as HTMLElement;
+    // Hand component now has responsive min-h-[clamp(6rem,18vh,9.5rem)] via Tailwind
+    expect(fan.style.minHeight).toBe('');
     expect(fan.className).toContain('truco-fan');
+    expect(fan.className).toContain('min-h-');
     expect(screen.getByTestId('playing-card-7oro')).toBeDefined();
   });
 });

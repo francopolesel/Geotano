@@ -129,7 +129,6 @@ export function RenderActions({
           data-testid={`truco-action-${action.type}`}
           disabled={disabled}
           onClick={() => onAction(action)}
-          title={t(`truco.hint.${action.type}`)}
           className={[
             buttonClasses,
             'transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--truco-card-ring)]',

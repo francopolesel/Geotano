@@ -170,7 +170,6 @@ export function ActionBar({
                   data-testid={`truco-action-${action.type}`}
                   disabled={disabled}
                   onClick={() => onAction(action)}
-                  title={t(`truco.hint.${action.type}`)}
                   className={[
                     'flex min-h-[44px] min-w-0 items-center justify-center rounded-lg px-3 py-1.5',
                     'text-sm font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--truco-card-ring)]',
@@ -185,11 +184,6 @@ export function ActionBar({
                     <ActionIcon type={action.type} />
                     {t(LABEL_KEYS[action.type]!)}
                   </span>
-                  {!stacked && (
-                    <span className="max-w-[11rem] truncate text-[10px] font-normal opacity-75">
-                      {t(`truco.hint.${action.type}`)}
-                    </span>
-                  )}
                 </button>
               ))}
             </div>

@@ -354,7 +354,7 @@ export function TrucoMatchPage() {
       {(snapshot.status === 'playing' || snapshot.status === 'finished') && (
         <div
           data-testid="truco-match-playing"
-          className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-2 px-2"
+          className="flex flex-col min-h-[calc(100dvh-120px)] max-w-4xl mx-auto gap-2 px-2"
         >
           {snapshot.status === 'finished' && view && mySlot ? (
             // Spec: both clients land on the end screen with identical final

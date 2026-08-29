@@ -53,16 +53,34 @@ export interface TrucoTableProps {
 /** Discreet chip naming the current stake in human terms. */
 function StakeChip({ view }: { view: TrucoView }) {
   const { t } = useTranslation();
-  // A pending raise shows its sung level even before acceptance.
-  const level = view.trucoAwaiting?.level ?? view.acceptedTrucoLevel;
+  // Only show ACCEPTED/SETTLED stakes — no pending calls.
+  const level = view.acceptedTrucoLevel;
   const trucoLabel = level === 1
     ? t('truco.stake.simple', { n: 1 })
     : t(`truco.call.${level === 2 ? 'truco' : level === 3 ? 'retruco' : 'valeCuatro'}`);
-  const envidoLabel = view.envidoAwaiting
-    ? t(`truco.call.${view.envidoAwaiting.falta ? 'faltaEnvido' : view.envidoAwaiting.realRaised ? 'realEnvido' : 'envido'}`)
-    : view.envidoClosed
-      ? null
-      : null;
+
+  // Determine resolved envido type from history: find the last envido call
+  // before the envido was closed (envido_showdown or answered with bet='envido').
+  let resolvedEnvidoCall: 'sing_envido' | 'sing_real_envido' | 'sing_falta_envido' | null = null;
+  if (view.envidoClosed) {
+    for (let i = view.history.length - 1; i >= 0; i--) {
+      const event = view.history[i];
+      if (event.type === 'call_sung' &&
+          (event.call === 'sing_envido' || event.call === 'sing_real_envido' || event.call === 'sing_falta_envido')) {
+        resolvedEnvidoCall = event.call;
+        break;
+      }
+      // Stop at envido_showdown or envido answer — the resolved call is before this
+      if (event.type === 'envido_showdown' ||
+          (event.type === 'answered' && event.bet === 'envido')) {
+        // Continue searching backwards for the call_sung
+        continue;
+      }
+    }
+  }
+  const envidoLabel = resolvedEnvidoCall
+    ? t(`truco.call.${resolvedEnvidoCall === 'sing_falta_envido' ? 'faltaEnvido' : resolvedEnvidoCall === 'sing_real_envido' ? 'realEnvido' : 'envido'}`)
+    : null;
 
   return (
     <div
@@ -171,27 +189,32 @@ export function TrucoTable({
     <>
     <div
       data-testid="truco-table"
-      className="mx-auto flex min-h-0 w-full max-w-4xl flex-col gap-2 overflow-x-hidden p-1"
+      className="mx-auto flex h-[calc(100dvh-80px)] w-full max-w-4xl flex-col gap-2 overflow-x-hidden p-1 overflow-hidden"
     >
-      {/* Table header: round status + permanent match score + current stake + history toggle.
-          Wrapping is allowed so elements never collide on narrow viewports. */}
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-1 px-0.5">
-        <span
-          data-testid="truco-round-status"
-          className="text-xs font-semibold tabular-nums text-[var(--color-muted-foreground)]"
-        >
-          {t('truco.round.status', { hand: view.handNumber, baza: view.bazaNumber })}
-        </span>
-        {/* Permanent match score — always visible, never hidden by modals */}
-        <span
-          data-testid="truco-match-score"
-          className="text-lg font-semibold tabular-nums text-[var(--color-foreground)] whitespace-nowrap"
-        >
-          {mySlot === 'A'
-            ? `${t('truco.you')} ${view.scores.A} \u2014 ${opponentName} ${view.scores.B}`
-            : `${t('truco.you')} ${view.scores.B} \u2014 ${opponentName} ${view.scores.A}`}
-        </span>
-        <div className="flex min-w-0 shrink items-center gap-1">
+      {/* Table header: two rows with clear visual separation.
+          Row 1: round status + permanent match score (compact, single line)
+          Row 2: stake chip (accepted calls only) + history toggle */}
+      <div className="flex min-w-0 flex-col gap-1 px-0.5">
+        {/* Row 1: Round status + Match score */}
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-1">
+          <span
+            data-testid="truco-round-status"
+            className="text-xs font-semibold tabular-nums text-[var(--color-muted-foreground)]"
+          >
+            {t('truco.round.status', { hand: view.handNumber, baza: view.bazaNumber })}
+          </span>
+          {/* Permanent match score — always visible, never hidden by modals */}
+          <span
+            data-testid="truco-match-score"
+            className="text-sm font-semibold tabular-nums text-[var(--color-foreground)] whitespace-nowrap"
+          >
+            {mySlot === 'A'
+              ? `${t('truco.you')} ${view.scores.A} \u2014 ${opponentName} ${view.scores.B}`
+              : `${t('truco.you')} ${view.scores.B} \u2014 ${opponentName} ${view.scores.A}`}
+          </span>
+        </div>
+        {/* Row 2: Stake chip + History toggle */}
+        <div className="flex min-w-0 shrink items-center justify-end gap-2 border-t border-white/10 pt-1">
           <StakeChip view={view} />
           <GameHistory history={view.history} mySlot={mySlot} names={names} />
         </div>
@@ -231,7 +254,6 @@ export function TrucoTable({
                 family={betFamily}
                 title={betTitle}
                 explanation={betExplanation}
-                answerHint={t('truco.bet.answerHint')}
                 actions={actions}
                 onAction={onAction}
                 disabled={disabled}

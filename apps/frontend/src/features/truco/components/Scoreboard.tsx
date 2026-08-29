@@ -28,19 +28,19 @@ export function Scoreboard({ score, targetPoints, tone, isMano }: ScoreboardProp
       {/* Score: huge, tabular, font-black */}
       <span
         data-testid={isMine ? 'my-score' : 'rival-score'}
-        className="text-4xl sm:text-5xl font-black leading-none tabular-nums text-[var(--color-foreground)]"
+        className="text-3xl sm:text-4xl font-black leading-none tabular-nums text-[var(--color-foreground)]"
       >
         {score}
       </span>
 
-      {/* Progress bar: thicker (h-3), rounded-full, with subtle glow */}
+      {/* Progress bar: thinner (h-2), rounded-full, with subtle glow */}
       <div
         role="progressbar"
         aria-valuenow={score}
         aria-valuemin={0}
         aria-valuemax={targetPoints}
         aria-label={t('truco.score.progress', { current: score, target: targetPoints })}
-        className="w-full h-3 overflow-hidden rounded-full bg-[var(--color-muted)]"
+        className="w-full h-2 overflow-hidden rounded-full bg-[var(--color-muted)]"
       >
         <div
           className={[
@@ -54,7 +54,7 @@ export function Scoreboard({ score, targetPoints, tone, isMano }: ScoreboardProp
       </div>
 
       {/* Goal label (kept for context) */}
-      <span className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
+      <span className="text-[9px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
         {t('truco.score.goal', { target: targetPoints })}
       </span>
 
@@ -63,7 +63,7 @@ export function Scoreboard({ score, targetPoints, tone, isMano }: ScoreboardProp
         <span
           data-testid={`mano-badge-${tone}`}
           title={t('truco.mano.badge')}
-          className="mt-0.5 shrink-0 inline-flex items-center gap-1 rounded-full border-2 border-amber-400 bg-amber-50/50 px-2 py-0.5 text-xs font-black tracking-widest text-amber-700 dark:text-amber-300 dark:bg-amber-900/30"
+          className="mt-0.5 shrink-0 inline-flex items-center gap-1 rounded-full border-2 border-amber-400 bg-amber-50/50 px-2 py-0.5 text-[10px] font-black tracking-widest text-amber-700 dark:text-amber-300 dark:bg-amber-900/30"
         >
           {t('truco.mano.badge')}
         </span>

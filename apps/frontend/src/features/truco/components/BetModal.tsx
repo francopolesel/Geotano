@@ -31,8 +31,6 @@ export interface BetModalProps {
   title: string;
   /** Human explanation of what the bet means (kept for compat, no longer rendered). */
   explanation: string;
-  /** One-line hint about how to answer (Quiero / No quiero). */
-  answerHint?: string;
   /** legalActions(view, mySlot) subset offered as the ONLY answer buttons. */
   actions: readonly TrucoAction[];
   onAction: (action: TrucoAction) => void;
@@ -52,7 +50,6 @@ export function BetModal({
   family,
   title,
   explanation, // kept for compat, no longer rendered per T6
-  answerHint,
   actions,
   onAction,
   disabled = false,
@@ -118,17 +115,9 @@ export function BetModal({
           {title}
         </p>
 
-        {answerHint ? (
-          <p className="text-center text-xs text-[var(--color-muted-foreground)]">
-            {answerHint}
-          </p>
-        ) : null}
-
         <div ref={actionsRef} className="mt-1 w-full">
           <RenderActions actions={actions} onAction={onAction} disabled={disabled} size="large" />
         </div>
-
-        <span className="sr-only">{t('truco.bet.answerHint')}</span>
       </div>
     </Modal>
   );
