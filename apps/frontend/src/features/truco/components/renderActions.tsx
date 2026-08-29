@@ -26,6 +26,8 @@ export interface RenderActionsOptions {
   awaitingOpponent?: boolean;
   /** Refined waiting copy: bet answer owed by the rival (vs generic turn wait). */
   waitingForAnswer?: boolean;
+  /** Button size variant: 'normal' (44px) for ActionBar, 'large' (52px) for BetModal. */
+  size?: 'normal' | 'large';
 }
 
 export const ACTION_DISPLAY_ORDER: readonly TrucoAction['type'][] = [
@@ -94,6 +96,7 @@ export function RenderActions({
   disabled = false,
   awaitingOpponent = false,
   waitingForAnswer = false,
+  size = 'normal',
 }: RenderActionsOptions) {
   const { t } = useTranslation();
 
@@ -111,8 +114,14 @@ export function RenderActions({
     );
   }
 
+  const buttonClasses = size === 'large'
+    ? 'flex min-h-[52px] min-w-0 items-center justify-center gap-3 rounded-lg px-6 py-3 text-lg font-semibold'
+    : 'flex min-h-[44px] min-w-0 items-center justify-center gap-2 rounded-lg px-4 py-2 text-base font-semibold';
+
+  const iconSize = size === 'large' ? 'h-6 w-6' : 'h-5 w-5';
+
   return (
-    <div className="flex w-full flex-wrap items-stretch justify-center gap-2">
+    <div className="flex w-full flex-wrap items-stretch justify-center gap-3">
       {list.map((action) => (
         <button
           key={action.type}
@@ -122,13 +131,13 @@ export function RenderActions({
           onClick={() => onAction(action)}
           title={t(`truco.hint.${action.type}`)}
           className={[
-            'flex min-h-[44px] min-w-0 items-center justify-center gap-2 rounded-lg px-4 py-2',
-            'text-base font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--truco-card-ring)]',
+            buttonClasses,
+            'transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--truco-card-ring)]',
             disabled ? 'cursor-not-allowed opacity-50' : 'hover:-translate-y-0.5',
             actionButtonClass(action.type),
           ].join(' ')}
         >
-          {actionIcon(action.type, 'h-5 w-5 shrink-0')}
+          {actionIcon(action.type, `${iconSize} shrink-0`)}
           {t(LABEL_KEYS[action.type]!)}
         </button>
       ))}

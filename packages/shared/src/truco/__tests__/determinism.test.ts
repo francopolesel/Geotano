@@ -104,13 +104,21 @@ describe('Error taxonomy coverage sweep', () => {
       { type: 'play_card', actor: 'A', card: '1espada' === base.hands.A[0] ? '1basto' : '1espada' },
       'E_CARD_NOT_OWNED',
     );
-    // E_ENVIDO_WINDOW_CLOSED (after first card, either actor, every call type)
+    // E_ENVIDO_WINDOW_CLOSED (after first baza completes, neither actor called envido)
+    // Fresh state: A plays, B plays (first baza complete), no envido called
     let r = applyAction(base, { type: 'play_card', actor: 'A', card: base.hands.A[0]! }, DEPS());
     if (!r.ok) throw new Error(r.errorCode);
-    expectCode(r.state, { type: 'sing_envido', actor: 'A' }, 'E_ENVIDO_WINDOW_CLOSED');
-    expectCode(r.state, { type: 'sing_envido', actor: 'B' }, 'E_ENVIDO_WINDOW_CLOSED');
-    expectCode(r.state, { type: 'sing_real_envido', actor: 'B' }, 'E_ENVIDO_WINDOW_CLOSED');
-    expectCode(r.state, { type: 'sing_falta_envido', actor: 'B' }, 'E_ENVIDO_WINDOW_CLOSED');
+    // A tries to call envido — not their turn
+    expectCode(r.state, { type: 'sing_envido', actor: 'A' }, 'E_OUT_OF_TURN');
+    // B can call envido — window still open
+    // But we don't call it; instead B plays a card to complete first baza
+    const bPlays = applyAction(r.state, { type: 'play_card', actor: 'B', card: r.state.hands.B[0]! }, DEPS());
+    if (!bPlays.ok) throw new Error(bPlays.errorCode);
+    // First baza complete (2 cards played) — envido window now closed for both
+    expectCode(bPlays.state, { type: 'sing_envido', actor: 'A' }, 'E_ENVIDO_WINDOW_CLOSED');
+    expectCode(bPlays.state, { type: 'sing_envido', actor: 'B' }, 'E_ENVIDO_WINDOW_CLOSED');
+    expectCode(bPlays.state, { type: 'sing_real_envido', actor: 'B' }, 'E_ENVIDO_WINDOW_CLOSED');
+    expectCode(bPlays.state, { type: 'sing_falta_envido', actor: 'B' }, 'E_ENVIDO_WINDOW_CLOSED');
 
     // E_AWAITING_OWN_BET (card play while a bet is open — synthetic pending bet)
     const withBet: TrucoState = {

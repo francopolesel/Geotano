@@ -25,9 +25,9 @@ describe('PlayingCard — raised scale contract (A1-R)', () => {
   afterEach(() => cleanup());
 
   it.each([
-    ['sm', 'w-[clamp(2.75rem,10vw,4rem)]'],
-    ['md', 'w-[clamp(3.5rem,13vw,5.5rem)]'],
-    ['lg', 'w-[clamp(4.25rem,16vw,6.5rem)]'],
+    ['sm', 'w-[clamp(3.5rem,14vw,7rem)]'],
+    ['md', 'w-[clamp(4.5rem,18vw,8.5rem)]'],
+    ['lg', 'w-[clamp(5.5rem,22vw,10rem)]'],
   ] as const)('renders the raised %s clamp token', (size, token) => {
     renderCard({ card: '5oro', size });
     const root = screen.getByTestId('playing-card-5oro');

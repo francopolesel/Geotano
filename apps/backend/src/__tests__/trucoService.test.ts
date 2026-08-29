@@ -659,7 +659,7 @@ describe('applyTrucoAction', () => {
     // (slot B) is rejected when attempting the now-illegal opening.
     const row = await makePlayingRow();
     pushRow(row);
-    pendingResults.push({ count: 1 }); // CAS update succeeds
+    pendingResults.push({ count: 1 }); // CAS update succeeds for lead
     const state = (row.engineState as any).state as TrucoState;
     const ledCard = state.hands.A[0]!;
 
@@ -677,11 +677,14 @@ describe('applyTrucoAction', () => {
         engineState: { schemaVersion: 1, state: persisted },
       }),
     );
+    pendingResults.push({ count: 1 }); // CAS update succeeds for envido
 
+    // New rule: envido window stays open until first baza completes (both players played).
+    // After mano (A) plays first card, pie (B) CAN still call envido.
     const outcome = await applyTrucoAction('tm-1', 'user-2', 5, { type: 'sing_envido' });
 
-    expect(outcome).toMatchObject({ ok: false, httpStatus: 400, errorCode: 'E_ENVIDO_WINDOW_CLOSED' });
-    expect(txChain.set).toHaveBeenCalledTimes(1); // no mutation beyond the legal lead
+    expect(outcome).toMatchObject({ ok: true });
+    expect(txChain.set).toHaveBeenCalledTimes(2); // lead + envido both persisted
   });
 
   it('applies a legal play atomically: bumped version, wrapped new state, redacted view', async () => {

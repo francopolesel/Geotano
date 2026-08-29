@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
-import type { TrucoAction } from '@geotano/shared';
+import type { TrucoAction, PlayerSlot } from '@geotano/shared';
 import i18n from '../../../../i18n/i18n';
 import { BetModal } from '../BetModal';
 
@@ -21,6 +21,10 @@ function renderModal(
           { type: 'sing_retruco', actor: 'A' },
         ]}
         onAction={onAction}
+        scores={{ A: 12, B: 8 }}
+        targetPoints={30}
+        mySlot="A"
+        opponentName="Bruno"
         {...props}
       />
     </I18nextProvider>,
@@ -51,10 +55,10 @@ describe('BetModal — surface + contracts (E1/E3, G1)', () => {
     expect(document.activeElement).toBe(screen.getByTestId('truco-action-quiero'));
   });
 
-  it('keeps every answer button a ≥44px tap target', () => {
+  it('keeps every answer button a ≥52px tap target (BetModal large)', () => {
     renderModal();
     const quiero = screen.getByTestId('truco-action-quiero');
-    expect(quiero.className).toContain('min-h-[44px]');
+    expect(quiero.className).toContain('min-h-[52px]');
   });
 
   it('dispatches the exact action on click', () => {

@@ -283,19 +283,25 @@ describe('Envido timing windows', () => {
     expect(opened.state.envido?.lastCaller).toBe('B');
   });
 
-  it('after the first card hits the table, ALL envido opening variants are rejected and state unchanged', () => {
-    // Official rule: once ANY card is played the opening window is closed for
-    // BOTH players, for every envido call type alike.
+  it('after the first card, envido still open for player to act (pie); closed for mano', () => {
+    // New rule: envido window stays open until first baza completes (both players played).
+    // After mano (A) plays first card, pie (B) can still call envido.
     const state = makeState();
     const led = applyAction(state, { type: 'play_card', actor: 'A', card: state.hands.A[0]! }, DEPS());
     if (!led.ok) throw new Error(led.errorCode);
-    for (const actor of ['B', 'A'] as const) {
-      for (const type of ['sing_envido', 'sing_real_envido', 'sing_falta_envido'] as const) {
-        const attempt = applyAction(led.state, { type, actor }, DEPS());
-        if (attempt.ok) throw new Error(`must reject ${type} by ${actor}`);
-        expect(attempt.errorCode).toBe('E_ENVIDO_WINDOW_CLOSED');
-        expect(attempt.state).toBe(led.state);
-      }
+    // B's turn: envido opening should succeed
+    for (const type of ['sing_envido', 'sing_real_envido', 'sing_falta_envido'] as const) {
+      const attempt = applyAction(led.state, { type, actor: 'B' }, DEPS());
+      expect(attempt.ok).toBe(true);
+      expect(attempt.state.phase).toBe('envido_betting');
+      expect(attempt.state.envido?.lastCaller).toBe('B');
+    }
+    // A's turn: envido opening should fail with E_OUT_OF_TURN (not their turn)
+    for (const type of ['sing_envido', 'sing_real_envido', 'sing_falta_envido'] as const) {
+      const attempt = applyAction(led.state, { type, actor: 'A' }, DEPS());
+      if (attempt.ok) throw new Error(`must reject ${type} by A`);
+      expect(attempt.errorCode).toBe('E_OUT_OF_TURN');
+      expect(attempt.state).toBe(led.state);
     }
   });
 

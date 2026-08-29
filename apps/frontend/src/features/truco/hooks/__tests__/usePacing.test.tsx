@@ -105,7 +105,7 @@ describe('usePacing — pacing gates read GAME_TIMING and honor reduced motion (
     expect(result.current.dealState).toBe(true);
 
     act(() => {
-      vi.advanceTimersByTime(700); // GAME_TIMING.cardDeal
+      vi.advanceTimersByTime(1000); // GAME_TIMING.cardDeal
     });
     expect(result.current.dealState).toBe(false);
   });
@@ -128,7 +128,7 @@ describe('usePacing — pacing gates read GAME_TIMING and honor reduced motion (
     expect(result.current.bazaState).toBe(true);
 
     act(() => {
-      vi.advanceTimersByTime(900); // GAME_TIMING.trickReveal
+      vi.advanceTimersByTime(1200); // GAME_TIMING.trickReveal
     });
     expect(result.current.bazaState).toBe(false);
   });

@@ -5,9 +5,11 @@ import type {
   TrucoEvent,
   TrucoPhase,
 } from '@geotano/shared';
+import { DECK_40 } from '@geotano/shared';
 import { useTranslation } from 'react-i18next';
 import { PlayingCard } from '../../../components/game/PlayingCard';
 import { CallFeedbackBanner } from './CallFeedbackBanner';
+import { DeckVisual } from './DeckVisual';
 
 /**
  * CENTER zone over the felt: call feedback plus the three-baza lane strip —
@@ -27,6 +29,8 @@ export interface TableZoneProps {
   names: Record<PlayerSlot, string>;
   history: readonly TrucoEvent[];
   phase: TrucoPhase;
+  /** Cards left in the deck. If omitted, computed from DECK_40 - dealt. */
+  deckRemaining?: number;
 }
 
 /** Phases in which the baza lanes are on stage. */
@@ -87,9 +91,16 @@ export function TableZone({
   names,
   history,
   phase,
+  deckRemaining,
 }: TableZoneProps) {
   const { t } = useTranslation();
   const rivalSlot: PlayerSlot = mySlot === 'A' ? 'B' : 'A';
+
+  // Compute deck remaining if not provided: DECK_40 - (myHand + opponentHand + played)
+  // Since we don't have direct access to hand counts here, we compute from available data:
+  // cardsPlayedThisHand would need to come from view, but we only have bazas and openBazaPlays
+  // For now, use provided deckRemaining or compute from known dealt cards (6 cards dealt initially)
+  const computedDeckRemaining = deckRemaining ?? Math.max(0, DECK_40.length - 6 - (bazas.length * 2) - openBazaPlays.length);
 
   if (!LANES_PHASES.includes(phase)) {
     // Pre-deal / post-match: keep only the feedback slot alive.
@@ -109,11 +120,21 @@ export function TableZone({
   const myPlay = openBazaPlays.find((p) => p.player === mySlot);
   const lastBazaNumber = bazas.length > 0 ? bazas[bazas.length - 1]!.number : null;
 
+  // Show deck during playing and betting phases when cards remain
+  const showDeck = computedDeckRemaining > 0 && ['playing', 'envido_betting', 'truco_betting'].includes(phase);
+
   return (
     <div
       data-testid="truco-table-zone"
       className="relative flex min-w-0 flex-1 flex-col items-center justify-between gap-2 px-2 py-2 sm:px-3 sm:py-3"
     >
+      {/* Deck visual at top-center of felt */}
+      {showDeck && (
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+          <DeckVisual deckRemaining={computedDeckRemaining} size="md" />
+        </div>
+      )}
+
       {/* Call feedback persists here until superseded */}
       <div className="min-h-[1.5rem] w-full max-w-md">
         <CallFeedbackBanner history={history} names={names} />

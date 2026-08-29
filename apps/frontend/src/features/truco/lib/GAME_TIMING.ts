@@ -27,12 +27,12 @@ export interface GameTimingShape {
 }
 
 const DEFAULT_TIMING: GameTimingShape = {
-  cardDeal: 700,
-  cardPlay: 350,
-  trickReveal: 900,
-  handEnd: 1200,
-  opponentThinking: { easy: 1200, medium: 900, hard: [1100, 1000, 900] },
-  betModal: 220,
+  cardDeal: 1000,
+  cardPlay: 500,
+  trickReveal: 1200,
+  handEnd: 1500,
+  opponentThinking: { easy: 1500, medium: 1200, hard: [1400, 1300, 1200] },
+  betModal: 300,
 };
 
 /** Live, mutable module-level copy so `overrideTiming` is observed everywhere. */

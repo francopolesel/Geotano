@@ -73,7 +73,7 @@ export function MyZone({
       </div>
 
       {/* Orejeo hand: fanned, inspectable, clickable only when legal */}
-      <div className="min-w-0 py-1" style={{ minHeight: '7.5rem' }}>
+      <div className="min-w-0 py-1" style={{ minHeight: '9.5rem' }}>
         <Hand
           myHand={myHand}
           playable={playable}

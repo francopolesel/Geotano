@@ -233,8 +233,9 @@ describe('TrucoTable — batch 2 presentation (felt, bets, scoreboard)', () => {
     renderTable(state);
     const chip = screen.getByTestId('truco-stake-chip');
     expect(chip).toHaveTextContent(/retruco/i);
-    expect(chip).toHaveTextContent('3 points');
-    expect(chip).toHaveTextContent(/envido: settled/i);
+    // New simplified format: no "X points" suffix, no "envido: settled" badge
+    expect(chip).not.toHaveTextContent('3 points');
+    expect(chip).not.toHaveTextContent(/envido: settled/i);
 
     cleanup();
     const pending = baseState();
@@ -247,7 +248,10 @@ describe('TrucoTable — batch 2 presentation (felt, bets, scoreboard)', () => {
       realRaised: false,
     };
     renderTable(pending);
-    expect(screen.getByTestId('truco-stake-chip')).toHaveTextContent(/envido: pending/i);
+    // New simplified format: shows both truco level (Simple hand · 1 point) AND envido call name
+    expect(screen.getByTestId('truco-stake-chip')).toHaveTextContent(/simple hand/i);
+    expect(screen.getByTestId('truco-stake-chip')).toHaveTextContent(/envido/i);
+    expect(screen.getByTestId('truco-stake-chip')).not.toHaveTextContent(/envido: pending/i);
   });
 
   it('renders MANO badge on the mano side only plus progress toward the goal', () => {
@@ -267,7 +271,7 @@ describe('TrucoTable — batch 2 presentation (felt, bets, scoreboard)', () => {
     expect(screen.getByTestId('mano-badge-rival')).toBeDefined();
   });
 
-  it('bet pending on ME: elevated panel with huge call, explanation and the ONLY answer buttons', () => {
+  it('bet pending on ME: elevated panel with huge call and the ONLY answer buttons', () => {
     const state = baseState();
     state.phase = 'truco_betting';
     state.truco = { level: 2, singer: 'B', responder: 'A', resumeTurn: 'A' };
@@ -275,8 +279,10 @@ describe('TrucoTable — batch 2 presentation (felt, bets, scoreboard)', () => {
 
     const panel = screen.getByTestId('truco-bet-panel');
     expect(panel).toHaveTextContent(/¡truco!/i);
-    expect(panel).toHaveTextContent(/for 2 points/i);
     expect(panel).toHaveTextContent(/quiero/i);
+    // Compact match score context is now rendered instead of explanation
+    expect(panel).toHaveTextContent('You: 12');
+    expect(panel).toHaveTextContent('Bruno: 8');
 
     // Exactly one instance of each answer control — inside the panel only.
     expect(screen.getAllByTestId('truco-action-quiero').length).toBe(1);
@@ -290,7 +296,7 @@ describe('TrucoTable — batch 2 presentation (felt, bets, scoreboard)', () => {
     fireEvent.click(screen.getByTestId('truco-action-quiero'));
   });
 
-  it('envido pending on ME: coins-family panel with the envido explanation', () => {
+  it('envido pending on ME: coins-family panel with the envido call', () => {
     const state = baseState();
     state.phase = 'envido_betting';
     state.envido = {
@@ -305,7 +311,9 @@ describe('TrucoTable — batch 2 presentation (felt, bets, scoreboard)', () => {
 
     const panel = screen.getByTestId('truco-bet-panel');
     expect(panel).toHaveTextContent(/¡envido!/i);
-    expect(panel).toHaveTextContent(/envido bet/i);
+    // Compact match score context is now rendered instead of explanation
+    expect(panel).toHaveTextContent('You: 12');
+    expect(panel).toHaveTextContent('Bruno: 8');
     expect(screen.getAllByTestId('truco-action-sing_real_envido').length).toBe(1);
   });
 
@@ -488,11 +496,11 @@ describe('TrucoTable — baza lanes strip (UI v2, batch B)', () => {
 });
 
 describe('TrucoTable — hand strip reflow for larger cards (A1-Z)', () => {
-  it('reserves 7.5rem of strip height so the scaled-up hand is not clipped', () => {
+  it('reserves 9.5rem of strip height so the scaled-up hand is not clipped', () => {
     renderTable(baseState());
     const fan = screen.getByTestId('truco-hand');
     const strip = fan.parentElement as HTMLElement;
-    expect(strip.style.minHeight).toBe('7.5rem');
+    expect(strip.style.minHeight).toBe('9.5rem');
     // The fan itself is still present and the cards remain visible inside it.
     expect(fan.className).toContain('truco-fan');
     expect(screen.getByTestId('playing-card-7oro')).toBeDefined();

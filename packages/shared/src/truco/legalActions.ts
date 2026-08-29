@@ -24,8 +24,8 @@ export function legalActions(ctx: TrucoPublicContext, playerId: PlayerSlot): Tru
         actor: playerId,
         card,
       }));
-      // Envido window: no card played, no accepted truco, betting not closed.
-      if (!ctx.envidoClosed && !ctx.trucoAcceptedThisHand && ctx.cardsPlayedThisHand === 0) {
+      // Envido window: open until first baza completes (both players played), or truco accepted, or envido settled.
+      if (!ctx.envidoClosed && !ctx.trucoAcceptedThisHand && ctx.cardsPlayedThisHand < 2) {
         actions.push(
           { type: 'sing_envido', actor: playerId },
           { type: 'sing_real_envido', actor: playerId },
@@ -70,7 +70,7 @@ export function legalActions(ctx: TrucoPublicContext, playerId: PlayerSlot): Tru
       // `realRaised` is never set here. The real envido gating lives in the
       // envido_betting case and in engine.ts singEnvido; this block is kept
       // as a defensive fallback should the two sub-machines ever interact.
-      if (!ctx.envidoClosed && ctx.cardsPlayedThisHand === 0) {
+      if (!ctx.envidoClosed && ctx.cardsPlayedThisHand < 2) {
         out.push(
           { type: 'sing_envido', actor: playerId },
           { type: 'sing_real_envido', actor: playerId },

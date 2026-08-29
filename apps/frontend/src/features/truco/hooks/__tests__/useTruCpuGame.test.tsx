@@ -79,7 +79,7 @@ describe('useTruCpuGame', () => {
     );
     expect(before).toHaveLength(0);
 
-    flush(1200);
+    flush(1500); // GAME_TIMING.opponentThinking.easy
     const after = events.filter(
       (event) =>
         (event.type === 'card_played' && event.player === 'B') ||
@@ -106,7 +106,7 @@ describe('useTruCpuGame', () => {
       result.current.play(singEnvido!);
     });
     expect(result.current.view!.envidoAwaiting).not.toBeNull();
-    flush(1200);
+    flush(1500); // GAME_TIMING.opponentThinking.easy
     expect(result.current.view!.envidoAwaiting).toBeNull();
     expect(events.some((event) => event.type === 'answered')).toBe(true);
   });
@@ -123,7 +123,7 @@ describe('useTruCpuGame', () => {
           result.current.play(pending);
         });
       } else {
-        flush(1200);
+        flush(1500); // GAME_TIMING.opponentThinking.easy
       }
     }
     expect(result.current.finished).toBe(true);
@@ -178,7 +178,7 @@ describe('useTruCpuGame', () => {
   });
 
   it('hard difficulty spaces CPU turns with the per-hand delay table (C3-V)', () => {
-    // hardThinkDelayMs(1) → delays[1 % 3] === 1000 (GAME_TIMING.hard[1]).
+    // hardThinkDelayMs(1) → delays[1 % 3] === 1300 (GAME_TIMING.hard[1]).
     const events: TrucoEvent[] = [];
     const { result } = renderHook(
       () =>
@@ -202,11 +202,11 @@ describe('useTruCpuGame', () => {
       ).length;
 
     expect(cpuEvents()).toBe(0);
-    flush(900);
-    // 900ms elapsed (below the hand-1 slot): hard must STILL be thinking.
+    flush(1200);
+    // 1200ms elapsed (below the hand-1 slot 1300): hard must STILL be thinking.
     expect(cpuEvents()).toBe(0);
 
-    flush(100); // 1000ms total — the hand-1 slot elapses
+    flush(100); // 1300ms total — the hand-1 slot elapses
     expect(cpuEvents()).toBeGreaterThanOrEqual(1);
   });
 
@@ -242,7 +242,7 @@ describe('useTruCpuGame', () => {
 
     // Releasing the pause re-arms the timer from GAME_TIMING and it fires.
     session.rerender({ suppress: false });
-    flush(1200);
+    flush(1500); // GAME_TIMING.opponentThinking.easy
     expect(cpuEvents()).toBeGreaterThanOrEqual(1);
   });
 

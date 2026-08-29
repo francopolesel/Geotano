@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TrucoAction } from '@geotano/shared';
+import type { PlayerSlot } from '@geotano/shared';
 import { Modal } from '../../../components/game/Modal';
 import { RenderActions } from './renderActions';
 import { CoinsIcon, FlameIcon } from './icons';
@@ -18,6 +19,7 @@ import { CoinsIcon, FlameIcon } from './icons';
  *   autofocus-on-quiero contract (BetPanel.tsx:33 pattern).
  * - `disabled` while `isActing`/paused so double-taps and mid-POST repeats
  *   can't fire twice (G1).
+ * - Renders compact match score context above the bet title.
  *
  * EXISTING TESTIDS PRESERVED: `truco-bet-panel`, `truco-bet-title`.
  */
@@ -27,7 +29,7 @@ export interface BetModalProps {
   family: 'truco' | 'envido';
   /** Huge call headline, already localized ("¡TRUCO!", "¡ENVIDO!"…). */
   title: string;
-  /** Human explanation of what the bet means. */
+  /** Human explanation of what the bet means (kept for compat, no longer rendered). */
   explanation: string;
   /** One-line hint about how to answer (Quiero / No quiero). */
   answerHint?: string;
@@ -36,19 +38,36 @@ export interface BetModalProps {
   onAction: (action: TrucoAction) => void;
   /** Disable all answer controls while an action is in flight. */
   disabled?: boolean;
+  /** Current engine scores for compact match context display. */
+  scores: Record<PlayerSlot, number>;
+  /** Match target points (for reference). */
+  targetPoints: number;
+  /** My player slot. */
+  mySlot: PlayerSlot;
+  /** Opponent display name. */
+  opponentName: string;
 }
 
 export function BetModal({
   family,
   title,
-  explanation,
+  explanation, // kept for compat, no longer rendered per T6
   answerHint,
   actions,
   onAction,
   disabled = false,
+  scores,
+  targetPoints,
+  mySlot,
+  opponentName,
 }: BetModalProps) {
   const { t } = useTranslation();
   const Icon = family === 'truco' ? FlameIcon : CoinsIcon;
+
+  // Compute my score and rival score for display
+  const myScore = scores[mySlot];
+  const rivalSlot: PlayerSlot = mySlot === 'A' ? 'B' : 'A';
+  const rivalScore = scores[rivalSlot];
 
   // Autofocus the primary accept (Quiero) on open (BetPanel.tsx:33 contract).
   const actionsRef = useRef<HTMLDivElement | null>(null);
@@ -64,6 +83,17 @@ export function BetModal({
         data-testid="truco-bet-panel"
         className="flex flex-col items-center gap-2"
       >
+        {/* Compact match score context — secondary, muted */}
+        <div className="w-full px-2 py-1 text-center">
+          <div className="flex justify-center gap-4 text-sm font-medium tabular-nums text-[var(--color-muted-foreground)]">
+            <span>{t('truco.you')}: {myScore}</span>
+            <span>{opponentName}: {rivalScore}</span>
+          </div>
+          <div className="text-[10px] uppercase tracking-wide text-[var(--color-muted-foreground)]">
+            {t('truco.score.goal', { target: targetPoints })}
+          </div>
+        </div>
+
         <span
           aria-hidden
           className={[
@@ -88,9 +118,6 @@ export function BetModal({
           {title}
         </p>
 
-        <p className="text-center text-sm font-medium text-[var(--color-foreground)]">
-          {explanation}
-        </p>
         {answerHint ? (
           <p className="text-center text-xs text-[var(--color-muted-foreground)]">
             {answerHint}
@@ -98,7 +125,7 @@ export function BetModal({
         ) : null}
 
         <div ref={actionsRef} className="mt-1 w-full">
-          <RenderActions actions={actions} onAction={onAction} disabled={disabled} />
+          <RenderActions actions={actions} onAction={onAction} disabled={disabled} size="large" />
         </div>
 
         <span className="sr-only">{t('truco.bet.answerHint')}</span>

@@ -1,5 +1,6 @@
 import type { PlayerSlot, TrucoAction, TrucoView } from '@geotano/shared';
 import { legalActions } from '@geotano/shared';
+import { DECK_40 } from '@geotano/shared';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { RivalZone } from './RivalZone';
@@ -54,10 +55,13 @@ function StakeChip({ view }: { view: TrucoView }) {
   const { t } = useTranslation();
   // A pending raise shows its sung level even before acceptance.
   const level = view.trucoAwaiting?.level ?? view.acceptedTrucoLevel;
-  const envidoLine = view.envidoAwaiting
-    ? t('truco.stake.envidoPending')
+  const trucoLabel = level === 1
+    ? t('truco.stake.simple', { n: 1 })
+    : t(`truco.call.${level === 2 ? 'truco' : level === 3 ? 'retruco' : 'valeCuatro'}`);
+  const envidoLabel = view.envidoAwaiting
+    ? t(`truco.call.${view.envidoAwaiting.falta ? 'faltaEnvido' : view.envidoAwaiting.realRaised ? 'realEnvido' : 'envido'}`)
     : view.envidoClosed
-      ? t('truco.stake.envidoResolved')
+      ? null
       : null;
 
   return (
@@ -71,14 +75,12 @@ function StakeChip({ view }: { view: TrucoView }) {
         ) : (
           <FlameIcon className="h-3 w-3" />
         )}
-        {level === 1
-          ? t('truco.stake.simple', { n: 1 })
-          : `${t(`truco.call.${level === 2 ? 'truco' : level === 3 ? 'retruco' : 'valeCuatro'}`)} · ${level} ${t('truco.banner.pointsUnit')}`}
+        {trucoLabel}
       </span>
-      {envidoLine ? (
+      {envidoLabel ? (
         <span className="mt-0.5 flex items-center gap-1 rounded-full border border-white/20 bg-black/20 px-2 py-0.5 text-[9px] font-medium text-white/75">
           <CoinsIcon className="h-2.5 w-2.5" />
-          {envidoLine}
+          {envidoLabel}
         </span>
       ) : null}
     </div>
@@ -160,23 +162,36 @@ export function TrucoTable({
   const effectivePaused = paused ?? internalPacing.paused;
   const disabled = isActing || effectivePaused;
 
+  // Compute deck remaining: DECK_40 - dealt cards (6 initial) - played cards
+  const dealtCards = 6; // 3 cards each player initially
+  const playedCards = view.cardsPlayedThisHand;
+  const deckRemaining = Math.max(0, DECK_40.length - dealtCards - playedCards);
+
   return (
     <>
     <div
       data-testid="truco-table"
-      className="mx-auto flex min-h-0 w-full max-w-3xl flex-col gap-2 overflow-x-hidden p-2"
+      className="mx-auto flex min-h-0 w-full max-w-4xl flex-col gap-2 overflow-x-hidden p-1"
     >
-      {/* Table header: round status + current stake + history toggle.
-          Wrapping is allowed so StakeChip and the toggle never collide with
-          the round status on narrow viewports. */}
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-1">
+      {/* Table header: round status + permanent match score + current stake + history toggle.
+          Wrapping is allowed so elements never collide on narrow viewports. */}
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-1 px-0.5">
         <span
           data-testid="truco-round-status"
           className="text-xs font-semibold tabular-nums text-[var(--color-muted-foreground)]"
         >
           {t('truco.round.status', { hand: view.handNumber, baza: view.bazaNumber })}
         </span>
-        <div className="flex min-w-0 shrink items-center gap-2">
+        {/* Permanent match score — always visible, never hidden by modals */}
+        <span
+          data-testid="truco-match-score"
+          className="text-lg font-semibold tabular-nums text-[var(--color-foreground)] whitespace-nowrap"
+        >
+          {mySlot === 'A'
+            ? `${t('truco.you')} ${view.scores.A} \u2014 ${opponentName} ${view.scores.B}`
+            : `${t('truco.you')} ${view.scores.B} \u2014 ${opponentName} ${view.scores.A}`}
+        </span>
+        <div className="flex min-w-0 shrink items-center gap-1">
           <StakeChip view={view} />
           <GameHistory history={view.history} mySlot={mySlot} names={names} />
         </div>
@@ -185,7 +200,7 @@ export function TrucoTable({
       {/* Wood frame around the felt */}
       <div className="truco-wood-frame rounded-2xl p-1.5 shadow-xl sm:p-2">
         {/* Felt playing surface */}
-        <div className="truco-felt-surface relative flex min-w-0 flex-col gap-2 rounded-xl p-2 sm:p-3">
+        <div className="truco-felt-surface relative flex min-w-0 flex-col gap-3 rounded-xl p-2 sm:p-3">
           {/* TOP: rival (ambient glow while the turn is theirs) */}
           <div>
             <RivalZone
@@ -208,6 +223,7 @@ export function TrucoTable({
               names={names}
               history={view.history}
               phase={view.phase}
+              deckRemaining={deckRemaining}
             />
 
             {betPendingMine ? (
@@ -219,6 +235,10 @@ export function TrucoTable({
                 actions={actions}
                 onAction={onAction}
                 disabled={disabled}
+                scores={view.scores}
+                targetPoints={view.targetPoints}
+                mySlot={mySlot}
+                opponentName={opponentName}
               />
             ) : null}
           </div>

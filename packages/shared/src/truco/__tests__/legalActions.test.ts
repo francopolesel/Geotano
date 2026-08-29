@@ -52,16 +52,17 @@ describe('legalActions — per-phase enumeration', () => {
     expect(acts(state, 'B')).toEqual([]);
   });
 
-  it('after the first card: envido family vanishes, truco and remaining cards stay', () => {
+  it('after the first card: envido still available for player to act (pie), truco and remaining cards stay', () => {
     let state = makeState();
     const r = applyAction(state, { type: 'play_card', actor: 'A', card: state.hands.A[0]! }, DEPS());
     if (!r.ok) throw new Error(r.errorCode);
     state = r.state;
+    // B is now playerToAct (pie) — envido window still open until first baza completes
     const list = acts(state, 'B');
     const types = TYPES(list);
-    expect(types).not.toContain('sing_envido');
-    expect(types).not.toContain('sing_real_envido');
-    expect(types).not.toContain('sing_falta_envido');
+    expect(types).toContain('sing_envido');
+    expect(types).toContain('sing_real_envido');
+    expect(types).toContain('sing_falta_envido');
     expect(types).toContain('sing_truco');
     // B answered without playing yet: his full hand of 3 is playable.
     const plays = list.filter((a) => a.type === 'play_card');

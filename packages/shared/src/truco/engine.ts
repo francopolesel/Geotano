@@ -381,10 +381,13 @@ function openEnvido(
   pushCallSung(next, caller, call, events);
 }
 
-/** Envido window: no card played this hand, no accepted truco, betting open. */
+/** Envido window: open until first baza completes (both players played), or truco accepted, or envido settled. */
 function envidoWindowError(state: TrucoState): TrucoErrorCode | null {
   if (state.envidoClosed) return 'E_ENVIDO_BETTING_CLOSED';
-  if (cardsPlayedThisHand(state) > 0 || state.trucoAccepted) return 'E_ENVIDO_WINDOW_CLOSED';
+  if (state.trucoAccepted) return 'E_ENVIDO_WINDOW_CLOSED';
+  // Envido window closes after the first baza is complete (both players have played a card).
+  // cardsPlayedThisHand >= 2 means the first baza has been resolved.
+  if (cardsPlayedThisHand(state) >= 2) return 'E_ENVIDO_WINDOW_CLOSED';
   return null;
 }
 
@@ -412,7 +415,7 @@ function singEnvido(state: TrucoState, action: Extract<TrucoAction, { actor: Pla
     // wait for his own pending bet (explicit answers only).
     if (action.actor !== bet.responder) return rejected('E_AWAITING_OWN_BET', state);
     if (state.envidoClosed) return rejected('E_ENVIDO_BETTING_CLOSED', state);
-    if (cardsPlayedThisHand(state) > 0) return rejected('E_ENVIDO_WINDOW_CLOSED', state);
+    if (cardsPlayedThisHand(state) >= 2) return rejected('E_ENVIDO_WINDOW_CLOSED', state);
     const next = structuredClone(state);
     next.parkedTruco = next.truco;
     next.truco = null;

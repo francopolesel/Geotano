@@ -8,14 +8,14 @@ describe('GAME_TIMING — single source of durations (C1)', () => {
   const HARD_SLOTS = GAME_TIMING.opponentThinking.hard;
 
   it('exposes the exact spec durations', () => {
-    expect(GAME_TIMING.cardDeal).toBe(700);
-    expect(GAME_TIMING.cardPlay).toBe(350);
-    expect(GAME_TIMING.trickReveal).toBe(900);
-    expect(GAME_TIMING.handEnd).toBe(1200);
-    expect(GAME_TIMING.betModal).toBe(220);
-    expect(GAME_TIMING.opponentThinking.easy).toBe(1200);
-    expect(GAME_TIMING.opponentThinking.medium).toBe(900);
-    expect(GAME_TIMING.opponentThinking.hard).toEqual([1100, 1000, 900]);
+    expect(GAME_TIMING.cardDeal).toBe(1000);
+    expect(GAME_TIMING.cardPlay).toBe(500);
+    expect(GAME_TIMING.trickReveal).toBe(1200);
+    expect(GAME_TIMING.handEnd).toBe(1500);
+    expect(GAME_TIMING.betModal).toBe(300);
+    expect(GAME_TIMING.opponentThinking.easy).toBe(1500);
+    expect(GAME_TIMING.opponentThinking.medium).toBe(1200);
+    expect(GAME_TIMING.opponentThinking.hard).toEqual([1400, 1300, 1200]);
   });
 
   it('ordering invariant: easy strictly longer than medium AND every hard slot (C3-H)', () => {
@@ -33,7 +33,7 @@ describe('GAME_TIMING — single source of durations (C1)', () => {
     overrideTiming({ cardDeal: 0 });
     expect(GAME_TIMING.cardDeal).toBe(0);
     // Unpatched keys still carry their spec default.
-    expect(GAME_TIMING.cardPlay).toBe(350);
+    expect(GAME_TIMING.cardPlay).toBe(500);
   });
 
   it('overrideTiming patches the opponentThinking table too', () => {
@@ -45,8 +45,8 @@ describe('GAME_TIMING — single source of durations (C1)', () => {
   it('resetTiming restores the spec defaults after an override', () => {
     overrideTiming({ cardDeal: 0, trickReveal: 11 });
     resetTiming();
-    expect(GAME_TIMING.cardDeal).toBe(700);
-    expect(GAME_TIMING.trickReveal).toBe(900);
+    expect(GAME_TIMING.cardDeal).toBe(1000);
+    expect(GAME_TIMING.trickReveal).toBe(1200);
   });
 
   it('reduceMotion() reports the matchMedia prefers-reduced-motion state', () => {

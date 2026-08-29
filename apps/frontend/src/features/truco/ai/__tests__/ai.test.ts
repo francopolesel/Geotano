@@ -167,10 +167,10 @@ describe('Easy never emits an illegal action', () => {
 
 // ─── Envido window discipline (official rule documentation) ─────────────────
 
-describe('CPU never attempts envido after the first card', () => {
+describe('CPU envido window discipline (envido open until first baza completes)', () => {
   const ENVIDO_SINGS = ['sing_envido', 'sing_real_envido', 'sing_falta_envido'];
 
-  /** Playing-phase window with one card already on the table, bets open. */
+  /** Playing-phase window with one card already on the table (mano played), bets open. */
   function afterFirstCard(hand: CardId[]): CpuDecisionInput {
     return baseInput({
       myHand: [...hand],
@@ -179,12 +179,28 @@ describe('CPU never attempts envido after the first card', () => {
     });
   }
 
-  it('legalActions-derived CPU options contain NO envido sings once cardsPlayedThisHand > 0', () => {
-    // This is the guarantee every difficulty relies on: options are derived
-    // exclusively through shared legalActions, so if envido sings are absent
-    // from the option set the CPU structurally cannot attempt them.
+  /** Playing-phase window with first baza complete (both played), bets open. */
+  function afterFirstBaza(hand: CardId[]): CpuDecisionInput {
+    return baseInput({
+      myHand: [...hand],
+      cardsPlayedThisHand: 2,
+      playedCards: { A: ['4oro'], B: ['5copa'] },
+    });
+  }
+
+  it('legalActions-derived CPU options CONTAIN envido sings after first card (window still open)', () => {
+    // New rule: envido window stays open until first baza completes (2 cards played).
     for (const hand of [JUNK_HAND, ENVIDO_31_HAND, STRONG_ANSWER_HAND]) {
       const options = cpuOptions(afterFirstCard(hand));
+      for (const type of ENVIDO_SINGS) {
+        expect(options.some((a) => a.type === type)).toBe(true);
+      }
+    }
+  });
+
+  it('legalActions-derived CPU options contain NO envido sings after first baza completes', () => {
+    for (const hand of [JUNK_HAND, ENVIDO_31_HAND, STRONG_ANSWER_HAND]) {
+      const options = cpuOptions(afterFirstBaza(hand));
       for (const type of ENVIDO_SINGS) {
         expect(options.some((a) => a.type === type)).toBe(false);
       }
@@ -192,10 +208,25 @@ describe('CPU never attempts envido after the first card', () => {
   });
 
   it.each(['easy', 'medium', 'hard'] as const)(
-    '%s decide() over 500 seeds with cardsPlayed=1 NEVER returns an envido sing',
+    '%s decide() over 500 seeds with cardsPlayed=1 MAY return envido sing (window open)',
     (difficulty) => {
-      // Even a 31-envido hand cannot tempt the CPU into an illegal opening.
+      // With the new rule, envido is legal after first card, so CPU may sing it.
       const input = afterFirstCard(ENVIDO_31_HAND);
+      let envidoCount = 0;
+      for (let seed = 0; seed < 500; seed++) {
+        const action = createAi(difficulty).decide(input, mulberry32(seed));
+        if (ENVIDO_SINGS.includes(action.type)) envidoCount++;
+      }
+      // CPU should sometimes sing envido when it has a strong hand and it's legal.
+      expect(envidoCount).toBeGreaterThan(0);
+    },
+  );
+
+  it.each(['easy', 'medium', 'hard'] as const)(
+    '%s decide() over 500 seeds with cardsPlayed=2 NEVER returns an envido sing',
+    (difficulty) => {
+      // After first baza complete, envido window is closed.
+      const input = afterFirstBaza(ENVIDO_31_HAND);
       for (let seed = 0; seed < 500; seed++) {
         const action = createAi(difficulty).decide(input, mulberry32(seed));
         expect(ENVIDO_SINGS).not.toContain(action.type);
@@ -334,8 +365,8 @@ describe('Easy statistical bounds (spec-pinned)', () => {
     expect(foldRate).toBeGreaterThanOrEqual(0.05);
   });
 
-  it('thinks exactly 1200 ms regardless of hand strength', () => {
-    expect(createAi('easy').thinkDelayMs).toBe(1200);
+  it('thinks exactly 1500 ms regardless of hand strength', () => {
+    expect(createAi('easy').thinkDelayMs).toBe(1500);
   });
 });
 
@@ -386,7 +417,7 @@ describe('Medium behavioral contracts', () => {
 
   it('uses a short fixed think delay (C3: medium < easy)', () => {
     expect(Number.isInteger(createAi('medium').thinkDelayMs)).toBe(true);
-    expect(createAi('medium').thinkDelayMs).toBeLessThan(1200);
+    expect(createAi('medium').thinkDelayMs).toBeLessThan(1500);
   });
 });
 

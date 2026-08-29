@@ -11,6 +11,9 @@ import {
 import { PERSONAS } from '../ai';
 import { TruCpuPage } from '../TruCpuPage';
 
+// Increase test timeout for the full match test (slower timings in Phase 3).
+const MATCH_TIMEOUT = 15000;
+
 function emptyStats(): TruCpuStats {
   return {
     gamesPlayed: 0,
@@ -83,7 +86,7 @@ describe('TruCpuPage — vs CPU assembly', () => {
       const handContinue = screen.queryByTestId('truco-hand-end-continue');
       if (handContinue) {
         fireEvent.click(handContinue);
-        flush(700);
+        flush(1500); // GAME_TIMING.handEnd
         continue;
       }
       // Answer/call buttons first (Easy sometimes initiates a bet).
@@ -97,13 +100,13 @@ describe('TruCpuPage — vs CPU assembly', () => {
         continue;
       }
       // Plain turn: click one of MY face-up cards. An empty hand is a normal
-      // mid-pacing state (my last card played, rival thinking at 1200ms on
+      // mid-pacing state (my last card played, rival thinking at 1500ms on
       // easy) — flush past it rather than crash.
       const myCard = myZone
         .queryAllByTestId(/^playing-card-/)
         .find((el) => !el.getAttribute('data-testid')!.includes('back'));
       if (myCard) fireEvent.click(myCard);
-      flush(1300);
+      flush(1600);
       // Baza lanes (UI v2): per-lane winner badges carry the baza-marker-*
       // ids directly (the old single baza-markers pip row is gone).
       resolvedBazas =
@@ -115,14 +118,14 @@ describe('TruCpuPage — vs CPU assembly', () => {
   it('finishes a seeded match: EndScreen appears and stats record exactly once', () => {
     renderPage();
 
-    for (let turn = 0; turn < 2000; turn++) {
+    for (let turn = 0; turn < 3000; turn++) {
       if (screen.queryByTestId('truco-end-title')) break;
       // Release the event-derived hand-end pause (pure-UI Continue) so the
       // already-dealt next hand can proceed to the end screen.
       const handContinue = screen.queryByTestId('truco-hand-end-continue');
       if (handContinue) {
         fireEvent.click(handContinue);
-        flush(700);
+        flush(1500); // GAME_TIMING.handEnd
         continue;
       }
       const actionButtons = document.querySelectorAll(
@@ -147,11 +150,11 @@ describe('TruCpuPage — vs CPU assembly', () => {
       if (myCard) {
         fireEvent.click(myCard);
       }
-      // Easy's think delay is 1200ms (GAME_TIMING.opponentThinking): a single
+      // Easy's think delay is 1500ms (GAME_TIMING.opponentThinking): a single
       // short flush after my last card leaves my hand empty until the CPU
       // responds and the next hand is dealt. Flush past that delay so the
       // match keeps advancing through every hand to the end screen.
-      flush(1300);
+      flush(1600);
     }
     expect(screen.getByTestId('truco-end-title')).toBeDefined();
     expect(screen.getByTestId('truco-end-scores')).toBeDefined();
@@ -167,5 +170,5 @@ describe('TruCpuPage — vs CPU assembly', () => {
     expect(screen.queryByTestId('truco-end-title')).toBeNull();
     expect(screen.getByTestId('truco-table-zone')).toBeDefined();
     expect(useTruCpuStatsStore.getState().stats.gamesPlayed).toBe(1);
-  });
+  }, MATCH_TIMEOUT);
 });

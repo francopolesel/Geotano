@@ -47,9 +47,9 @@ describe('Modal — role, focus, escape policy', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('variant=small uses max-w-sm; large uses max-w-lg', () => {
+  it('variant=small uses max-w-md; large uses max-w-lg', () => {
     renderModal({ open: true, variant: 'small' });
-    expect(screen.getByRole('dialog').className).toContain('max-w-sm');
+    expect(screen.getByRole('dialog').className).toContain('max-w-md');
 
     cleanup();
     renderModal({ open: true, variant: 'large' });

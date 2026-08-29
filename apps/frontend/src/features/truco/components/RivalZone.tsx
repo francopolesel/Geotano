@@ -33,7 +33,7 @@ export function RivalZone({
     <div
       data-testid="truco-rival-zone"
       className={[
-        'flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 transition-shadow',
+        'flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-1.5 transition-shadow',
         isTurn
           ? 'border-emerald-400/60 bg-[var(--color-card)] truco-turn-glow'
           : 'border-[var(--color-border)] bg-[var(--color-card)]',
@@ -44,7 +44,7 @@ export function RivalZone({
             deterministic monogram initial (multiplayer nicknames). */}
         <div
           data-testid="truco-rival-avatar"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-bold text-white"
         >
           {avatar ?? name.slice(0, 1).toUpperCase()}
         </div>

@@ -6,14 +6,17 @@ import type { ReactNode } from 'react';
  * Shared modal primitive (spec E1/E3, a11y I2).
  *
  * - Rendered through `createPortal` to `document.body` with a `fixed inset-0
- *   z-50` overlay so it covers the entire table regardless of stacking.
+ *   z-[60]` overlay so it covers the entire table regardless of stacking.
  * - `role='dialog'` (default) or `role='alertdialog'` per surface.
  * - Focus is trapped while open: Tab cycles within the dialog and focus is
  *   returned to the previously-focused element on close.
  * - Escape only closes when `escapeClose` is true. For bet modals it stays
  *   false so pressing Escape can NEVER produce an illegal implicit answer.
- * - `variant='small'` (max-w-sm) vs `'large'` (max-w-lg); interactive buttons
+ * - `variant='small'` (max-w-md) vs `'large'` (max-w-lg); interactive buttons
  *   keep a ≥44px min target so the modifier is honored on mobile.
+ * - True viewport centering: `fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2`
+ * - Max height constrained to viewport: `max-h-[90vh] overflow-y-auto`
+ * - Stronger backdrop: `bg-black/60 backdrop-blur-sm`
  */
 
 export interface ModalProps {
@@ -125,15 +128,15 @@ export function Modal({
   return createPortal(
     <div
       data-testid="modal-root"
-      className="fixed inset-0 z-50 flex items-center justify-center p-2"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-2"
       onKeyDown={handleKeyDown}
     >
-      {/* Backdrop: closes only when an explicit onClose release exists. */}
+      {/* Backdrop: stronger overlay with blur, closes only when an explicit onClose release exists. */}
       <div
         data-testid="modal-backdrop"
         aria-hidden
         onClick={onClose ? () => onClose() : undefined}
-        className="absolute inset-0 h-full w-full bg-black/50"
+        className="absolute inset-0 h-full w-full bg-black/60 backdrop-blur-sm"
       />
       <div
         ref={dialogRef}
@@ -142,18 +145,20 @@ export function Modal({
         aria-modal="true"
         data-testid="modal-panel"
         className={[
-          'relative flex w-full min-w-0 flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-2xl',
+          'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full min-w-0 max-h-[90vh] overflow-y-auto flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-2xl',
           'animate-truco-bet-in',
-          variant === 'small' ? 'max-w-sm' : 'max-w-lg',
+          variant === 'small' ? 'max-w-md' : 'max-w-lg',
         ].join(' ')}
       >
         <p
           data-testid="modal-title"
-          className="text-center text-xl font-black uppercase tracking-wide text-[var(--color-foreground)]"
+          className="text-center text-xl font-black uppercase tracking-wide text-[var(--color-foreground)] flex-shrink-0"
         >
           {title}
         </p>
-        {children}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {children}
+        </div>
       </div>
     </div>,
     document.body,
